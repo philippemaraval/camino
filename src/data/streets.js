@@ -1,3 +1,33 @@
+export const FAMOUS_STREET_NAMES = new Set([
+  'la canebière',
+  'rue de la république',
+  'rue saint-ferréol',
+  'rue paradis',
+  'rue de rome',
+  'cours julien',
+  'cours lieutaud',
+  'avenue du prado',
+  'boulevard michelet',
+  'place castellane',
+  'place jean jaurès',
+  'quai du port',
+  'rue d\'aubagne',
+  'rue sainte',
+  'place aux huiles',
+  'rue des catalans',
+  'corniche du président john fitzgerald kennedy',
+  'boulevard longchamp',
+  'place de la joliette',
+  'rue colbert',
+  'rue grignan',
+  'cours belsunce',
+  'place notre-dame-du-mont',
+  'quai des belges',
+  'boulevard chave',
+  'cours saint-louis',
+  'place jules guesde'
+]);
+
 export const MAIN_STREET_NAMES = new Set([
   'rue de la république',
   'la canebière',
