@@ -1,7 +1,7 @@
 import { ARRONDISSEMENT_PAR_QUARTIER } from './data/arrondissements.js';
 import { SESSION_SIZE, MAX_ERRORS_MARATHON, MAX_TIME_SECONDS, CHRONO_DURATION, HIGHLIGHT_DURATION_MS, MAX_POINTS_PER_ITEM } from './data/constants.js';
 import { MONUMENT_NAMES_NORMALIZED } from './data/monuments.js';
-import { MAIN_STREET_NAMES, MAIN_STREET_INFOS } from './data/streets.js';
+import { FAMOUS_STREET_NAMES, MAIN_STREET_NAMES, MAIN_STREET_INFOS } from './data/streets.js';
 import { computeItemPoints } from './scoring/points.js';
 import { showMessage } from './ui/messages.js';
 import { setMapStatus } from './ui/status.js';
@@ -14,7 +14,7 @@ import { normalizeName, normalizeQuartierKey } from './utils/normalize.js';
 let map = null;
 
 // Zones
-let currentZoneMode = 'ville';      // 'ville' | 'quartier' | 'rues-principales' | 'monuments'
+let currentZoneMode = 'ville';      // 'ville' | 'quartier' | 'rues-celebres' | 'rues-principales' | 'monuments'
 
 // Données et couches rues
 let streetsLayer = null;
@@ -112,7 +112,10 @@ function updateModeDifficultyPill() {
     'difficulty-pill--hard'
   );
 
-  if (value === 'rues-principales') {
+  if (value === 'rues-celebres') {
+    pill.textContent = 'Très facile';
+    pill.classList.add('difficulty-pill--easy');
+  } else if (value === 'rues-principales') {
     pill.textContent = 'Facile';
     pill.classList.add('difficulty-pill--easy');
   } else if (value === 'quartier' || value === 'monuments') {
@@ -753,6 +756,13 @@ function getBaseStreetStyleFromName(name) {
     }
   }
 
+  if (zoneMode === 'rues-celebres') {
+    if (!FAMOUS_STREET_NAMES.has(nameNorm)) {
+      color = '#00000000';
+      weight = 0;
+    }
+  }
+
   return { color, weight };
 }
 
@@ -853,11 +863,15 @@ function loadStreets() {
           layer.on('mouseover', () => {
             const zoneMode = getZoneMode();
             const isMain = MAIN_STREET_NAMES.has(nameNorm);
+            const isFamous = FAMOUS_STREET_NAMES.has(nameNorm);
             const selectedQuartier = getSelectedQuartier();
             const fq = feature.properties.quartier || null;
 
             // Rues secondaires ignorées en mode "rues principales"
             if ((zoneMode === 'rues-principales' || zoneMode === 'main') && !isMain) {
+              return;
+            }
+            if (zoneMode === 'rues-celebres' && !isFamous) {
               return;
             }
 
@@ -880,10 +894,14 @@ function loadStreets() {
           layer.on('mouseout', () => {
             const zoneMode = getZoneMode();
             const isMain = MAIN_STREET_NAMES.has(nameNorm);
+            const isFamous = FAMOUS_STREET_NAMES.has(nameNorm);
             const selectedQuartier = getSelectedQuartier();
             const fq = feature.properties.quartier || null;
 
             if ((zoneMode === 'rues-principales' || zoneMode === 'main') && !isMain) {
+              return;
+            }
+            if (zoneMode === 'rues-celebres' && !isFamous) {
               return;
             }
             if (zoneMode === 'quartier' && selectedQuartier && fq !== selectedQuartier) {
@@ -1678,6 +1696,13 @@ function getCurrentZoneStreets() {
     });
   }
 
+  if (zoneMode === 'rues-celebres') {
+    return allStreetFeatures.filter(f => {
+      const nm = normalizeName(f.properties && f.properties.name);
+      return FAMOUS_STREET_NAMES.has(nm);
+    });
+  }
+
   return allStreetFeatures;
 }
 
@@ -1953,6 +1978,12 @@ function handleStreetClick(clickedFeature) {
   if (zoneMode === 'rues-principales' || zoneMode === 'main') {
     const nameNorm = normalizeName(clickedFeature.properties.name);
     if (!MAIN_STREET_NAMES.has(nameNorm)) {
+      return;
+    }
+  }
+  if (zoneMode === 'rues-celebres') {
+    const nameNorm = normalizeName(clickedFeature.properties.name);
+    if (!FAMOUS_STREET_NAMES.has(nameNorm)) {
       return;
     }
   }

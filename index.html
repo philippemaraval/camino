@@ -76,6 +76,11 @@
 
               <!-- Liste déroulante -->
               <ul id="mode-select-list" class="custom-select-list">
+                <li data-value="rues-celebres">
+                  Rues célèbres
+                  <span class="difficulty-pill difficulty-pill--easy">Très facile</span>
+                </li>
+
                 <li data-value="rues-principales">
                   Rues principales
                   <span class="difficulty-pill difficulty-pill--easy">Facile</span>
@@ -101,6 +106,7 @@
 
           <!-- Vrai select caché, piloté par le custom select, utilisé par le JS -->
           <select id="mode-select" class="hidden">
+            <option value="rues-celebres">Rues célèbres</option>
             <option value="rues-principales" selected>Rues principales</option>
             <option value="quartier">Par quartier</option>
             <option value="ville">Ville entière</option>
