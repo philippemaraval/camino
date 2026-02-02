@@ -457,6 +457,7 @@ document.addEventListener("click", (e) => {
   supabase = initSupabaseClient();
   if (supabase) {
     syncSupabaseSession();
+    void loadPublicStats();
   }
 
   if (restartBtn) {
@@ -3160,6 +3161,99 @@ async function finalizeServerSession() {
     return null;
   } finally {
     serverSession = null;
+    void loadPublicStats();
+  }
+}
+
+// ------------------------
+// API: stats publiques
+// ------------------------
+
+async function loadPublicStats() {
+  const totalPlayersEl = document.getElementById('stats-total-players');
+  const totalSessionsEl = document.getElementById('stats-total-sessions');
+  const breakdownEl = document.getElementById('stats-breakdown');
+
+  if (!totalPlayersEl || !totalSessionsEl || !breakdownEl) return;
+
+  if (!supabase) {
+    totalPlayersEl.textContent = '—';
+    totalSessionsEl.textContent = '—';
+    breakdownEl.textContent = 'Stats indisponibles (Supabase non configuré).';
+    return;
+  }
+
+  totalPlayersEl.textContent = '...';
+  totalSessionsEl.textContent = '...';
+  breakdownEl.innerHTML = '<div class="stats-breakdown-loading">Chargement des stats...</div>';
+
+  try {
+    const [playersRes, globalRes, zoneRes] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true }),
+      supabase
+        .from('stats_global')
+        .select('sessions_count')
+        .eq('id', 1)
+        .single(),
+      supabase
+        .from('stats_zone_mode')
+        .select('zone, mode, sessions_count')
+        .order('sessions_count', { ascending: false })
+    ]);
+
+    if (playersRes.error) throw playersRes.error;
+    if (globalRes.error) throw globalRes.error;
+    if (zoneRes.error) throw zoneRes.error;
+
+    const playersCount = playersRes.count ?? 0;
+    const sessionsCount = globalRes.data?.sessions_count ?? 0;
+
+    totalPlayersEl.textContent = playersCount.toLocaleString('fr-FR');
+    totalSessionsEl.textContent = sessionsCount.toLocaleString('fr-FR');
+
+    breakdownEl.innerHTML = '';
+
+    const title = document.createElement('div');
+    title.className = 'stats-breakdown-title';
+    title.textContent = 'Par zone / mode';
+    breakdownEl.appendChild(title);
+
+    const entries = zoneRes.data || [];
+    if (!entries.length) {
+      const empty = document.createElement('div');
+      empty.className = 'stats-breakdown-empty';
+      empty.textContent = 'Aucune session enregistrée.';
+      breakdownEl.appendChild(empty);
+      return;
+    }
+
+    const list = document.createElement('ul');
+    list.className = 'stats-breakdown-list';
+
+    entries.forEach(entry => {
+      const item = document.createElement('li');
+      item.className = 'stats-breakdown-item';
+
+      const label = document.createElement('span');
+      label.textContent = `${entry.zone} × ${entry.mode}`;
+
+      const count = document.createElement('span');
+      count.className = 'stats-breakdown-count';
+      count.textContent = (entry.sessions_count ?? 0).toLocaleString('fr-FR');
+
+      item.appendChild(label);
+      item.appendChild(count);
+      list.appendChild(item);
+    });
+
+    breakdownEl.appendChild(list);
+  } catch (err) {
+    console.warn('Erreur stats publiques :', err);
+    totalPlayersEl.textContent = '—';
+    totalSessionsEl.textContent = '—';
+    breakdownEl.textContent = 'Erreur lors du chargement des stats.';
   }
 }
 
