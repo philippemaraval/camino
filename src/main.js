@@ -81,6 +81,8 @@ let isLectureMode = false;
 
 let hasAnsweredCurrentItem = false;
 
+let dailyState = null;
+
 
 // ------------------------
 // Détection appareil tactile / mobile
@@ -141,8 +143,9 @@ function updateTargetPanelTitle() {
   if (!titleEl) return;
 
   const zoneMode = getZoneMode();
-
-  if (zoneMode === 'monuments') {
+  if (isDailyMode()) {
+    titleEl.textContent = 'Daily';
+  } else if (zoneMode === 'monuments') {
     titleEl.textContent = 'Monument à trouver';
   } else {
     // ville entière, par quartier, rues principales (et tout mode non-monuments)
@@ -155,6 +158,10 @@ function getGameMode() {
   return select ? select.value : 'classique';
 }
 
+function isDailyMode() {
+  return getGameMode() === 'daily';
+}
+
 function updateGameModeControls() {
   const gameModeSelect = document.getElementById('game-mode-select');
   const restartBtn = document.getElementById('restart-btn');
@@ -162,7 +169,7 @@ function updateGameModeControls() {
 
   if (!gameModeSelect || !restartBtn || !pauseBtn) return;
 
-  if (gameModeSelect.value === 'lecture') {
+  if (gameModeSelect.value === 'lecture' || gameModeSelect.value === 'daily') {
     // Mode lecture : pas de contrôle de session
     restartBtn.style.display = 'none';
     pauseBtn.style.display = 'none';
@@ -188,6 +195,41 @@ function updateStreetInfoPanelVisibility() {
     infoEl.textContent = '';
     infoEl.classList.remove('is-visible');
   }
+}
+
+function updateDailyPanelState() {
+  const panel = document.getElementById('daily-panel');
+  const statusEl = document.getElementById('daily-status');
+  const attemptsEl = document.getElementById('daily-attempts');
+  const resultEl = document.getElementById('daily-result');
+  const leaderboardPanel = document.getElementById('daily-leaderboard-panel');
+  const leaderboard = document.getElementById('daily-leaderboard');
+  const standardLeaderboardPanel = document.getElementById('leaderboard-panel');
+  if (!panel || !statusEl || !attemptsEl || !resultEl) return;
+
+  const active = isDailyMode();
+  panel.classList.toggle('hidden', !active);
+  if (leaderboardPanel) {
+    leaderboardPanel.style.display = active ? '' : 'none';
+  }
+  if (standardLeaderboardPanel) {
+    standardLeaderboardPanel.style.display = active ? 'none' : '';
+  }
+  if (!active) return;
+
+  if (!currentUser?.token) {
+    statusEl.textContent = 'Connectez-vous pour jouer.';
+    attemptsEl.textContent = 'Tentatives restantes : —';
+    resultEl.textContent = '';
+    if (leaderboard) leaderboard.innerHTML = '<p>Connectez-vous pour voir le leaderboard.</p>';
+    return;
+  }
+
+  statusEl.textContent = 'Chargement du daily...';
+  attemptsEl.textContent = 'Tentatives restantes : —';
+  resultEl.textContent = '';
+  void loadDailyStatus();
+  void loadDailyLeaderboard();
 }
 
 // ------------------------
@@ -336,6 +378,14 @@ modeList.querySelectorAll("li").forEach(item => {
 
         // Met à jour la visibilité des boutons selon le mode
         updateGameModeControls();
+        updateTargetPanelTitle();
+        if (value === 'daily') {
+          const modeSelect = document.getElementById('mode-select');
+          if (modeSelect) {
+            modeSelect.value = 'ville';
+            modeSelect.dispatchEvent(new Event('change'));
+          }
+        }
         loadLeaderboardForCurrentSelection();
 
         // Toujours : rembobiner la liste + fermer
@@ -345,6 +395,8 @@ modeList.querySelectorAll("li").forEach(item => {
         // Lecture : lancer APRÈS fermeture/layout stable
         if (value === 'lecture') {
           requestAnimationFrame(() => startNewSession());   // <<< MODIF MINIMALE
+        } else if (value === 'daily') {
+          requestAnimationFrame(() => startNewSession());
         }
       });
     });
@@ -352,6 +404,14 @@ modeList.querySelectorAll("li").forEach(item => {
   if (gameModeSelect) {
     gameModeSelect.addEventListener('change', () => {
       updateGameModeControls();
+      updateTargetPanelTitle();
+      if (isDailyMode()) {
+        const modeSelect = document.getElementById('mode-select');
+        if (modeSelect) {
+          modeSelect.value = 'ville';
+          modeSelect.dispatchEvent(new Event('change'));
+        }
+      }
       loadLeaderboardForCurrentSelection();
     });
   }
@@ -432,6 +492,11 @@ document.addEventListener("click", (e) => {
     modeSelect.addEventListener('change', () => {
       currentZoneMode = modeSelect.value;
       const zoneMode = currentZoneMode;
+      if (isDailyMode() && zoneMode !== 'ville') {
+        currentZoneMode = 'ville';
+        modeSelect.value = 'ville';
+        showMessage('Le mode Daily est limité à la ville entière.', 'info');
+      }
       updateTargetPanelTitle();
       updateModeDifficultyPill();
 
@@ -449,7 +514,7 @@ document.addEventListener("click", (e) => {
       }
 
       // Quartier UI
-      if (zoneMode === 'quartier') {
+      if (zoneMode === 'quartier' && !isDailyMode()) {
         quartierBlock.style.display = 'block';
         if (quartierSelect && quartierSelect.value) {
           highlightQuartier(quartierSelect.value);
@@ -813,6 +878,10 @@ function getBaseStreetStyle(featureOrLayer) {
   }
 
   return base;
+}
+
+function getClickInputType() {
+  return IS_TOUCH_DEVICE ? 'touch' : 'click';
 }
 
 function addTouchBufferForLayer(baseLayer) {
@@ -1464,6 +1533,9 @@ function exitLectureModeToMenu() {
   }
   updateTimeUI(0, 0);
 
+  const dailyResultEl = document.getElementById('daily-result');
+  if (dailyResultEl) dailyResultEl.textContent = '';
+
   updateStartStopButton();
   updatePauseButton();
   updateGameModeControls();
@@ -1587,6 +1659,48 @@ async function startNewSession() {
     setLectureTooltipsEnabled(true);
 
     showMessage('Mode lecture : survolez les rues ou monuments pour voir leurs noms.', 'info');
+    return;
+  }
+
+  // --------- MODE DAILY ---------
+  if (gameMode === 'daily') {
+    isLectureMode = false;
+    isMonumentsMode = false;
+    isSessionRunning = false;
+    sessionStartTime = null;
+    streetStartTime = null;
+    currentTarget = null;
+    currentMonumentTarget = null;
+
+    if (monumentsLayer && map.hasLayer(monumentsLayer)) {
+      map.removeLayer(monumentsLayer);
+    }
+    if (streetsLayer && !map.hasLayer(streetsLayer)) {
+      streetsLayer.addTo(map);
+    }
+    clearQuartierOverlay();
+
+    updateLayoutSessionState();
+    updateStartStopButton();
+    updatePauseButton();
+    updateTimeUI(0, 0);
+
+    const skipBtn = document.getElementById('skip-btn');
+    if (skipBtn) skipBtn.style.display = 'none';
+    const pauseBtn = document.getElementById('pause-btn');
+    if (pauseBtn) {
+      pauseBtn.disabled = true;
+      pauseBtn.textContent = 'Pause';
+    }
+
+    const targetEl = document.getElementById('target-street');
+    if (targetEl) {
+      targetEl.textContent = 'Daily : trouvez la rue du jour.';
+      requestAnimationFrame(fitTargetStreetText);
+    }
+
+    updateDailyPanelState();
+    showMessage('Daily activé. Cliquez sur la rue du jour.', 'info');
     return;
   }
 
@@ -1875,7 +1989,7 @@ function updateStartStopButton() {
   const gameMode = getGameMode();
 
   // En mode lecture : bouton totalement caché
-  if (gameMode === 'lecture') {
+  if (gameMode === 'lecture' || gameMode === 'daily') {
     btn.style.display = 'none';
     return;
   } else {
@@ -2024,6 +2138,10 @@ async function handleStreetClick(clickedFeature, event) {
   const zoneMode = getZoneMode();
 
   if (zoneMode === 'monuments') return;
+  if (isDailyMode()) {
+    await handleDailyAttempt(event);
+    return;
+  }
 
   // En mode "rues principales" : on ignore les rues non principales
   if (zoneMode === 'rues-principales' || zoneMode === 'main') {
@@ -2063,7 +2181,7 @@ async function handleStreetClick(clickedFeature, event) {
   try {
     response = await submitSessionEvent({
       targetId: clickedName,
-      inputType: IS_TOUCH_DEVICE ? 'touch' : 'click',
+      inputType: getClickInputType(),
       latlng: event?.latlng
     });
   } catch (err) {
@@ -2158,7 +2276,7 @@ const correctLayer = findMonumentLayerByName(
   try {
     response = await submitSessionEvent({
       targetId: clickedName,
-      inputType: IS_TOUCH_DEVICE ? 'touch' : 'click',
+      inputType: getClickInputType(),
       latlng: event?.latlng
     });
   } catch (err) {
@@ -2233,6 +2351,65 @@ function highlightMonument(layer, color) {
     if (!layer.setStyle) return;
     layer.setStyle({ color: '#1565c0', fillColor: '#2196f3' });
   }, HIGHLIGHT_DURATION_MS);
+}
+
+async function handleDailyAttempt(event) {
+  if (isSubmittingAttempt) return;
+  if (!currentUser?.token) {
+    showMessage('Connectez-vous pour jouer au Daily.', 'error');
+    return;
+  }
+  if (!event?.latlng) {
+    return;
+  }
+
+  isSubmittingAttempt = true;
+  let response;
+  try {
+    response = await callSessionFunction('daily-attempt', {
+      click_lat: event.latlng.lat,
+      click_lng: event.latlng.lng,
+      input_type: getClickInputType()
+    });
+  } catch (err) {
+    showMessage('Erreur réseau : daily indisponible.', 'error');
+    isSubmittingAttempt = false;
+    return;
+  }
+  isSubmittingAttempt = false;
+
+  if (!response.playable) {
+    showMessage(response.message || 'Cliquez dans la zone jouable.', 'info');
+    return;
+  }
+
+  dailyState = {
+    attemptsUsed: response.attempts_used ?? dailyState?.attemptsUsed ?? 0,
+    attemptsLeft: response.attempts_left ?? dailyState?.attemptsLeft ?? 0,
+    solved: response.solved ?? false,
+    solvedAt: response.solved_at ?? dailyState?.solvedAt ?? null
+  };
+
+  const attemptsEl = document.getElementById('daily-attempts');
+  if (attemptsEl) {
+    attemptsEl.textContent = `Tentatives restantes : ${dailyState.attemptsLeft}`;
+  }
+
+  const resultEl = document.getElementById('daily-result');
+  if (response.solved) {
+    if (resultEl) resultEl.textContent = 'Bravo ! Rue trouvée.';
+    showMessage('Bravo ! Daily réussi.', 'success');
+  } else {
+    const distance = response.distance_meters;
+    if (resultEl) {
+      resultEl.textContent = `Distance : ${distance} m`;
+    }
+    showMessage(`Pas encore ! Distance : ${distance} m`, 'error');
+  }
+
+  if (response.solved || response.attempts_left === 0) {
+    void loadDailyLeaderboard();
+  }
 }
 
 async function handleSkipAttempt() {
@@ -2882,6 +3059,10 @@ function updateUserUI() {
     label.textContent = 'Non connecté.';
     if (logoutBtn) logoutBtn.style.display = 'none';
   }
+
+  if (isDailyMode()) {
+    updateDailyPanelState();
+  }
 }
 
 // ------------------------
@@ -2987,9 +3168,14 @@ async function finalizeServerSession() {
 // ------------------------
 
 function loadLeaderboardForCurrentSelection() {
-  const zoneMode = getZoneMode();
   const gameMode = getGameMode();
-  if (!zoneMode || !gameMode) return;
+  if (!gameMode) return;
+  if (gameMode === 'daily') {
+    updateDailyPanelState();
+    return;
+  }
+  const zoneMode = getZoneMode();
+  if (!zoneMode) return;
   loadLeaderboard(zoneMode, gameMode);
 }
 
@@ -3050,6 +3236,106 @@ async function loadLeaderboard(zoneMode, gameMode) {
     el.appendChild(table);
   } catch (err) {
     console.error('Erreur leaderboard :', err);
+    el.innerHTML = '<p>Erreur lors du chargement du leaderboard.</p>';
+  }
+}
+
+async function loadDailyStatus() {
+  const statusEl = document.getElementById('daily-status');
+  const attemptsEl = document.getElementById('daily-attempts');
+  const resultEl = document.getElementById('daily-result');
+  if (!statusEl || !attemptsEl || !resultEl) return;
+
+  if (!currentUser?.token) {
+    statusEl.textContent = 'Connectez-vous pour jouer.';
+    attemptsEl.textContent = 'Tentatives restantes : —';
+    resultEl.textContent = '';
+    return;
+  }
+
+  try {
+    const response = await fetch('/.netlify/functions/daily-status', {
+      headers: {
+        ...getAuthHeaders()
+      }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = data?.error || 'Daily indisponible.';
+      statusEl.textContent = message;
+      return;
+    }
+
+    const used = data.attempts_used ?? 0;
+    const maxAttempts = data.max_attempts ?? 5;
+    dailyState = {
+      date: data.date,
+      attemptsUsed: used,
+      attemptsLeft: Math.max(0, maxAttempts - used),
+      solved: data.solved ?? false,
+      solvedAt: data.solved_at ?? null
+    };
+
+    statusEl.textContent = dailyState.solved
+      ? 'Daily terminé.'
+      : 'Daily du jour : trouvez la rue.';
+    attemptsEl.textContent = `Tentatives restantes : ${dailyState.attemptsLeft}`;
+    resultEl.textContent = dailyState.solved
+      ? 'Bravo ! Rue trouvée.'
+      : '';
+  } catch (err) {
+    statusEl.textContent = 'Erreur réseau (daily).';
+  }
+}
+
+async function loadDailyLeaderboard() {
+  const el = document.getElementById('daily-leaderboard');
+  if (!el) return;
+
+  el.innerHTML = '<p>Chargement du daily...</p>';
+
+  try {
+    const res = await fetch('/.netlify/functions/daily-leaderboard');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      el.innerHTML = '<p>Erreur lors du chargement du leaderboard.</p>';
+      return;
+    }
+
+    const entries = data.entries || [];
+    if (!entries.length) {
+      el.innerHTML = '<p>Aucun score pour ce daily.</p>';
+      return;
+    }
+
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    thead.innerHTML = '<tr><th>#</th><th>Joueur</th><th>Essais</th><th>Résultat</th></tr>';
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    let rank = 1;
+    let lastKey = null;
+    entries.forEach((entry, index) => {
+      const key = `${entry.solved ? 1 : 0}-${entry.attempts_used ?? 0}-${entry.solved_at ?? ''}`;
+      if (lastKey && key !== lastKey) {
+        rank = index + 1;
+      }
+      lastKey = key;
+
+      const tr = document.createElement('tr');
+      const username = entry.username || 'Anonyme';
+      const attempts = entry.attempts_used ?? '-';
+      const result = entry.solved ? 'Réussi' : 'En cours';
+
+      tr.innerHTML = `<td>${rank}</td><td>${username}</td><td>${attempts}</td><td>${result}</td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    el.innerHTML = '';
+    el.appendChild(table);
+  } catch (err) {
     el.innerHTML = '<p>Erreur lors du chargement du leaderboard.</p>';
   }
 }

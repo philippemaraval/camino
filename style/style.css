@@ -1517,6 +1517,27 @@ select {
   font-size: var(--fs-s);
 }
 
+/* ---------- DAILY ---------- */
+
+.daily-panel {
+  font-size: var(--fs-m);
+}
+
+.daily-panel .daily-status,
+.daily-panel .daily-attempts,
+.daily-panel .daily-result {
+  margin-bottom: 6px;
+}
+
+.daily-panel .daily-result {
+  font-weight: 600;
+}
+
+.gamepill--daily {
+  background: #1f6feb;
+  color: #fff;
+}
+
 /* ---------- TOOLTIPS ---------- */
 
 .leaflet-tooltip.street-tooltip,
@@ -1857,4 +1878,3 @@ select {
 .stats-column--score .weighted-score-container {
   min-width: 0;
 }
-
