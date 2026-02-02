@@ -1,0 +1,1860 @@
+/* ========== LAYOUT GLOBAL ========== */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #f4f4f4;
+  color: #222;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+/* ========== CARTE ========== */
+#map {
+  flex: 1 1 auto;
+}
+
+/* ========== SIDEBAR ========== */
+#sidebar {
+  width: 340px;
+  background-color: #f4f4f4;
+  padding: 12px;
+  box-sizing: border-box;
+  border-right: 1px solid #d0d0d0;
+  overflow-y: auto;
+}
+
+/* ========== PANNEAUX ========== */
+.panel {
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #d7d7d7;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.header-panel {
+  background: #ffffff;
+}
+
+.header-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.header-main {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== TITRES ========== */
+.header-title {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 4px 0;
+}
+
+.header-subtitle {
+  font-size: 13px;
+  margin: 0;
+  color: #555;
+}
+
+.panel-title {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+/* ========== BLOCS D'INFO ========== */
+.info-block {
+  margin-bottom: 8px;
+}
+
+.info-block:last-child {
+  margin-bottom: 0;
+}
+
+.info-block label,
+.info-label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 2px;
+  color: #444;
+}
+
+.info-value {
+  font-size: 14px;
+}
+
+/* ========== INPUTS ========== */
+select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+/* ========== BOUTONS ========== */
+.btn-primary,
+.btn-stop,
+.btn-skip,
+.btn-secondary {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Bouton principal (start) */
+.btn-primary {
+  background-color: #0b4f6c;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background-color: #096089;
+}
+
+/* Bouton stop (session en cours) */
+.btn-stop {
+  background-color: #c62828;
+  color: #fff;
+}
+
+.btn-stop:hover {
+  background-color: #b71c1c;
+}
+
+/* Bouton "Passer" */
+.btn-skip {
+  background-color: #eeeeee;
+  color: #333;
+  border: 1px solid #cccccc;
+}
+
+.btn-skip:hover {
+  background-color: #e0e0e0;
+}
+
+/* ========== RUE CIBLE ========== */
+.target-panel {
+  background: #eef7ff;
+  border-color: #c3ddff;
+}
+
+.target-name {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0b4f6c;
+  margin-top: 6px;
+  word-wrap: break-word;
+}
+
+/* Animation pulse pour la rue à trouver */
+.target-panel.pulse {
+  animation: target-pulse 0.3s ease-out;
+}
+
+@keyframes target-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(11,79,108,0);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 12px rgba(11,79,108,0.4);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(11,79,108,0);
+  }
+}
+
+/* ========== CHRONOS ========== */
+.timers-panel {
+  padding-bottom: 10px;
+}
+
+.timers-row {
+  display: flex;
+  gap: 8px;
+}
+
+.timer-block {
+  flex: 1 1 0;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #dde3ea;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+
+.timer-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.timer-value {
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: #222;
+}
+
+/* ========== SCORE ========== */
+.score-panel {
+  padding-bottom: 10px;
+}
+
+.score-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.score-block .info-label {
+  margin-bottom: 0;
+}
+
+.score-pill {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+
+/* Neutre */
+.score-pill--neutral {
+  background: #eeeeee;
+  border-color: #d0d0d0;
+  color: #333;
+}
+
+/* Bon score (>50%) */
+.score-pill--good {
+  background: #e6f7ea;
+  border-color: #2e7d32;
+  color: #1b5e20;
+}
+
+/* Score moyen/faible (<=50% et >0) */
+.score-pill--warn {
+  background: #fff4e5;
+  border-color: #ff9800;
+  color: #e65100;
+}
+
+.weighted-score {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ========== INFOS RUE PRINCIPALE ========== */
+.street-info {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ========== MESSAGES ========== */
+.message {
+  min-height: 22px;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border: 1px solid transparent;
+  color: #333;
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.message--visible {
+  opacity: 1;
+}
+
+/* Message succès */
+.message--success {
+  background: #e6f7ea;
+  border-color: #2e7d32;
+  color: #1b5e20;
+}
+
+/* Message erreur */
+.message--error {
+  background: #ffebee;
+  border-color: #c62828;
+  color: #b71c1c;
+}
+
+/* Message info */
+.message--info {
+  background: #e3f2fd;
+  border-color: #1565c0;
+  color: #0d47a1;
+}
+
+/* ========== RÉCAPITULATIF ========== */
+.summary.hidden {
+  display: none;
+}
+
+.summary {
+  font-size: 13px;
+}
+
+.summary h2 {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: 15px;
+  margin: 4px 0 6px 0;
+}
+
+.summary h3 {
+  font-size: 13px;
+  margin: 8px 0 4px 0;
+}
+
+.summary ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.summary li {
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.summary li:hover {
+  text-decoration: underline;
+}
+
+/* ========== DIVERS ========== */
+.hidden {
+  display: none;
+}
+
+/* =========================================================
+   RESPONSIVE : LAYOUT + DENSITÉ DES PANELS
+   ========================================================= */
+
+/* TABLETTE & PETIT ÉCRAN : largeur <= 900px */
+@media (max-width: 900px) {
+
+  #app {
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  #sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #d0d0d0;
+    padding: 8px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  #map {
+    flex: 1 1 auto;
+  }
+
+  /* --- Répartition carte / texte --- */
+
+  /* AVANT session : la sidebar prend tout l'écran, la carte est cachée
+   MAIS uniquement après que l'appli soit prête (body.app-ready) */
+body.app-ready:not(.session-running) #sidebar {
+  max-height: 100vh;
+}
+
+body.app-ready:not(.session-running) #map {
+  height: 0 !important;
+  min-height: 0 !important;
+  opacity: 0;
+  visibility: hidden;
+  overflow: hidden;
+}
+
+  /* PENDANT session : la carte réapparaît (30% / 70%) */
+  body.session-running #sidebar {
+    max-height: 30vh;
+  }
+
+  body.session-running #map {
+    height: auto;
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* --- Densité des panneaux sur tablette --- */
+  .panel {
+    padding: 8px 10px;
+    margin-bottom: 8px;
+  }
+
+  .header-title {
+    font-size: 18px;
+  }
+
+  .header-subtitle {
+    font-size: 12px;
+  }
+
+  .panel-title {
+    font-size: 12px;
+  }
+
+  .target-name {
+    font-size: 18px;
+  }
+
+  select {
+    font-size: 14px;
+    padding: 7px 9px;
+  }
+
+  .btn-primary,
+  .btn-stop,
+  .btn-skip,
+  .btn-secondary {
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+
+  .timer-value {
+    font-size: 13px;
+  }
+
+  .timers-row {
+    flex-direction: row;
+  }
+}
+
+/* SMARTPHONE : largeur <= 600px */
+@media (max-width: 600px) {
+
+  /* Sidebar un peu plus compacte visuellement, mais toujours 100% avant session
+     (max-height:100vh hérité du bloc 900px, on ne le touche pas ici) */
+  #sidebar {
+    padding: 6px;
+  }
+
+  /* Pendant session : ratios plus agressifs pour la carte (22% / 78%) */
+  body.session-running #sidebar {
+    max-height: 22vh;
+  }
+
+  body.session-running #sidebar-content > .panel {
+    margin-top: 4px !important;
+  }
+
+  body.session-running #map {
+    min-height: 78vh;
+  }
+
+  /* Panneaux plus compacts */
+  .panel {
+    padding: 6px 8px;
+    margin-bottom: 6px;
+  }
+
+  .header-title {
+    font-size: 16px;
+  }
+
+  .header-subtitle {
+    font-size: 11px;
+  }
+
+  .panel-title {
+    font-size: 11px;
+  }
+
+  .target-name {
+    font-size: 16px;
+  }
+
+  .btn-primary,
+  .btn-stop,
+  .btn-skip,
+  .btn-secondary {
+    font-size: 13px;
+    padding: 7px 9px;
+  }
+
+  /* Récap scrollable pour éviter de pousser la sidebar */
+  .summary {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+}
+
+/* ========== TOOLTIP MODE LECTURE ========== */
+.leaflet-tooltip.street-tooltip,
+.leaflet-tooltip.monument-tooltip {
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+/* Panneau infos rues principales : apparitions douces */
+#street-info-panel {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+
+/* Visible lorsque JS l'active */
+#street-info-panel.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Animation du contenu textuel pour chaque nouvelle rue */
+.street-info {
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.street-info.is-visible {
+  opacity: 1;
+}
+
+.panel {
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+}
+
+/* ========== ZONE DE JEU + DIFFICULTE ========== */
+
+.mode-select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mode-select-row select {
+  flex: 1 1 auto;
+}
+
+/* Pastille difficulté */
+.difficulty-pill {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Facile = vert doux */
+.difficulty-pill--easy {
+  background: #e6f7ea;
+  border-color: #2e7d32;
+  color: #1b5e20;
+}
+
+/* Faisable = orange / moyen */
+.difficulty-pill--medium {
+  background: #fff4e5;
+  border-color: #ff9800;
+  color: #e65100;
+}
+
+/* Difficile = rouge modéré */
+.difficulty-pill--hard {
+  background: #ffebee;
+  border-color: #c62828;
+  color: #b71c1c;
+}
+
+/* Ajustement mobile : éviter que ça déborde */
+@media (max-width: 600px) {
+  .mode-select-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .difficulty-pill {
+    align-self: flex-start;
+    margin-top: 4px;
+  }
+}
+
+/* ----- Custom select wrapper ----- */
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+
+/* ----- Bouton affichant la sélection ----- */
+.custom-select-button {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ----- Liste déroulante ----- */
+.custom-select-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  margin-top: 4px;
+  list-style: none;
+  padding: 0;
+  display: none;
+  z-index: 1000;
+}
+
+.custom-select-list.visible {
+  display: block;
+}
+
+.custom-select-list li {
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.custom-select-list li:hover {
+  background: #f0f0f0;
+}
+
+/* ----- Pastilles déjà définies plus tôt : facile, medium, hard ----- */
+
+/* Pastilles pour TYPE DE PARTIE (jeu) */
+.gamepill--classique {
+  background: #1976d2;     /* bleu soutenu */
+  color: #fff;
+}
+
+.gamepill--marathon {
+  background: #6a1b9a;     /* violet dense */
+  color: #fff;
+}
+
+.gamepill--chrono {
+  background: #c62828;     /* rouge profond */
+  color: #fff;
+}
+
+.gamepill--lecture {
+  background: #2e7d32;     /* vert foncé académique */
+  color: #fff;
+}
+
+.user-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.user-status {
+  font-size: 12px;
+  color: #666;
+}
+
+.auth-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.auth-buttons .btn-secondary,
+.auth-buttons .btn-tertiary {
+  flex: 1 1 45%;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+/* Mobile : passer les boutons sur une colonne si besoin */
+@media (max-width: 600px) {
+  .auth-buttons {
+    flex-direction: row;
+  }
+
+  .auth-buttons .btn-secondary,
+  .auth-buttons .btn-tertiary {
+    flex: 1 1 100%;
+  }
+}
+
+.actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* On écrase le width:100% pour les boutons dans cette barre */
+.actions-row .btn-primary,
+.actions-row .btn-stop,
+.actions-row .btn-skip,
+.actions-row .btn-secondary {
+  width: auto;
+  flex: 1 1 0;
+}
+
+.stats-panel {
+  padding-bottom: 10px;
+}
+
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.stats-column {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #dde3ea;
+  box-sizing: border-box;
+}
+
+.stats-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+/* On allège l'intérieur : les timers gardent leur disposition existante */
+.stats-column--timers .timers-row {
+  margin-top: 0;
+}
+
+/* Mettre "Score" et "Score pondéré" sur la même ligne */
+.stats-column--score {
+  display: grid;
+  grid-template-columns: minmax(0, 0.3fr) minmax(0, 0.7fr);
+  grid-auto-rows: auto;
+  column-gap: 8px;
+  row-gap: 4px;
+}
+
+/* Le sous-titre "★ Score" prend toute la largeur */
+.stats-column--score .stats-subtitle {
+  grid-column: 1 / -1;
+}
+
+/* Chaque bloc (Score / Score pondéré) est une ligne compacte label + valeur */
+.stats-column--score .info-block {
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Mobile : empiler les deux colonnes */
+
+.user-panel summary,
+.leaderboard-panel summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.user-panel summary::-webkit-details-marker,
+.leaderboard-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Summary en flex + padding */
+.user-panel summary,
+.leaderboard-panel summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+/* Flèche */
+.user-panel summary::after,
+.leaderboard-panel summary::after {
+  content: '▸';
+  font-size: 13px;
+  color: #444;
+}
+
+/* Quand le <details> est ouvert */
+.user-panel details[open] > summary::after,
+.leaderboard-panel details[open] > summary::after {
+  content: '▾';
+}
+
+.user-panel summary:hover,
+.leaderboard-panel summary:hover {
+  background-color: #f0f4ff;
+}
+
+/* Bouton "Pause" (même bordure que "Passer") */
+.btn-secondary {
+  background-color: #ffffff;
+  color: #333;
+  border: 1px solid #cccccc;
+}
+
+.btn-secondary:hover {
+  background-color: #f0f0f0;
+}
+
+/* =========================================
+   MISE EN AVANT FORTE DE LA CIBLE ACTUELLE
+   ========================================= */
+
+/* Panneau cible : plus contrasté, encadré, focal */
+/* Panneau cible : plus contrasté, encadré, focal */
+.target-panel {
+  position: relative;
+  background: #f5fbff;
+  border: 2px solid #0b4f6c;
+  box-shadow:
+    0 0 0 1px rgba(11,79,108,0.18),
+    0 6px 14px rgba(0,0,0,0.14);
+  /* on aligne l'espacement vertical sur les autres panels */
+  margin-top: 0;         /* <<< au lieu de 12px */
+}
+
+/* Barre verticale accentuée à gauche */
+.target-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 5px;
+  background: #0b4f6c;
+  border-radius: 8px 0 0 8px;
+  pointer-events: none;
+}
+
+/* Titre du panneau cible : plus compact et plus marqué */
+.target-panel .panel-title {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #185a78;
+  margin-bottom: 4px;
+}
+
+/* Nom de la rue / du monument : grosse typo, très visible */
+.target-name {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0b4f6c;
+  margin-top: 4px;
+  line-height: 1.25;
+}
+
+/* Désactiver l’effet hover générique sur ce panneau
+   (on ne veut pas qu’il bouge sous la souris) */
+.target-panel:hover {
+  transform: none;
+  box-shadow:
+    0 0 0 1px rgba(11,79,108,0.18),
+    0 6px 14px rgba(0,0,0,0.14);
+}
+
+/* L’animation pulse existante sera plus visible avec ce style */
+.target-panel.pulse {
+  animation: target-pulse 0.28s ease-out;
+}
+
+/* Adaptation mobile : on réduit un peu la taille du texte */
+@media (max-width: 600px) {
+  .target-name {
+    font-size: 18px;
+  }
+}
+
+/* On fixe l'origine des éventuelles transformations */
+.target-panel {
+  transform-origin: center top;
+}
+
+/* On garde un petit flash mais sans agrandir la boîte */
+.target-panel.pulse {
+  animation: target-pulse-compact 0.24s ease-out;
+}
+
+/* Nouvelle animation, sans scale */
+@keyframes target-pulse-compact {
+  0% {
+    box-shadow:
+      0 0 0 1px rgba(11,79,108,0.18),
+      0 2px 6px rgba(0,0,0,0.10);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(11,79,108,0.30),
+      0 6px 16px rgba(0,0,0,0.22);
+  }
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(11,79,108,0.18),
+      0 2px 6px rgba(0,0,0,0.10);
+  }
+}
+
+/* Par défaut : panneau infos complètement replié (aucun trou) */
+#street-info-panel {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+/* Quand il est réellement utilisé (classe .is-visible ajoutée par le JS) */
+#street-info-panel.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  max-height: 600px;              /* hauteur suffisante */
+  padding: 12px 14px;             /* on rétablit le padding d'un .panel normal */
+  border-width: 1px;              /* on rétablit la bordure */
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+/* On neutralise tout transform sur le panneau cible */
+.target-panel,
+.target-panel:hover {
+  transform: none !important;
+}
+
+/* On remplace l'ancienne animation "target-pulse" par une version sans scale */
+@keyframes target-pulse {
+  0% {
+    box-shadow:
+      0 0 0 1px rgba(11,79,108,0.18),
+      0 2px 6px rgba(0,0,0,0.10);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(11,79,108,0.30),
+      0 6px 16px rgba(0,0,0,0.22);
+  }
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(11,79,108,0.18),
+      0 2px 6px rgba(0,0,0,0.10);
+  }
+}
+
+/* On peut garder la durée de l'animation telle quelle */
+.target-panel.pulse {
+  animation: target-pulse 0.28s ease-out;
+}
+
+/* On force le panneau paramètres à être au-dessus si jamais il y a chevauchement */
+.panel-params {
+  position: relative;
+  z-index: 2;
+}
+.target-panel {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Statut carte dans le header ===== */
+
+.map-status-pill {
+  display: none;                    /* par défaut : invisible sur desktop */
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Couleurs selon l'état */
+.map-status--loading {
+  background: #fff4e5;
+  border-color: #ff9800;
+  color: #e65100;
+}
+
+.map-status--ready {
+  background: #e6f7ea;
+  border-color: #2e7d32;
+  color: #1b5e20;
+}
+
+.map-status--error {
+  background: #ffebee;
+  border-color: #c62828;
+  color: #b71c1c;
+}
+
+/* Visible surtout sur mobile / tablette */
+@media (max-width: 900px) {
+  .map-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Sur très petit écran, on réduit un peu encore */
+@media (max-width: 600px) {
+  .map-status-pill {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
+
+/* ============================================
+   MOBILE ULTRA-COMPACT (priorité à la cible)
+   ============================================ */
+@media (max-width: 600px) {
+
+  /* ---- Boutons : réduire fortement ---- */
+  .actions-row {
+    gap: 2px;
+    margin-top: 4px;
+  }
+  .actions-row .btn-primary,
+  .actions-row .btn-stop,
+  .actions-row .btn-skip,
+  .actions-row .btn-secondary {
+    padding: 4px 6px;
+    font-size: 11px;
+    line-height: 1.1;
+  }
+
+  /* ---- Panneau cible : petit gain de place ---- */
+  .target-panel {
+    padding: 4px 6px;
+  }
+  .target-panel .panel-title {
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+  .target-name {
+    font-size: 15px;   /* lisible mais compact */
+    margin-top: 2px;
+  }
+
+  /* ---- Panneau Performance : ultra compressé ---- */
+  .stats-panel {
+    padding: 4px 6px;
+  }
+  .stats-panel .panel-title {
+    font-size: 10px;
+    margin-bottom: 3px;
+  }
+
+  .stats-column {
+    padding: 3px 4px;
+  }
+  .stats-subtitle {
+    margin-bottom: 2px;
+    font-size: 9px;
+  }
+
+  /* Chronos alignés mais très compacts */
+  .timer-block {
+    padding: 3px 4px;
+  }
+  .timer-label {
+    font-size: 8px;
+    margin-bottom: 1px;
+  }
+  .timer-value {
+    font-size: 11px;
+  }
+
+  /* Score compact */
+  .info-label,
+  .info-value {
+    font-size: 10px;
+  }
+  #score-pill {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+}
+
+/* =======================================================
+   MOBILE — Compactage timers en session
+   ======================================================= */
+@media (max-width: 600px) {
+
+  /* Cacher le titre PERFORMANCE quand la session tourne */
+  body.session-running .stats-panel .panel-title {
+    display: none !important;
+  }
+
+  /* Cacher le sous-titre "CHRONOS" */
+  body.session-running .stats-panel .stats-subtitle {
+    display: none !important;
+  }
+
+  /* Hors session : ne pas afficher ce mini label */
+  body:not(.session-running) .mobile-timer-label {
+    display: none !important;
+  }
+}
+
+/* Par défaut, ce label n'existe pas en desktop */
+.mobile-timer-label {
+  display: none;
+}
+
+/* =======================================================
+   MOBILE — Timers en ligne avec label "⏱ Chronos"
+   ======================================================= */
+@media (max-width: 600px) {
+
+  /* Cacher le titre PERFORMANCE pendant la session */
+  body.session-running .stats-panel .panel-title {
+    display: none !important;
+  }
+
+  /* Cacher UNIQUEMENT le sous-titre "⏱ Chronos" (pas "★ Score") */
+  body.session-running .stats-column--timers .stats-subtitle {
+    display: none !important;
+  }
+
+  /* Mettre "⏱" sur la même ligne que les timers */
+  body.session-running .stats-column--timers .timers-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 75px;  /* largeur réservée au label, ajuste si besoin */
+  }
+
+  body.session-running .stats-column--timers .timers-row::before {
+    content: "⏱";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+}
+
+/* =========================================
+   MOBILE — Sidebar fixe pendant la session
+   ========================================= */
+@media (max-width: 600px) {
+  /* Pendant une session, la sidebar ne scrolle plus */
+  body.session-running #sidebar {
+    overflow-y: hidden !important;
+  }
+}
+
+/* =========================================
+   MOBILE — Suppression du panneau infos rue
+   ========================================= */
+@media (max-width: 600px) {
+  #street-info-panel {
+    display: none !important;
+  }
+}
+
+/* ==== OVERRIDE MOBILE EN SESSION ==== */
+@media (max-width: 600px) {
+
+  /* Hauteur de la sidebar + léger décalage interne */
+  body.session-running #sidebar {
+    max-height: 16vh !important;   /* ajuste: 20–25 selon ce que tu veux */
+    padding-top: 20px !important;  /* décale visuellement le contenu vers le bas */
+  }
+
+  /* Ajuste la carte en conséquence pour garder 100vh */
+  body.session-running #map {
+    min-height: 84vh !important;   /* 100 - 22 = 78 */
+  }
+}
+
+.difficulty-pill--arrondissement {
+  /* même base que les autres .difficulty-pill, éventuellement couleur neutre */
+  background-color: #444;      /* à adapter */
+  color: #fff;
+}
+
+.weighted-score-block {
+  width: 100%;
+}
+
+/* Conteneur dans la colonne "Score" : même logique visuelle que les autres stats */
+.weighted-score-container {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #dde3ea;
+  font-size: 12px;
+}
+
+/* Ligne titre + valeur numérique */
+.weighted-score-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.weighted-score-header span:first-child {
+  font-size: 12px;
+  color: #444;
+}
+
+.weighted-score-header span:last-child {
+  font-weight: 600;
+  color: #0b4f6c;
+}
+
+/* Barre de progression intégrée à la charte "stats" (bleu clair) */
+.weighted-score-progress {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #e3f2fd;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.weighted-score-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0b4f6c, #1976d2);
+  transition: width 0.25s ease-out;
+}
+
+/* Ligne micro-légende + bouton "?" */
+.weighted-score-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.weighted-score-legend {
+  color: #666;
+  font-size: 11px;
+}
+
+/* Bouton "?" aligné avec le reste des boutons du jeu (clair, bord gris) */
+.weighted-score-help-btn {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid #cccccc;
+  background: #ffffff;
+  color: #555;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.weighted-score-help-btn:hover {
+  background-color: #f0f0f0;
+  border-color: #bbbbbb;
+}
+
+/* Encart d’aide : mini-panel clair cohérent avec les autres */
+.weighted-score-help {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #dde3ea;
+  font-size: 11px;
+  color: #333;
+}
+
+.weighted-score-help strong {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+
+.weighted-score-help code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  background: #eef2f7;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+.weighted-score-help.hidden {
+  display: none;
+}
+
+/* Désactiver le cadre bleu de focus sur les segments cliqués */
+#map .leaflet-interactive:focus {
+  outline: none;
+}
+
+/* =========================================================
+   TYPO GLOBALE : ÉCHELLE + HARMONISATION (DESKTOP PAR DÉFAUT)
+   À COLLER TOUT EN BAS DU FICHIER
+   ========================================================= */
+
+:root {
+  /* Taille de base du corps de texte */
+  --fs-xs: 11px;  /* micro : labels, pills, tooltips */
+  --fs-s:  12px;  /* petits textes, messages, légendes */
+  --fs-m:  13px;  /* corps principal */
+  --fs-l:  15px;  /* valeurs numériques, nombres importants */
+  --fs-xl: 18px;  /* sous-titres forts, titres secondaires */
+  --fs-xxl:22px;  /* titre principal & cible */
+}
+
+body {
+  font-size: var(--fs-m);
+  line-height: 1.5;
+}
+
+/* ---------- TÊTE DE PAGE ---------- */
+
+.header-title {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: var(--fs-xxl);
+  font-weight: 800;
+  margin: 0 0 4px 0;
+}
+
+.header-subtitle {
+  font-size: var(--fs-s);
+  margin: 0;
+  color: #555;
+}
+
+/* ---------- TITRES DE PANNEAU ---------- */
+
+.panel-title {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+/* Target-panel a un style légèrement renforcé mais même base typographique */
+.target-panel .panel-title {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.14em;
+}
+
+/* ---------- LABELS / PETITS TEXTES ---------- */
+
+.info-block label,
+.info-label,
+.stats-subtitle,
+.timer-label,
+.difficulty-pill,
+.map-status-pill,
+.user-status,
+.weighted-score-header span:first-child,
+.weighted-score-legend,
+.weighted-score-help {
+  font-size: var(--fs-xs);
+}
+
+/* Messages + texte de résumé */
+.message,
+.summary,
+.summary h3,
+.street-info {
+  font-size: var(--fs-s);
+}
+
+/* ---------- VALEURS / DONNÉES ---------- */
+
+.info-value,
+.score-pill,
+#score,
+.weighted-score,
+.summary h2 {
+  font-size: var(--fs-m);
+}
+
+/* titre "Récapitulatif de la session" légèrement au-dessus du corps */
+.summary h2 {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-weight: 600;
+}
+
+/* Valeurs numériques importantes : timers + score pondéré */
+.timer-value,
+.weighted-score {
+  font-size: var(--fs-l);
+}
+
+/* ---------- CIBLE (RUE / MONUMENT) ---------- */
+
+.target-name {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: var(--fs-xxl);
+  font-weight: 800;
+  color: #0b4f6c;
+  line-height: 1.3;
+}
+
+/* ---------- BOUTONS + SELECTS ---------- */
+
+.btn-primary,
+.btn-stop,
+.btn-skip,
+.btn-secondary,
+.auth-buttons .btn-secondary,
+.auth-buttons .btn-tertiary,
+.custom-select-button,
+.custom-select-list li {
+  font-size: var(--fs-m);
+}
+
+select {
+  font-size: var(--fs-m);
+}
+
+/* ---------- LEADERBOARD ---------- */
+
+.leaderboard table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-s);
+}
+
+.leaderboard th {
+  font-size: var(--fs-s);
+  font-weight: 600;
+}
+
+.leaderboard td {
+  font-size: var(--fs-s);
+}
+
+/* ---------- TOOLTIPS ---------- */
+
+.leaflet-tooltip.street-tooltip,
+.leaflet-tooltip.monument-tooltip {
+  font-size: var(--fs-xs);
+}
+
+/* =========================================================
+   RESPONSIVE : AJUSTEMENT DES TAILLES (MÊME HIERARCHIE)
+   ========================================================= */
+
+/* TABLETTE : un cran en dessous */
+@media (max-width: 900px) {
+  :root {
+    --fs-xs: 10px;
+    --fs-s:  11px;
+    --fs-m:  12px;
+    --fs-l:  14px;
+    --fs-xl: 17px;
+    --fs-xxl:20px;
+  }
+
+  .header-title {
+    font-size: var(--fs-xl);
+  }
+
+  .target-name {
+    font-size: var(--fs-xxl);
+  }
+}
+
+/* SMARTPHONE : encore un cran, mais hiérarchie identique */
+@media (max-width: 600px) {
+  :root {
+    --fs-xs: 9px;
+    --fs-s:  10px;
+    --fs-m:  11px;
+    --fs-l:  13px;
+    --fs-xl: 15px;
+    --fs-xxl:18px;
+  }
+
+  .header-title {
+    font-size: var(--fs-xl);
+  }
+
+  .header-subtitle {
+    font-size: var(--fs-s);
+  }
+
+  .target-name {
+    font-size: var(--fs-xxl);
+  }
+
+  /* Panneau Performance encore lisible mais très compact */
+  .stats-panel .panel-title {
+    font-size: var(--fs-xs);
+  }
+
+  .stats-subtitle {
+    font-size: var(--fs-xs);
+  }
+
+  .timer-value,
+  .weighted-score {
+    font-size: var(--fs-m);
+  }
+
+  #score-pill {
+    font-size: var(--fs-s);
+  }
+}
+
+/* Bloc global vs détail */
+
+#summary {
+  margin-top: 12px;
+}
+
+.summary-global {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.12);
+  margin-bottom: 12px;
+}
+
+.summary-stats p {
+  margin: 2px 0;
+}
+
+.summary-detail {
+  padding-top: 4px;
+}
+
+/* En-tête liste + filtres */
+
+.summary-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.summary-detail-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.summary-filters {
+  display: inline-flex;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.04);
+  padding: 2px;
+}
+
+/* Boutons de filtre */
+
+.summary-filter-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.summary-filter-btn.is-active {
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+}
+
+/* Liste et items */
+
+.summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.summary-item {
+  font-size: 0.85rem;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.07s ease;
+}
+
+.summary-item:hover {
+  transform: translateX(2px);
+}
+
+/* Couleurs correct / incorrect */
+
+.summary-item--correct {
+  background: rgba(46, 204, 113, 0.15);       /* vert clair */
+  border-left: 3px solid #2ecc71;
+}
+
+.summary-item--incorrect {
+  background: rgba(231, 76, 60, 0.12);        /* rouge clair */
+  border-left: 3px solid #e74c3c;
+}
+
+/* Conteneur : ancre du tooltip */
+.weighted-score-meta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Bouton ? */
+.weighted-score-help-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  cursor: help;
+}
+
+/* Tooltip */
+.weighted-score-help {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+
+  width: 100%;
+  max-width: 330px;   /* largeur maîtrisée desktop */
+  box-sizing: border-box;
+
+  padding: 10px 12px;
+
+  background: rgba(20, 20, 20, 0.96);
+  color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+
+  font-size: 12.5px;
+  line-height: 1.4;
+
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+/* Flèche */
+.weighted-score-help::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  background: rgba(20, 20, 20, 0.96);
+  transform: rotate(45deg);
+}
+
+/* Etat visible */
+.weighted-score-help.is-open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Optionnel : rendu du code dans tooltip */
+.weighted-score-help code {
+  background: rgba(255,255,255,0.12);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.weighted-score-help-btn {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  body.session-running #sidebar {
+    max-height: 15vh !important;     /* ta valeur */
+    overflow: hidden !important;      /* tu ne veux pas scroller */
+    padding-top: 0 !important;        /* annule ton essai */
+    padding-bottom: 0 !important;
+  }
+
+  body.session-running #sidebar-content {
+    transform: translateY(18px);      /* ajuste 12–28px */
+    will-change: transform;
+  }
+
+  body.session-running #map {
+    min-height: 85vh !important;      /* 100 - 16 = 84 */
+  }
+}
+
+@media (max-width: 600px) {
+  #target-street {
+    white-space: nowrap;
+    overflow: hidden;           /* évite les débordements visuels */
+    text-overflow: clip;        /* pas d’ellipse : on shrink via JS */
+    display: block;
+  }
+}
+
+/* ========= SCORE PONDÉRÉ : visibilité + layout ========= */
+
+/* 1) Dans la grille "Score", le bloc pondéré doit prendre toute la largeur */
+.stats-column--score .weighted-score-container,
+.stats-column--score .weighted-score-block {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+/* 2) En mobile pendant session : compacter la colonne Score (évite qu'elle passe sous le fold) */
+@media (max-width: 600px) {
+  body.session-running .stats-column--score {
+    row-gap: 2px;
+  }
+
+  body.session-running .weighted-score-container {
+    margin-top: 2px;
+    padding: 4px 6px;
+  }
+
+  body.session-running .weighted-score-legend,
+  body.session-running .weighted-score-help {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  body.session-running .weighted-score-progress {
+    height: 5px;
+    margin-bottom: 2px;
+  }
+}
+
+/* Le titre "★ Score" reste plein largeur */
+.stats-column--score .stats-subtitle{
+  grid-column: 1 / -1;
+}
+
+/* Score (ligne 1) */
+.stats-column--score .score-block{
+  grid-column: 1 / -1; /* si tu veux Score sur 1 ligne complète */
+}
+
+/* Score pondéré : uniquement colonne de droite (70%) */
+.stats-column--score .weighted-score-container{
+  grid-column: 2 / 3;     /* colonne droite */
+  width: 100%;
+  min-width: 0;
+}
+
+/* Option : si tu veux un petit label à gauche (30%) */
+.stats-column--score .weighted-score-label{
+  grid-column: 1 / 2;
+  align-self: center;
+  font-size: 11px;
+  color:#444;
+}
+
+/* ===== SCORE (30%) / SCORE PONDÉRÉ (70%) ===== */
+
+/* Le score normal reste dans la colonne gauche */
+.stats-column--score .score-block {
+  grid-column: 1 / 2;
+}
+
+/* Le score pondéré va dans la colonne droite */
+.stats-column--score .weighted-score-block {
+  grid-column: 2 / 3;
+  width: 100%;
+}
+
+/* Le conteneur doit pouvoir shrink (sinon overflow) */
+.stats-column--score .weighted-score-container {
+  min-width: 0;
+}
+
