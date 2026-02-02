@@ -166,6 +166,11 @@
                   Lecture
                   <span class="difficulty-pill gamepill--lecture">Apprentissage</span>
                 </li>
+
+                <li data-value="daily">
+                  Daily
+                  <span class="difficulty-pill gamepill--daily">1 rue / jour</span>
+                </li>
               </ul>
             </div>
 
@@ -175,6 +180,7 @@
               <option value="marathon">Marathon</option>
               <option value="chrono">Mode Chrono</option>
               <option value="lecture">Lecture</option>
+              <option value="daily">Daily</option>
             </select>
           </div>
 
@@ -189,6 +195,14 @@
       <section class="panel target-panel">
         <div id="target-panel-title" class="panel-title">Rue à trouver</div>
         <div id="target-street" class="target-name">—</div>
+      </section>
+
+      <!-- Panneau Daily -->
+      <section id="daily-panel" class="panel daily-panel hidden">
+        <div class="panel-title">Daily</div>
+        <div class="daily-status" id="daily-status">Connectez-vous pour jouer.</div>
+        <div class="daily-attempts" id="daily-attempts">Tentatives restantes : —</div>
+        <div class="daily-result" id="daily-result"></div>
       </section>
 
       <!-- Panneau infos rue principale -->
@@ -273,11 +287,19 @@
   </section>
 
         <!-- Panneau leaderboard -->
-        <section class="panel leaderboard-panel">
+        <section class="panel leaderboard-panel" id="leaderboard-panel">
           <details open>
             <summary class="panel-title">Leaderboard</summary>
 
             <div id="leaderboard" class="leaderboard"></div>
+          </details>
+        </section>
+
+        <section class="panel leaderboard-panel" id="daily-leaderboard-panel" style="display:none;">
+          <details open>
+            <summary class="panel-title">Daily leaderboard</summary>
+
+            <div id="daily-leaderboard" class="leaderboard"></div>
           </details>
         </section>
 
