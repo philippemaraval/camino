@@ -30,3 +30,13 @@ Bonne réponse : jusqu’à 10 points selon la rapidité (–1 par seconde). Au-
 - Mobile-first (responsive primordial)
 - Données personnelles minimales : email + pseudo
 - Pas de jeu Daily en invité
+
+## Configuration Supabase + Netlify (Auth)
+
+### Frontend (Supabase JS)
+Renseignez les attributs `data-supabase-url` et `data-supabase-anon-key` sur la balise `<body>` dans `index.html` avec vos valeurs Supabase. Ces valeurs sont nécessaires pour l'auth email + mot de passe.
+
+### Netlify Functions
+Définissez les variables d’environnement Netlify suivantes pour permettre la suppression admin d’un compte lors d’un conflit de pseudo :
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`

@@ -21,7 +21,7 @@
   >
 </head>
 
-<body>
+<body data-supabase-url="" data-supabase-anon-key="">
   <div id="app">
     <div id="sidebar">
       <!-- WRAPPER UNIQUE POUR DÉCALER TOUT LE CONTENU EN MOBILE -->
@@ -49,6 +49,7 @@
             </div>
 
             <div class="info-block auth-block">
+              <input id="auth-email" type="email" placeholder="Email">
               <input id="auth-username" type="text" placeholder="Pseudo">
               <input id="auth-password" type="password" placeholder="Mot de passe">
               <div class="auth-buttons">
