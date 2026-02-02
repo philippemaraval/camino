@@ -6,6 +6,7 @@ import { computeItemPoints } from './scoring/points.js';
 import { showMessage } from './ui/messages.js';
 import { setMapStatus } from './ui/status.js';
 import { normalizeName, normalizeQuartierKey } from './utils/normalize.js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // ------------------------
 // Variables globales
@@ -71,6 +72,7 @@ let highlightedLayers = [];
 
 // Utilisateur courant (auth)
 let currentUser = null;
+let supabase = null;
 
 let isLectureMode = false;
 
@@ -246,6 +248,7 @@ function initUI() {
   const loginBtn         = document.getElementById('login-btn');
   const registerBtn      = document.getElementById('register-btn');
   const logoutBtn        = document.getElementById('logout-btn');
+  const emailInput       = document.getElementById('auth-email');
   const usernameInput    = document.getElementById('auth-username');
   const passwordInput    = document.getElementById('auth-password');
 
@@ -381,6 +384,10 @@ document.addEventListener("click", (e) => {
   // Recharger l'utilisateur courant depuis le stockage local
   currentUser = loadCurrentUserFromStorage();
   updateUserUI();
+  supabase = initSupabaseClient();
+  if (supabase) {
+    syncSupabaseSession();
+  }
 
   if (restartBtn) {
     restartBtn.addEventListener('click', () => {
@@ -526,32 +533,32 @@ document.addEventListener("click", (e) => {
   // Auth events
   if (loginBtn) {
     loginBtn.addEventListener('click', async () => {
-      const username = (usernameInput?.value || '').trim();
+      if (!supabase) {
+        showMessage('Auth non configurée. Vérifiez les variables Supabase.', 'error');
+        return;
+      }
+      const email = (emailInput?.value || '').trim();
       const password = passwordInput?.value || '';
-      if (!username || !password) {
-        showMessage('Pseudo et mot de passe requis.', 'error');
+      if (!email || !password) {
+        showMessage('Email et mot de passe requis.', 'error');
         return;
       }
       try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
         });
-        if (!res.ok) {
-          throw new Error('HTTP ' + res.status);
-        }
-        const data = await res.json();
-        currentUser = {
-          id: data.user?.id,
-          username: data.user?.username,
-          token: data.token
-        };
+        if (error) throw error;
+        const profile = await fetchUserProfile(data.user?.id);
+        currentUser = buildCurrentUser(data.user, profile?.username, data.session);
         saveCurrentUserToStorage(currentUser);
         updateUserUI();
         showMessage('Connexion réussie.', 'success');
       } catch (err) {
         console.error('Erreur login :', err);
+        if (supabase) {
+          await supabase.auth.signOut();
+        }
         showMessage('Erreur de connexion.', 'error');
       }
     });
@@ -559,27 +566,51 @@ document.addEventListener("click", (e) => {
 
   if (registerBtn) {
     registerBtn.addEventListener('click', async () => {
+      if (!supabase) {
+        showMessage('Auth non configurée. Vérifiez les variables Supabase.', 'error');
+        return;
+      }
+      const email = (emailInput?.value || '').trim();
       const username = (usernameInput?.value || '').trim();
       const password = passwordInput?.value || '';
-      if (!username || !password) {
-        showMessage('Pseudo et mot de passe requis.', 'error');
+      if (!email || !username || !password) {
+        showMessage('Email, pseudo et mot de passe requis.', 'error');
         return;
       }
       try {
-        const res = await fetch('/api/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password
         });
-        if (!res.ok) {
-          throw new Error('HTTP ' + res.status);
+        if (error) throw error;
+
+        const userId = data.user?.id;
+        if (!userId) {
+          showMessage('Compte créé. Vérifiez votre email pour confirmer.', 'info');
+          return;
         }
-        const data = await res.json();
-        currentUser = {
-          id: data.user?.id,
-          username: data.user?.username,
-          token: data.token
-        };
+
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({ id: userId, username });
+
+        if (profileError) {
+          if (isUniqueViolation(profileError)) {
+            showMessage('Ce pseudo est déjà utilisé. Choisissez-en un autre.', 'error');
+            await deleteAuthUser(userId);
+          } else {
+            showMessage('Erreur lors de la création du profil.', 'error');
+          }
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (!data.session) {
+          showMessage('Compte créé. Vérifiez votre email pour vous connecter.', 'info');
+          return;
+        }
+
+        currentUser = buildCurrentUser(data.user, username, data.session);
         saveCurrentUserToStorage(currentUser);
         updateUserUI();
         showMessage('Compte créé et connecté.', 'success');
@@ -591,11 +622,19 @@ document.addEventListener("click", (e) => {
   }
 
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      currentUser = null;
-      clearCurrentUserFromStorage();
-      updateUserUI();
-      showMessage('Déconnecté.', 'info');
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        if (supabase) {
+          await supabase.auth.signOut();
+        }
+      } catch (err) {
+        console.error('Erreur logout :', err);
+      } finally {
+        currentUser = null;
+        clearCurrentUserFromStorage();
+        updateUserUI();
+        showMessage('Déconnecté.', 'info');
+      }
     });
   }
 
@@ -2611,6 +2650,87 @@ function resetWeightedBar() {
 // ------------------------
 // Auth helpers
 // ------------------------
+
+function getSupabaseConfig() {
+  const dataset = document.body?.dataset || {};
+  return {
+    url: dataset.supabaseUrl || '',
+    anonKey: dataset.supabaseAnonKey || ''
+  };
+}
+
+function initSupabaseClient() {
+  const { url, anonKey } = getSupabaseConfig();
+  if (!url || !anonKey) {
+    console.warn('Supabase non configuré (URL ou ANON KEY manquante).');
+    return null;
+  }
+  return createClient(url, anonKey);
+}
+
+function buildCurrentUser(user, username, session) {
+  if (!user || !username) return null;
+  return {
+    id: user.id,
+    email: user.email || null,
+    username,
+    token: session?.access_token || null
+  };
+}
+
+async function fetchUserProfile(userId) {
+  if (!supabase || !userId) return null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('id', userId)
+    .single();
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+function isUniqueViolation(error) {
+  return error?.code === '23505' || /duplicate key/i.test(error?.message || '');
+}
+
+async function deleteAuthUser(userId) {
+  if (!userId) return;
+  try {
+    const res = await fetch('/.netlify/functions/admin-delete-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
+    if (!res.ok) {
+      const message = await res.text();
+      console.warn('Suppression admin échouée :', message);
+    }
+  } catch (err) {
+    console.warn('Suppression admin échouée :', err);
+  }
+}
+
+async function syncSupabaseSession() {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (!data.session?.user) {
+      currentUser = null;
+      clearCurrentUserFromStorage();
+      updateUserUI();
+      return;
+    }
+    const profile = await fetchUserProfile(data.session.user.id);
+    currentUser = buildCurrentUser(data.session.user, profile?.username, data.session);
+    saveCurrentUserToStorage(currentUser);
+    updateUserUI();
+  } catch (err) {
+    console.warn('Impossible de synchroniser la session Supabase.', err);
+  }
+}
 
 function loadCurrentUserFromStorage() {
   try {
