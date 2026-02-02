@@ -69,6 +69,9 @@ let errorsCount = 0;
 let highlightTimeoutId = null;
 let highlightedLayers = [];
 
+// Session serveur
+let serverSession = null;
+let isSubmittingAttempt = false;
 
 // Utilisateur courant (auth)
 let currentUser = null;
@@ -420,33 +423,7 @@ document.addEventListener("click", (e) => {
   if (skipBtn) {
     skipBtn.addEventListener('click', () => {
       if (!isSessionRunning || isPaused) return;
-
-      const zoneMode = getZoneMode();
-
-      if (zoneMode === 'monuments') {
-        if (!currentMonumentTarget) return;
-        summaryData.push({
-          name: currentMonumentTarget.properties.name,
-          correct: false,
-          time: 0
-        });
-        totalAnswered += 1;
-        updateScoreUI();
-        currentMonumentIndex += 1;
-        setNewTarget();
-        return;
-      }
-
-      if (!currentTarget) return;
-      summaryData.push({
-        name: currentTarget.properties.name,
-        correct: false,
-        time: 0
-      });
-      totalAnswered += 1;
-      updateScoreUI();
-      currentIndex += 1;
-      setNewTarget();
+      void handleSkipAttempt();
     });
   }
 
@@ -972,7 +949,7 @@ function loadStreets() {
             });
           });
 
-          layer.on('click', () => handleStreetClick(feature));
+          layer.on('click', (event) => handleStreetClick(feature, event));
         }
       }).addTo(map);
       refreshLectureTooltipsIfNeeded();
@@ -1057,7 +1034,7 @@ function loadMonuments() {
       return marker;
     },
     onEachFeature: (feature, layer) => {
-      layer.on('click', () => handleMonumentClick(feature, layer));
+      layer.on('click', (event) => handleMonumentClick(feature, event));
     }
   }
 );
@@ -1495,7 +1472,7 @@ function exitLectureModeToMenu() {
   showMessage('Retour au menu.', 'info');
 }
 
-function startNewSession() {
+async function startNewSession() {
   const quartierSelect = document.getElementById('quartier-select');
   const zoneMode = getZoneMode();
   const gameMode = getGameMode();
@@ -1519,6 +1496,8 @@ function startNewSession() {
   summaryData    = [];
   weightedScore  = 0;
   errorsCount    = 0;
+  serverSession  = null;
+  isSubmittingAttempt = false;
 
   isPaused          = false;
   pauseStartTime    = null;
@@ -1641,6 +1620,17 @@ function startNewSession() {
     currentTarget = null;
     isMonumentsMode = true;
 
+    try {
+      const targets = buildSessionTargetIds(sessionMonuments);
+      await startServerSession(zoneMode, gameMode, targets);
+    } catch (err) {
+      showMessage('Impossible de démarrer la session (serveur).', 'error');
+      updateStartStopButton();
+      updatePauseButton();
+      updateLayoutSessionState();
+      return;
+    }
+
     sessionStartTime = performance.now();
     streetStartTime = null;
     isSessionRunning = true;
@@ -1703,6 +1693,17 @@ function startNewSession() {
   }
   if (streetsLayer && !map.hasLayer(streetsLayer)) {
     streetsLayer.addTo(map);
+  }
+
+  try {
+    const targets = buildSessionTargetIds(sessionStreets);
+    await startServerSession(zoneMode, gameMode, targets);
+  } catch (err) {
+    showMessage('Impossible de démarrer la session (serveur).', 'error');
+    updateStartStopButton();
+    updatePauseButton();
+    updateLayoutSessionState();
+    return;
   }
 
   sessionStartTime = performance.now();
@@ -1801,6 +1802,7 @@ function setNewTarget() {
       if (gameMode === 'chrono') {
         shuffle(sessionMonuments);
         currentMonumentIndex = 0;
+        markServerTargetsReset(sessionMonuments);
       } else {
         endSession();
         return;
@@ -1830,6 +1832,7 @@ function setNewTarget() {
     if (gameMode === 'chrono') {
       shuffle(sessionStreets);
       currentIndex = 0;
+      markServerTargetsReset(sessionStreets);
     } else {
       endSession();
       return;
@@ -2017,7 +2020,7 @@ function updateLayoutSessionState() {
 // Gestion des clics sur les rues
 // ------------------------
 
-function handleStreetClick(clickedFeature) {
+async function handleStreetClick(clickedFeature, event) {
   const zoneMode = getZoneMode();
 
   if (zoneMode === 'monuments') return;
@@ -2045,37 +2048,53 @@ function handleStreetClick(clickedFeature) {
     }
   }
 
-  if (isPaused) return;
+  if (isPaused || isSubmittingAttempt) return;
   if (!currentTarget || sessionStartTime === null || streetStartTime === null) {
     return;
   }
 
   const gameMode = getGameMode();
-  const now = performance.now();
-  const streetTimeSec = (now - streetStartTime) / 1000;
-
-  const clickedName   = normalizeName(clickedFeature.properties.name);
-  const targetNameNorm= normalizeName(currentTarget.properties.name);
-
-  const isCorrect = (clickedName === targetNameNorm);
   const answeredFeature = currentTarget;
+  const clickedName = normalizeName(clickedFeature.properties.name);
+
+  isSubmittingAttempt = true;
+  let response;
+
+  try {
+    response = await submitSessionEvent({
+      targetId: clickedName,
+      inputType: IS_TOUCH_DEVICE ? 'touch' : 'click',
+      latlng: event?.latlng
+    });
+  } catch (err) {
+    showMessage('Erreur réseau : réponse serveur indisponible.', 'error');
+    isSubmittingAttempt = false;
+    return;
+  }
+
+  isSubmittingAttempt = false;
+
+  const isCorrect = response.correct;
+  const streetTimeSec = response.elapsed_seconds ?? 0;
+  const points = response.points ?? 0;
+
+  correctCount = response.correct_count ?? correctCount;
+  totalAnswered = response.total_answered ?? totalAnswered;
+  errorsCount = response.errors_count ?? errorsCount;
+  weightedScore = response.score ?? weightedScore;
+
+  updateWeightedScoreUI();
+  updateWeightedBar(isCorrect ? points / MAX_POINTS_PER_ITEM : 0);
+  hasAnsweredCurrentItem = true;
 
   if (isCorrect) {
-    correctCount += 1;
-    const points = computeItemPoints(streetTimeSec);
-    weightedScore += points;
-    updateWeightedScoreUI();
-    updateWeightedBar(points / 10);
-    hasAnsweredCurrentItem = true;
-
     showMessage(
       `Correct (${streetTimeSec.toFixed(1)} s, +${points.toFixed(1)} pts)`,
       'success'
     );
     highlightStreet('#00aa00');
   } else {
-    errorsCount += 1;
-    if (gameMode === 'marathon' && errorsCount >= MAX_ERRORS_MARATHON) {
+    if (gameMode === 'marathon' && response.max_errors_reached) {
       showMessage(
         `Incorrect (limite de ${MAX_ERRORS_MARATHON} erreurs atteinte)`,
         'error'
@@ -2084,10 +2103,8 @@ function handleStreetClick(clickedFeature) {
       showMessage('Incorrect', 'error');
     }
     highlightStreet('#d00');
-    updateWeightedBar(0);
   }
 
-  totalAnswered += 1;
   summaryData.push({
     name: currentTarget.properties.name,
     correct: isCorrect,
@@ -2099,7 +2116,12 @@ function handleStreetClick(clickedFeature) {
   // Infos historiques pour rues principales
   showStreetInfo(answeredFeature);
 
-  if (!isCorrect && gameMode === 'marathon' && errorsCount >= MAX_ERRORS_MARATHON) {
+  if (response.status && response.status !== 'active') {
+    endSession();
+    return;
+  }
+
+  if (!isCorrect && gameMode === 'marathon' && response.max_errors_reached) {
     endSession();
     return;
   }
@@ -2112,23 +2134,17 @@ function handleStreetClick(clickedFeature) {
 // Gestion des clics sur les monuments
 // ------------------------
 
-function handleMonumentClick(clickedFeature, clickedLayer) {
+async function handleMonumentClick(clickedFeature, event) {
   const zoneMode = getZoneMode();
   if (zoneMode !== 'monuments') return;
-  if (isPaused) return;
+  if (isPaused || isSubmittingAttempt) return;
 
   if (!currentMonumentTarget || sessionStartTime === null || streetStartTime === null) {
     return;
   }
 
   const gameMode = getGameMode();
-  const now = performance.now();
-  const itemTimeSec = (now - streetStartTime) / 1000;
-
   const clickedName    = normalizeName(clickedFeature.properties.name);
-  const targetNameNorm = normalizeName(currentMonumentTarget.properties.name);
-
-  const isCorrect = (clickedName === targetNameNorm);
   const answeredName = currentMonumentTarget.properties.name;
 
   // On récupère toujours le layer correspondant au monument CIBLE
@@ -2136,36 +2152,56 @@ const correctLayer = findMonumentLayerByName(
   currentMonumentTarget.properties.name
 );
 
-if (isCorrect) {
-  correctCount += 1;
-  const points = computeItemPoints(itemTimeSec);
-  weightedScore += points;
+  isSubmittingAttempt = true;
+  let response;
+
+  try {
+    response = await submitSessionEvent({
+      targetId: clickedName,
+      inputType: IS_TOUCH_DEVICE ? 'touch' : 'click',
+      latlng: event?.latlng
+    });
+  } catch (err) {
+    showMessage('Erreur réseau : réponse serveur indisponible.', 'error');
+    isSubmittingAttempt = false;
+    return;
+  }
+
+  isSubmittingAttempt = false;
+
+  const isCorrect = response.correct;
+  const itemTimeSec = response.elapsed_seconds ?? 0;
+  const points = response.points ?? 0;
+
+  correctCount = response.correct_count ?? correctCount;
+  totalAnswered = response.total_answered ?? totalAnswered;
+  errorsCount = response.errors_count ?? errorsCount;
+  weightedScore = response.score ?? weightedScore;
+
   updateWeightedScoreUI();
-  updateWeightedBar(points / 10);
+  updateWeightedBar(isCorrect ? points / MAX_POINTS_PER_ITEM : 0);
   hasAnsweredCurrentItem = true;
 
-  showMessage(
-    `Correct (${itemTimeSec.toFixed(1)} s, +${points.toFixed(1)} pts)`,
-    'success'
-  );
-  // On surligne le monument CIBLE en vert
-  highlightMonument(correctLayer, '#00aa00');
-} else {
-  errorsCount += 1;
-  if (gameMode === 'marathon' && errorsCount >= MAX_ERRORS_MARATHON) {
+  if (isCorrect) {
     showMessage(
-      `Incorrect (limite de ${MAX_ERRORS_MARATHON} erreurs atteinte)`,
-      'error'
+      `Correct (${itemTimeSec.toFixed(1)} s, +${points.toFixed(1)} pts)`,
+      'success'
     );
+    // On surligne le monument CIBLE en vert
+    highlightMonument(correctLayer, '#00aa00');
   } else {
-    showMessage('Incorrect', 'error');
+    if (gameMode === 'marathon' && response.max_errors_reached) {
+      showMessage(
+        `Incorrect (limite de ${MAX_ERRORS_MARATHON} erreurs atteinte)`,
+        'error'
+      );
+    } else {
+      showMessage('Incorrect', 'error');
+    }
+    // On surligne le monument CIBLE en rouge
+    highlightMonument(correctLayer, '#d00');
   }
-  // On surligne le monument CIBLE en rouge
-  highlightMonument(correctLayer, '#d00');
-  updateWeightedBar(0);
-}
 
-  totalAnswered += 1;
   summaryData.push({
     name: answeredName,
     correct: isCorrect,
@@ -2174,7 +2210,12 @@ if (isCorrect) {
 
   updateScoreUI();
 
-  if (!isCorrect && gameMode === 'marathon' && errorsCount >= MAX_ERRORS_MARATHON) {
+  if (response.status && response.status !== 'active') {
+    endSession();
+    return;
+  }
+
+  if (!isCorrect && gameMode === 'marathon' && response.max_errors_reached) {
     endSession();
     return;
   }
@@ -2192,6 +2233,80 @@ function highlightMonument(layer, color) {
     if (!layer.setStyle) return;
     layer.setStyle({ color: '#1565c0', fillColor: '#2196f3' });
   }, HIGHLIGHT_DURATION_MS);
+}
+
+async function handleSkipAttempt() {
+  if (isPaused || isSubmittingAttempt) return;
+
+  const zoneMode = getZoneMode();
+  const gameMode = getGameMode();
+  const activeTarget = zoneMode === 'monuments'
+    ? currentMonumentTarget
+    : currentTarget;
+
+  if (!activeTarget || sessionStartTime === null || streetStartTime === null) {
+    return;
+  }
+
+  isSubmittingAttempt = true;
+  let response;
+
+  try {
+    response = await submitSessionEvent({
+      targetId: null,
+      inputType: 'skip',
+      latlng: null
+    });
+  } catch (err) {
+    showMessage('Erreur réseau : réponse serveur indisponible.', 'error');
+    isSubmittingAttempt = false;
+    return;
+  }
+
+  isSubmittingAttempt = false;
+
+  correctCount = response.correct_count ?? correctCount;
+  totalAnswered = response.total_answered ?? totalAnswered;
+  errorsCount = response.errors_count ?? errorsCount;
+  weightedScore = response.score ?? weightedScore;
+
+  updateWeightedScoreUI();
+  updateWeightedBar(0);
+  hasAnsweredCurrentItem = true;
+
+  if (gameMode === 'marathon' && response.max_errors_reached) {
+    showMessage(
+      `Incorrect (limite de ${MAX_ERRORS_MARATHON} erreurs atteinte)`,
+      'error'
+    );
+  } else {
+    showMessage('Incorrect', 'error');
+  }
+
+  summaryData.push({
+    name: activeTarget.properties.name,
+    correct: false,
+    time: (response.elapsed_seconds ?? 0).toFixed(1)
+  });
+
+  updateScoreUI();
+
+  if (response.status && response.status !== 'active') {
+    endSession();
+    return;
+  }
+
+  if (gameMode === 'marathon' && response.max_errors_reached) {
+    endSession();
+    return;
+  }
+
+  if (zoneMode === 'monuments') {
+    currentMonumentIndex += 1;
+  } else {
+    currentIndex += 1;
+  }
+  setNewTarget();
 }
 
 // ------------------------
@@ -2565,6 +2680,7 @@ function endSession() {
   summaryEl.classList.remove('hidden');
 
   showMessage('Session terminée.', 'info');
+  void finalizeServerSession();
   const targetStreetEl = document.getElementById('target-street');
     if (targetStreetEl) {
     targetStreetEl.textContent = '—';
@@ -2765,6 +2881,104 @@ function updateUserUI() {
   } else {
     label.textContent = 'Non connecté.';
     if (logoutBtn) logoutBtn.style.display = 'none';
+  }
+}
+
+// ------------------------
+// API: sessions (Netlify Functions)
+// ------------------------
+
+function getAuthHeaders() {
+  if (currentUser?.token) {
+    return { Authorization: `Bearer ${currentUser.token}` };
+  }
+  return {};
+}
+
+async function callSessionFunction(name, payload) {
+  const res = await fetch(`/.netlify/functions/${name}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = data?.error || 'Erreur serveur.';
+    throw new Error(message);
+  }
+  return data;
+}
+
+function buildSessionTargetIds(targets) {
+  return targets.map(item => normalizeName(item.properties.name));
+}
+
+function markServerTargetsReset(targets) {
+  if (!serverSession) return;
+  serverSession.targets = buildSessionTargetIds(targets);
+  serverSession.pendingTargetReset = true;
+}
+
+async function startServerSession(zoneMode, gameMode, targets) {
+  const response = await callSessionFunction('session-start', {
+    zone: zoneMode,
+    mode: gameMode,
+    targets
+  });
+
+  serverSession = {
+    id: response.session_id,
+    startedAt: response.server_started_at,
+    targets,
+    pendingTargetReset: false
+  };
+
+  return serverSession;
+}
+
+async function submitSessionEvent({ targetId, inputType, latlng }) {
+  if (!serverSession?.id) {
+    throw new Error('Session serveur indisponible.');
+  }
+
+  const payload = {
+    session_id: serverSession.id,
+    target_id: targetId || null,
+    input_type: inputType,
+    click_lat: latlng?.lat ?? null,
+    click_lng: latlng?.lng ?? null
+  };
+
+  if (serverSession.pendingTargetReset) {
+    payload.reset_targets = true;
+    payload.targets = serverSession.targets;
+  }
+
+  const data = await callSessionFunction('session-event', payload);
+
+  if (serverSession.pendingTargetReset) {
+    serverSession.pendingTargetReset = false;
+  }
+
+  return data;
+}
+
+async function finalizeServerSession() {
+  if (!serverSession?.id) return null;
+  try {
+    const data = await callSessionFunction('session-end', {
+      session_id: serverSession.id
+    });
+    return data;
+  } catch (err) {
+    console.warn('Impossible de finaliser la session côté serveur.', err);
+    return null;
+  } finally {
+    serverSession = null;
   }
 }
 
