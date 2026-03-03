@@ -9,7 +9,7 @@ const CHRONO_DURATION = 60;        // mode chrono : 60 secondes
 const HIGHLIGHT_DURATION_MS = 5000 // 5 secondes
 const MAX_POINTS_PER_ITEM = 10;
 
-/ Infos historiques / descriptives pour les rues célèbres
+// Infos historiques / descriptives pour les rues célèbres
 
 const FAMOUS_STREET_INFOS = {
   'la canebière': "Avenue née entre 1666 et 1672 lors de l’agrandissement de Louis XIV, la Canebière — nommée d’après le chanvre (canebe) — s’étend sur près d’un kilomètre du Vieux-Port aux Réformés, intégrant depuis 1927 Noailles et les allées de Meilhan. Élargie au XIXᵉ siècle et structurée autour d’édifices comme le Palais de la Bourse, elle reste un repère historique et architectural majeur de Marseille.",
