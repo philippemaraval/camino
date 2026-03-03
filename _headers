@@ -2,8 +2,16 @@
 /data/*
   Cache-Control: public, max-age=3600, must-revalidate
 
-# CSS and JS: cache 1 hour, revalidate after
+# CSS: cache 10 minutes, revalidate
 /*.css
-  Cache-Control: public, max-age=3600, must-revalidate
+  Cache-Control: public, max-age=600, must-revalidate
+
+# JS: NO cache — always fetch fresh version
 /*.js
-  Cache-Control: public, max-age=3600, must-revalidate
+  Cache-Control: no-cache, must-revalidate
+
+# HTML: NO cache
+/*.html
+  Cache-Control: no-cache, must-revalidate
+/
+  Cache-Control: no-cache, must-revalidate
