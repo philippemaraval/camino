@@ -548,6 +548,21 @@ input:focus {
   border: 1px solid #f87171;
 }
 
+/* Share button */
+.daily-share-btn {
+  position: relative;
+  margin-top: 15px;
+  width: 100%;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.daily-share-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
 /* Color-coded distances */
 .dist-hot {
   color: #059669 !important;

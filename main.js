@@ -3571,7 +3571,7 @@ function renderDailyGuessHistory(finalResult) {
       }
 
       // Share button
-      html += `<button id="daily-share-btn" class="btn-primary" style="margin-top: 15px; width: 100%; border-radius: 8px;">Partager 🔗</button>`;
+      html += `<button id="daily-share-btn" class="btn-primary daily-share-btn" title="Copie votre cheminement (essais, distances, flèches) dans le presse-papier pour le partager">Partager 🔗</button>`;
     }
 
     container.innerHTML = html;
