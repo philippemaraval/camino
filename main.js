@@ -2513,6 +2513,7 @@ function handleStreetClick(clickedFeature, clickedLayer, event) {
       'success'
     );
     highlightStreet('#00aa00');
+    feedbackCorrect();
   } else {
     errorsCount += 1;
     if (gameMode === 'marathon' && errorsCount >= MAX_ERRORS_MARATHON) {
@@ -2525,6 +2526,7 @@ function handleStreetClick(clickedFeature, clickedLayer, event) {
     }
     highlightStreet('#d00');
     updateWeightedBar(0);
+    feedbackError();
   }
 
   totalAnswered += 1;
@@ -2590,6 +2592,7 @@ function handleMonumentClick(clickedFeature, clickedLayer) {
     );
     // On surligne le monument CIBLE en vert
     highlightMonument(correctLayer, '#00aa00');
+    feedbackCorrect();
   } else {
     errorsCount += 1;
     if (gameMode === 'marathon' && errorsCount >= MAX_ERRORS_MARATHON) {
@@ -2603,6 +2606,7 @@ function handleMonumentClick(clickedFeature, clickedLayer) {
     // On surligne le monument CIBLE en rouge
     highlightMonument(correctLayer, '#d00');
     updateWeightedBar(0);
+    feedbackError();
   }
 
   totalAnswered += 1;
@@ -2689,6 +2693,51 @@ function showStreetInfo(feature) {
 // ------------------------
 // Surbrillance de la rue cible
 // ------------------------
+
+// ── Feedback animations ──
+
+function feedbackCorrect() {
+  // Confetti burst
+  if (typeof confetti === 'function') {
+    confetti({
+      particleCount: 60,
+      spread: 55,
+      origin: { y: 0.7 },
+      colors: ['#00aa00', '#22c55e', '#86efac', '#ffd500'],
+      gravity: 1.2,
+      scalar: 0.8,
+      ticks: 120
+    });
+  }
+
+  // Pulse glow on highlighted layers
+  if (highlightedLayers && highlightedLayers.length > 0) {
+    let pulseCount = 0;
+    const pulseInterval = setInterval(() => {
+      const w = pulseCount % 2 === 0 ? 12 : 6;
+      const op = pulseCount % 2 === 0 ? 1 : 0.5;
+      highlightedLayers.forEach(l => {
+        if (l.setStyle) l.setStyle({ weight: w, opacity: op });
+      });
+      pulseCount++;
+      if (pulseCount >= 6) {
+        clearInterval(pulseInterval);
+        highlightedLayers.forEach(l => {
+          if (l.setStyle) l.setStyle({ weight: 8, opacity: 1 });
+        });
+      }
+    }, 200);
+  }
+}
+
+function feedbackError() {
+  // Map container shake
+  const mapEl = document.getElementById('map');
+  if (mapEl) {
+    mapEl.classList.add('map-shake');
+    setTimeout(() => mapEl.classList.remove('map-shake'), 500);
+  }
+}
 
 function highlightStreet(color) {
   if (!currentTarget) return;
