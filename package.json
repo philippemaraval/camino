@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
+    "sync-osm": "node scripts/sync_osm.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
