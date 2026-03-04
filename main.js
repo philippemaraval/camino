@@ -1046,7 +1046,11 @@ function startTimersLoop() {
         return;
       }
 
-      updateTimeUI(totalTimeSec, streetTimeSec);
+      // Pass chrono remaining for color coding
+      const chronoRemaining = (isChronoMode && chronoEndTime !== null)
+        ? Math.max(0, (chronoEndTime - now) / 1000)
+        : null;
+      updateTimeUI(totalTimeSec, streetTimeSec, chronoRemaining);
 
       // === NOUVEAU : mise à jour dynamique de la barre tant qu'on n'a pas répondu ===
       if (!hasAnsweredCurrentItem) {
@@ -3222,12 +3226,31 @@ function updateScoreUI() {
   }
 }
 
-function updateTimeUI(totalTimeSec, streetTimeSec) {
+function updateTimeUI(totalTimeSec, streetTimeSec, chronoRemaining) {
   const totalEl = document.getElementById('total-time');
   const streetEl = document.getElementById('street-time');
 
   if (totalEl) {
-    totalEl.textContent = totalTimeSec.toFixed(1) + ' s';
+    if (chronoRemaining !== null && chronoRemaining !== undefined) {
+      // Chrono mode: show remaining time with color
+      totalEl.textContent = chronoRemaining.toFixed(1) + ' s';
+      if (chronoRemaining > 30) {
+        totalEl.style.color = '#22c55e'; // green
+        totalEl.classList.remove('chrono-blink');
+      } else if (chronoRemaining > 10) {
+        totalEl.style.color = '#f59e0b'; // orange
+        totalEl.classList.remove('chrono-blink');
+      } else {
+        totalEl.style.color = '#ef4444'; // red
+        if (chronoRemaining <= 5) {
+          totalEl.classList.add('chrono-blink');
+        }
+      }
+    } else {
+      totalEl.textContent = totalTimeSec.toFixed(1) + ' s';
+      totalEl.style.color = '';
+      totalEl.classList.remove('chrono-blink');
+    }
   }
   if (streetEl) {
     streetEl.textContent = streetTimeSec.toFixed(1) + ' s';
@@ -3398,7 +3421,10 @@ function loadProfile() {
   const el = document.getElementById('profile-content');
   if (!el) return;
 
-  el.innerHTML = '<p style="color:#94a3b8;font-size:12px;">Chargement du profil…</p>';
+  el.innerHTML = '<div class="skeleton skeleton-avatar"></div>' +
+    '<div class="skeleton skeleton-line" style="width:60%"></div>' +
+    '<div class="skeleton skeleton-block"></div>' +
+    '<div class="skeleton skeleton-line" style="width:80%"></div>';
 
   fetch(API_URL + '/api/profile', {
     headers: { 'Authorization': 'Bearer ' + currentUser.token }
@@ -3585,7 +3611,9 @@ function loadAllLeaderboards() {
   const el = document.getElementById('leaderboard');
   if (!el) return;
 
-  el.innerHTML = '<p>Chargement du leaderboard…</p>';
+  el.innerHTML = '<div class="skeleton skeleton-line" style="width:50%"></div>' +
+    '<div class="skeleton skeleton-block"></div>' +
+    '<div class="skeleton skeleton-block"></div>';
 
   fetch(API_URL + '/api/leaderboards')
     .then(r => {

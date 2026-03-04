@@ -1580,6 +1580,104 @@ button {
   white-space: nowrap;
 }
 
+/* ========== SKELETON LOADING ========== */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+  background-size: 200px 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+  min-height: 16px;
+}
+
+.skeleton-line {
+  height: 14px;
+  margin: 8px 0;
+  border-radius: 4px;
+}
+
+.skeleton-block {
+  height: 60px;
+  margin: 10px 0;
+  border-radius: 8px;
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin: 0 auto 10px;
+}
+
+/* ========== DETAILS TRANSITIONS ========== */
+details>summary {
+  transition: color 0.2s, font-weight 0.2s;
+}
+
+details .panel-content-wrapper {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+details[open] .panel-content-wrapper {
+  max-height: 2000px;
+  opacity: 1;
+}
+
+/* Smooth arrow rotation on details summary */
+details>summary::marker,
+details>summary::-webkit-details-marker {
+  transition: transform 0.2s;
+}
+
+/* ========== FOCUS VISIBLE ========== */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+a:focus-visible,
+.custom-select-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  border-radius: var(--radius-sm);
+}
+
+/* Remove default outlines (only visual when :focus-visible) */
+button:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+input:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ========== CHRONO BLINK ========== */
+@keyframes chrono-blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.chrono-blink {
+  animation: chrono-blink 0.6s ease-in-out infinite;
+  font-weight: 700;
+}
+
 /* ========== SIDEBAR CREDIT ========== */
 .sidebar-credit {
   text-align: center;
