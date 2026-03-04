@@ -656,6 +656,21 @@ function initUI() {
   const soundBtn = document.getElementById('sound-toggle');
   if (soundBtn) soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
 
+  // Onboarding banner (first visit only)
+  if (!localStorage.getItem('camino-onboarded')) {
+    const banner = document.getElementById('onboarding-banner');
+    if (banner) {
+      banner.style.display = 'flex';
+      const closeBtn = document.getElementById('onboarding-close');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          banner.style.display = 'none';
+          localStorage.setItem('camino-onboarded', '1');
+        });
+      }
+    }
+  }
+
   if (restartBtn) {
     restartBtn.addEventListener('click', () => {
       if (!isSessionRunning) {

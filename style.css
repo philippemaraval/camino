@@ -1580,6 +1580,78 @@ button {
   white-space: nowrap;
 }
 
+/* ========== TOOLTIP ICONS ========== */
+.tooltip-icon {
+  cursor: help;
+  font-size: 12px;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+
+.tooltip-icon:hover {
+  opacity: 1;
+}
+
+/* ========== ONBOARDING BANNER ========== */
+.onboarding-banner {
+  background: linear-gradient(135deg, #eff6ff, #e0e7ff);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  position: relative;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.onboarding-content {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.onboarding-emoji {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.onboarding-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.onboarding-close:hover {
+  color: #475569;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ========== SKELETON LOADING ========== */
 @keyframes skeleton-shimmer {
   0% {
