@@ -548,13 +548,20 @@ input:focus {
   border: 1px solid #f87171;
 }
 
-/* Share button */
+/* Share buttons */
+.daily-share-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 15px;
+}
+
 .daily-share-btn {
   position: relative;
-  margin-top: 15px;
-  width: 100%;
+  flex: 1;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 12px;
+  padding: 8px 10px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 

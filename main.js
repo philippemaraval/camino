@@ -3931,20 +3931,25 @@ function renderDailyGuessHistory(finalResult) {
         html += `<div class="daily-result daily-result--fail">Votre meilleur score est ${bestStr} en sept essais</div>`;
       }
 
-      // Share button
-      html += `<button id="daily-share-btn" class="btn-primary daily-share-btn">Partager 🔗</button>`;
-      html += `<p class="daily-share-hint">📋 Copie votre cheminement dans le presse-papier</p>`;
+      // Share buttons
+      html += `<div class="daily-share-buttons">`;
+      html += `<button id="daily-share-text" class="btn-secondary daily-share-btn">📋 Copier le texte</button>`;
+      html += `<button id="daily-share-image" class="btn-primary daily-share-btn">📸 Partager l'image</button>`;
+      html += `</div>`;
+      html += `<p class="daily-share-hint">L'image est plus impactante sur les réseaux !</p>`;
     }
 
     container.innerHTML = html;
 
-    // Add share listener
+    // Add share listeners
     if (finalResult) {
-      const shareBtn = document.getElementById('daily-share-btn');
-      if (shareBtn) {
-        shareBtn.addEventListener('click', () => {
-          handleDailyShare(finalResult);
-        });
+      const shareTextBtn = document.getElementById('daily-share-text');
+      const shareImageBtn = document.getElementById('daily-share-image');
+      if (shareTextBtn) {
+        shareTextBtn.addEventListener('click', () => handleDailyShareText(finalResult));
+      }
+      if (shareImageBtn) {
+        shareImageBtn.addEventListener('click', () => handleDailyShareImage(finalResult));
       }
     }
 
@@ -3953,7 +3958,7 @@ function renderDailyGuessHistory(finalResult) {
   }
 }
 
-function handleDailyShare(finalResult) {
+function handleDailyShareText(finalResult) {
   if (!dailyTargetData) return;
   const attempts = finalResult.success ? finalResult.attempts : 'X';
   let text = `Camino - ${dailyTargetData.streetName} 📍🎯 ${attempts}/7\n\n`;
@@ -3971,28 +3976,168 @@ function handleDailyShare(finalResult) {
 
   text += `\nmarseille-camino6.netlify.app`;
 
-  // clipboard API
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(() => {
-      showMessage('Copié dans le presse-papier !', 'success');
-    }).catch(err => {
-      console.error('Failed to copy', err);
-      showMessage('Erreur lors de la copie', 'error');
-    });
+      showMessage('Texte copié !', 'success');
+    }).catch(() => showMessage('Erreur lors de la copie', 'error'));
   } else {
-    // Fallback if not secure context (like local IP without HTTPS)
     try {
-      const textArea = document.createElement("textarea");
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
       document.execCommand('copy');
-      document.body.removeChild(textArea);
-      showMessage('Copié dans le presse-papier !', 'success');
+      document.body.removeChild(ta);
+      showMessage('Texte copié !', 'success');
     } catch (e) {
-      showMessage('Impossible de copier (navigateur non supporté)', 'error');
+      showMessage('Impossible de copier', 'error');
     }
   }
+}
+
+function handleDailyShareImage(finalResult) {
+  if (!dailyTargetData) return;
+
+  const canvas = document.createElement('canvas');
+  const W = 600, H = 480;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Background gradient
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#0f172a');
+  bg.addColorStop(1, '#1e293b');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle border
+  ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)';
+  ctx.lineWidth = 2;
+  ctx.roundRect(4, 4, W - 8, H - 8, 16);
+  ctx.stroke();
+
+  // Title
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🗺️ CAMINO', W / 2, 50);
+
+  // Date
+  const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '14px system-ui, sans-serif';
+  ctx.fillText(`Défi du ${today}`, W / 2, 75);
+
+  // Street name
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 20px system-ui, sans-serif';
+  ctx.fillText(dailyTargetData.streetName, W / 2, 110);
+
+  // Result: success or fail
+  const attempts = finalResult.success ? finalResult.attempts : 'X';
+  ctx.fillStyle = finalResult.success ? '#22c55e' : '#ef4444';
+  ctx.font = 'bold 36px system-ui, sans-serif';
+  ctx.fillText(`${attempts}/7`, W / 2, 160);
+
+  // Guess grid
+  const gridTop = 185;
+  const rowH = 34;
+  const squareSize = 28;
+  const startX = 160;
+
+  dailyGuessHistory.forEach((g, i) => {
+    const y = gridTop + i * rowH;
+    const isLast = finalResult.success && i === dailyGuessHistory.length - 1;
+
+    // Colored square
+    let color = '#ef4444'; // red
+    if (isLast) color = '#22c55e';
+    else if (g.distance < 500) color = '#22c55e';
+    else if (g.distance < 2000) color = '#eab308';
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(startX, y, squareSize, squareSize, 4);
+    ctx.fill();
+
+    // Arrow or flag
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '18px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(isLast ? '🏁' : (g.arrow || ''), startX + 38, y + 22);
+
+    // Distance
+    if (!isLast) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '13px system-ui, sans-serif';
+      const distStr = g.distance >= 1000
+        ? `${(g.distance / 1000).toFixed(1)} km`
+        : `${Math.round(g.distance)} m`;
+      ctx.fillText(distStr, startX + 80, y + 22);
+    } else {
+      ctx.fillStyle = '#22c55e';
+      ctx.font = 'bold 13px system-ui, sans-serif';
+      ctx.fillText('Trouvé !', startX + 80, y + 22);
+    }
+
+    // Attempt number
+    ctx.fillStyle = '#64748b';
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`#${i + 1}`, startX - 10, y + 20);
+  });
+
+  // Footer URL
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#6366f1';
+  ctx.font = 'bold 14px system-ui, sans-serif';
+  ctx.fillText('marseille-camino6.netlify.app', W / 2, H - 20);
+
+  // Convert to blob and share/download
+  canvas.toBlob(async (blob) => {
+    if (!blob) {
+      showMessage('Erreur lors de la génération', 'error');
+      return;
+    }
+
+    const file = new File([blob], 'camino-daily.png', { type: 'image/png' });
+
+    // Try Web Share API first (mobile + modern browsers)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: 'Camino - Défi Quotidien',
+          text: `J'ai trouvé la rue en ${attempts}/7 !`,
+          files: [file]
+        });
+        showMessage('Partagé !', 'success');
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return; // user cancelled
+      }
+    }
+
+    // Fallback: copy image to clipboard
+    if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        showMessage('Image copiée dans le presse-papier !', 'success');
+        return;
+      } catch (e) { /* fallback to download */ }
+    }
+
+    // Fallback: download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'camino-daily.png';
+    a.click();
+    URL.revokeObjectURL(url);
+    showMessage('Image téléchargée !', 'success');
+  }, 'image/png');
 }
 
 // Direction arrow: returns emoji arrow from clicked toward target
