@@ -19,7 +19,7 @@
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#ffffff">
 
-  <link rel="stylesheet" href="style.css?v=20260304t">
+  <link rel="stylesheet" href="style.css?v=20260304u">
 
   <!-- Preload heavy GeoJSON data as early as possible -->
   <link rel="preload" href="data/marseille_rues_light.geojson?v=3" as="fetch" crossorigin>
@@ -106,7 +106,7 @@
 
           <div class="info-block" id="mode-select-block">
             <label>Zone de jeu <span class="tooltip-icon"
-                title="Choisissez la zone géographique : rues célèbres (facile), rues principales, par quartier, ville entière (expert) ou monuments.">ℹ️</span></label>
+                data-tooltip="Choisissez la zone géographique : rues célèbres (facile), rues principales, par quartier, ville entière (expert) ou monuments.">ℹ️</span></label>
 
             <div id="mode-select-wrapper" class="custom-select">
               <button id="mode-select-button" class="custom-select-button">
@@ -151,7 +151,7 @@
 
           <div class="info-block">
             <label>Type de partie <span class="tooltip-icon"
-                title="Classique = 20 rues, sans limite. Marathon = 3 erreurs max. Chrono = 60 secondes. Lecture = mode libre pour apprendre.">ℹ️</span></label>
+                data-tooltip="Classique = 20 rues, sans limite. Marathon = 3 erreurs max. Chrono = 60 secondes. Lecture = mode libre pour apprendre.">ℹ️</span></label>
 
             <!-- Faux select stylé -->
             <div id="game-mode-select-wrapper" class="custom-select">
@@ -296,8 +296,8 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet-minimap@3.6.1/dist/Control.MiniMap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <script src="data_rules.js?v=20260304t"></script>
-  <script src="main.js?v=20260304t"></script>
+  <script src="data_rules.js?v=20260304u"></script>
+  <script src="main.js?v=20260304u"></script>
 </body>
 
 </html>
