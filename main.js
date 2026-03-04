@@ -3571,7 +3571,8 @@ function renderDailyGuessHistory(finalResult) {
       }
 
       // Share button
-      html += `<button id="daily-share-btn" class="btn-primary daily-share-btn" data-tooltip="Copie votre cheminement dans le presse-papier">Partager 🔗</button>`;
+      html += `<button id="daily-share-btn" class="btn-primary daily-share-btn">Partager 🔗</button>`;
+      html += `<p class="daily-share-hint">📋 Copie votre cheminement dans le presse-papier</p>`;
     }
 
     container.innerHTML = html;

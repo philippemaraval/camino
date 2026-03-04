@@ -563,30 +563,13 @@ input:focus {
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-/* Custom tooltip via data-tooltip attribute */
-.daily-share-btn[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) scale(0.95);
-  background: var(--primary-dark, #0f172a);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.4;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 100;
-}
-
-.daily-share-btn[data-tooltip]:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
+/* Hint text below share button */
+.daily-share-hint {
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 6px 0 0;
+  font-style: italic;
 }
 
 /* Color-coded distances */
