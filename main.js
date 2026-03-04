@@ -443,6 +443,25 @@ function initMap() {
       attribution: 'Tiles © Esri'
     }
   ).addTo(map);
+
+  // Mini-map de situation (coin bas-droit)
+  if (typeof L.Control.MiniMap !== 'undefined') {
+    const miniMapTiles = L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      { maxZoom: 19, attribution: '© CartoDB' }
+    );
+    const miniMap = new L.Control.MiniMap(miniMapTiles, {
+      position: 'bottomright',
+      toggleDisplay: true,
+      minimized: false,
+      width: 150,
+      height: 150,
+      zoomLevelOffset: -5,
+      zoomLevelFixed: false,
+      collapsedWidth: 24,
+      collapsedHeight: 24
+    }).addTo(map);
+  }
 }
 
 // ------------------------

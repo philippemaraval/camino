@@ -1380,3 +1380,23 @@ button {
   color: #22c55e;
   padding: 2px 0;
 }
+
+/* ========== MINI-MAP DE SITUATION ========== */
+.leaflet-control-minimap {
+  border: 2px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  overflow: hidden !important;
+}
+
+.leaflet-control-minimap a.minimap-toggle-display {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 4px !important;
+}
+
+@media (max-width: 600px) {
+  .leaflet-control-minimap {
+    width: 100px !important;
+    height: 100px !important;
+  }
+}
