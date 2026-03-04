@@ -118,6 +118,20 @@ app.post('/api/scores', authenticateToken, async (req, res) => {
 });
 
 // ----------------------
+// Profile Route
+// ----------------------
+
+app.get('/api/profile', authenticateToken, async (req, res) => {
+    try {
+        const stats = await db.getUserStats(req.user.id);
+        res.json({ username: req.user.username, ...stats });
+    } catch (err) {
+        console.error('Profile error:', err);
+        res.status(500).json({ error: 'Failed to load profile' });
+    }
+});
+
+// ----------------------
 // Daily Challenge Routes
 // ----------------------
 

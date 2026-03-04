@@ -215,6 +215,66 @@ async function getDailyLeaderboard(date) {
   return res.rows;
 }
 
+// ── Player Profile Stats ──
+
+async function getUserStats(userId) {
+  // Per-mode stats
+  const modeStats = await pool.query(
+    `SELECT mode, game_type,
+            COUNT(*) as games_played,
+            MAX(score) as high_score,
+            ROUND(AVG(score)::numeric, 1) as avg_score,
+            MAX(items_correct) as best_items_correct,
+            MAX(items_total) as best_items_total
+     FROM scores
+     WHERE user_id = $1
+     GROUP BY mode, game_type
+     ORDER BY mode, game_type`,
+    [userId]
+  );
+
+  // Overall aggregates
+  const overall = await pool.query(
+    `SELECT COUNT(*) as total_games,
+            COALESCE(MAX(score), 0) as best_score,
+            ROUND(COALESCE(AVG(score), 0)::numeric, 1) as avg_score
+     FROM scores WHERE user_id = $1`,
+    [userId]
+  );
+
+  // Best mode (highest high score)
+  const bestMode = await pool.query(
+    `SELECT mode, game_type, MAX(score) as high_score
+     FROM scores WHERE user_id = $1
+     GROUP BY mode, game_type
+     ORDER BY high_score DESC LIMIT 1`,
+    [userId]
+  );
+
+  // Daily challenge stats
+  const dailyStats = await pool.query(
+    `SELECT COUNT(*) as total_days,
+            SUM(CASE WHEN success THEN 1 ELSE 0 END) as successes,
+            ROUND(AVG(attempts_count)::numeric, 1) as avg_attempts
+     FROM daily_user_attempts WHERE user_id = $1`,
+    [userId]
+  );
+
+  // Account creation date
+  const userInfo = await pool.query(
+    'SELECT created_at FROM users WHERE id = $1',
+    [userId]
+  );
+
+  return {
+    memberSince: userInfo.rows[0]?.created_at || null,
+    overall: overall.rows[0] || { total_games: 0, best_score: 0, avg_score: 0 },
+    bestMode: bestMode.rows[0] || null,
+    modes: modeStats.rows,
+    daily: dailyStats.rows[0] || { total_days: 0, successes: 0, avg_attempts: 0 }
+  };
+}
+
 module.exports = {
   initDb,
   createUser,
@@ -227,5 +287,6 @@ module.exports = {
   setDailyTarget,
   getDailyUserStatus,
   updateDailyUserAttempt,
-  getDailyLeaderboard
+  getDailyLeaderboard,
+  getUserStats
 };

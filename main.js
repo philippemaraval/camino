@@ -3182,6 +3182,11 @@ function updateUserUI() {
 
     if (logoutBtn) logoutBtn.style.display = 'inline-block';
     if (dailyBtn) dailyBtn.style.display = 'inline-block';
+
+    // Show profile panel and load data
+    const profilePanel = document.getElementById('profile-panel');
+    if (profilePanel) profilePanel.style.display = 'block';
+    loadProfile();
   } else {
     if (label) label.textContent = 'Non connecté.';
     if (userSticker) {
@@ -3199,7 +3204,108 @@ function updateUserUI() {
 
     if (logoutBtn) logoutBtn.style.display = 'none';
     if (dailyBtn) dailyBtn.style.display = 'none';
+
+    // Hide profile panel
+    const profilePanel = document.getElementById('profile-panel');
+    if (profilePanel) profilePanel.style.display = 'none';
   }
+}
+
+// ── Player Profile ──
+
+function loadProfile() {
+  if (!currentUser || !currentUser.token) return;
+
+  const el = document.getElementById('profile-content');
+  if (!el) return;
+
+  el.innerHTML = '<p style="color:#94a3b8;font-size:12px;">Chargement du profil…</p>';
+
+  fetch(API_URL + '/api/profile', {
+    headers: { 'Authorization': 'Bearer ' + currentUser.token }
+  })
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(data => {
+      const bestScore = parseFloat(data.overall?.best_score) || 0;
+      const bestMode = data.bestMode?.mode || null;
+      const title = getPlayerTitle(bestScore, bestMode);
+      const totalGames = parseInt(data.overall?.total_games) || 0;
+      const avgScore = parseFloat(data.overall?.avg_score) || 0;
+      const dailyTotal = parseInt(data.daily?.total_days) || 0;
+      const dailySuccess = parseInt(data.daily?.successes) || 0;
+      const dailyAvgAttempts = parseFloat(data.daily?.avg_attempts) || 0;
+      const memberSince = data.memberSince
+        ? new Date(data.memberSince).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '—';
+
+      let html = `
+        <div class="profile-header">
+          <div class="profile-avatar">${(data.username || '?')[0].toUpperCase()}</div>
+          <div class="profile-info">
+            <div class="profile-name">${data.username}</div>
+            <div class="profile-title">${title}</div>
+          </div>
+        </div>
+
+        <div class="profile-stats-grid">
+          <div class="profile-stat">
+            <span class="profile-stat-value">${totalGames}</span>
+            <span class="profile-stat-label">Parties</span>
+          </div>
+          <div class="profile-stat">
+            <span class="profile-stat-value">${bestScore.toFixed(1)}</span>
+            <span class="profile-stat-label">Meilleur</span>
+          </div>
+          <div class="profile-stat">
+            <span class="profile-stat-value">${avgScore}</span>
+            <span class="profile-stat-label">Moyenne</span>
+          </div>
+          <div class="profile-stat">
+            <span class="profile-stat-value">${dailySuccess}/${dailyTotal}</span>
+            <span class="profile-stat-label">Daily ✅</span>
+          </div>
+        </div>`;
+
+      // Per-mode breakdown
+      if (data.modes && data.modes.length > 0) {
+        html += '<div class="profile-modes-title">Détail par mode</div>';
+        html += '<div class="profile-modes">';
+        data.modes.forEach(m => {
+          const zoneLabel = ZONE_LABELS[m.mode] || m.mode;
+          const gameLabel = GAME_LABELS[m.game_type] || m.game_type;
+          const mTitle = getPlayerTitle(parseFloat(m.high_score) || 0, m.mode);
+          html += `
+            <div class="profile-mode-row">
+              <div class="profile-mode-name">${zoneLabel} — ${gameLabel}</div>
+              <div class="profile-mode-details">
+                <span>🏆 ${parseFloat(m.high_score).toFixed(1)}</span>
+                <span>📊 Ø${parseFloat(m.avg_score).toFixed(1)}</span>
+                <span>🎮 ${m.games_played}</span>
+              </div>
+              <div class="profile-mode-title">${mTitle}</div>
+            </div>`;
+        });
+        html += '</div>';
+      }
+
+      if (dailyTotal > 0) {
+        html += `
+          <div class="profile-daily-summary">
+            <span>📅 Daily : ${dailyAvgAttempts} essais en moyenne</span>
+          </div>`;
+      }
+
+      html += `<div class="profile-member-since">Membre depuis le ${memberSince}</div>`;
+
+      el.innerHTML = html;
+    })
+    .catch(err => {
+      console.warn('Profile error:', err.message);
+      el.innerHTML = '<p style="color:#94a3b8;font-size:12px;">Profil indisponible.</p>';
+    });
 }
 
 // ------------------------

@@ -1381,6 +1381,136 @@ button {
   padding: 2px 0;
 }
 
+/* ========== PLAYER PROFILE ========== */
+.profile-panel {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow);
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.profile-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.profile-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--primary-dark);
+}
+
+.profile-title {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.profile-stat {
+  text-align: center;
+  padding: 8px 4px;
+  background: rgba(37, 99, 235, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.1);
+}
+
+.profile-stat-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.profile-stat-label {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.profile-modes-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.profile-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.profile-mode-row {
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.profile-mode-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin-bottom: 2px;
+}
+
+.profile-mode-details {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.profile-mode-title {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.profile-daily-summary {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.profile-member-since {
+  font-size: 10px;
+  color: #cbd5e1;
+  text-align: right;
+  font-style: italic;
+}
+
 /* ========== MINI-MAP DE SITUATION ========== */
 .leaflet-control-minimap {
   border: 2px solid rgba(255, 255, 255, 0.8) !important;
