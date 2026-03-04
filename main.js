@@ -671,6 +671,28 @@ function initUI() {
     }
   }
 
+  // ── Offline / network error detection ──
+  function updateOfflineBanner(offline) {
+    const banner = document.getElementById('offline-banner');
+    if (banner) banner.style.display = offline ? 'block' : 'none';
+  }
+
+  window.addEventListener('offline', () => updateOfflineBanner(true));
+  window.addEventListener('online', () => {
+    // Re-check API before hiding banner
+    fetch(API_URL + '/api/leaderboards', { method: 'HEAD' })
+      .then(() => updateOfflineBanner(false))
+      .catch(() => updateOfflineBanner(true));
+  });
+
+  // Initial check: ping API
+  if (!navigator.onLine) {
+    updateOfflineBanner(true);
+  } else {
+    fetch(API_URL + '/api/leaderboards', { method: 'HEAD' })
+      .catch(() => updateOfflineBanner(true));
+  }
+
   if (restartBtn) {
     restartBtn.addEventListener('click', () => {
       if (!isSessionRunning) {
