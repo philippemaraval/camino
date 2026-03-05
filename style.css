@@ -35,9 +35,11 @@ html {
 
 body {
   font-family: var(--font-body);
-  background: linear-gradient(135deg,
-      var(--bg-gradient-start) 0,
-      var(--bg-gradient-end) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--bg-gradient-start) 0,
+    var(--bg-gradient-end) 100%
+  );
   color: #1e293b;
   font-size: var(--fs-m);
   line-height: 1.5;
@@ -128,9 +130,11 @@ body {
   color: var(--primary-dark);
   margin: 0;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg,
-      var(--primary-dark) 0,
-      var(--primary) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--primary-dark) 0,
+    var(--primary) 100%
+  );
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -198,7 +202,9 @@ select {
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid #cbd5e1;
-  background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 0.5rem center/1.5em 1.5em;
+  background: #fff
+    url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")
+    no-repeat right 0.5rem center/1.5em 1.5em;
   font-family: var(--font-body);
   font-size: var(--fs-m);
   color: #1e293b;
@@ -829,7 +835,7 @@ button {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
-.user-panel details>summary {
+.user-panel details > summary {
   list-style: none;
   cursor: pointer;
   display: flex;
@@ -840,7 +846,7 @@ button {
   color: #64748b;
 }
 
-.user-panel details[open]>summary {
+.user-panel details[open] > summary {
   color: var(--primary);
   font-weight: 600;
 }
@@ -921,8 +927,8 @@ button {
   transform: scale(1.1);
 }
 
-.weighted-score-help-btn:focus+.weighted-score-help,
-.weighted-score-help-btn:hover+.weighted-score-help {
+.weighted-score-help-btn:focus + .weighted-score-help,
+.weighted-score-help-btn:hover + .weighted-score-help {
   opacity: 1;
   visibility: visible;
   transform: translateY(-5px);
@@ -999,7 +1005,6 @@ button {
 }
 
 @media (max-width: 900px) {
-
   body,
   html {
     overflow-x: hidden !important;
@@ -1243,7 +1248,7 @@ button {
   color: var(--accent);
 }
 
-.leaderboard-zone-details>summary {
+.leaderboard-zone-details > summary {
   cursor: pointer;
   padding: 6px 0;
   margin-bottom: 6px;
@@ -1327,9 +1332,11 @@ button {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: linear-gradient(135deg,
-      var(--primary) 0,
-      var(--primary-light) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--primary) 0,
+    var(--primary-light) 100%
+  );
   color: #fff;
   display: flex;
   align-items: center;
@@ -1468,9 +1475,11 @@ button {
 }
 
 .profile-badge.unlocked {
-  background: linear-gradient(135deg,
-      rgba(37, 99, 235, 0.08) 0,
-      rgba(168, 85, 247, 0.08) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(37, 99, 235, 0.08) 0,
+    rgba(168, 85, 247, 0.08) 100%
+  );
   border: 1px solid rgba(37, 99, 235, 0.15);
   box-shadow: 0 1px 4px rgba(37, 99, 235, 0.1);
 }
@@ -1647,7 +1656,7 @@ button {
   margin: 0 auto 10px;
 }
 
-details>summary {
+details > summary {
   transition:
     color 0.2s,
     font-weight 0.2s;
@@ -1667,8 +1676,8 @@ details[open] .panel-content-wrapper {
   opacity: 1;
 }
 
-details>summary::-webkit-details-marker,
-details>summary::marker {
+details > summary::-webkit-details-marker,
+details > summary::marker {
   transition: transform 0.2s;
 }
 
@@ -1690,7 +1699,6 @@ select:focus:not(:focus-visible) {
 }
 
 @keyframes chrono-blink {
-
   0%,
   100% {
     opacity: 1;
@@ -1713,6 +1721,12 @@ select:focus:not(:focus-visible) {
   margin: 12px 0 6px;
   font-style: italic;
   letter-spacing: 0.02em;
+}
+
+@media (max-width: 900px) {
+  body.session-running .sidebar-credit {
+    display: none !important;
+  }
 }
 
 .sound-toggle {
@@ -1743,7 +1757,6 @@ select:focus:not(:focus-visible) {
 }
 
 @keyframes shake {
-
   0%,
   100% {
     transform: translateX(0);
