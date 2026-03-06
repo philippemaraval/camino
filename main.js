@@ -3130,16 +3130,11 @@ function renderDailyGuessHistory(e) {
     if (historyContainer) {
       historyContainer.innerHTML = r;
     }
-    if (window.innerWidth <= 900) {
-      const targetPanel = document.querySelector(".target-panel");
-      if (targetPanel) {
-        setTimeout(() => {
-          targetPanel.scrollTo({
-            top: targetPanel.scrollHeight,
-            behavior: "smooth",
-          });
-        }, 150);
-      }
+    const targetPanel = document.querySelector(".target-panel");
+    if (targetPanel) {
+      requestAnimationFrame(() => {
+        targetPanel.scrollTop = targetPanel.scrollHeight;
+      });
     }
   } catch (err) {
     console.error("Error in renderDailyGuessHistory:", err);
@@ -3151,27 +3146,47 @@ function updateDailyResultPanel() {
   const content = document.getElementById("daily-result-content");
   if (!panel || !content) return;
 
-  // We show it only if not in a session, and if today's daily was played
-  if (isSessionRunning || dailyGuessHistory.length === 0 || !window._dailyGameOver) {
+  if (isSessionRunning) {
+    panel.style.display = "none";
+    return;
+  }
+
+  let guesses = dailyGuessHistory;
+
+  if (guesses.length === 0 && !window._dailyGameOver) {
+    const today = new Date().toISOString().split("T")[0];
+    const stored = localStorage.getItem(`camino_daily_guesses_${today}`);
+    if (stored) {
+      try {
+        guesses = JSON.parse(stored);
+      } catch (err) { }
+    }
+  }
+
+  if (guesses.length === 0) {
+    panel.style.display = "none";
+    return;
+  }
+
+  const isSuccess = guesses.some(g => g.distance < 20);
+  const isFinished = isSuccess || guesses.length >= 7 || window._dailyGameOver;
+
+  if (!isFinished) {
     panel.style.display = "none";
     return;
   }
 
   const e = {
-    success: dailyGuessHistory[dailyGuessHistory.length - 1]?.distance < 20, // rough heuristic or rely on stored status
-    attempts: dailyGuessHistory.length
+    success: isSuccess,
+    attempts: guesses.length
   };
-
-  // if the last guess distance is < 20 (meaning success), or we have window._dailyGameOver, let's look at the stored state
-  const isSuccess = dailyGuessHistory.some(g => g.distance < 20);
-  e.success = isSuccess;
 
   let r = "";
   if (isSuccess) {
     const t = e.attempts;
     r += `<div class="daily-result daily-result--success">🎉 Bravo, vous avez trouvé la rue en ${t} essai${t > 1 ? "s" : ""} !</div>`;
   } else {
-    const minDistance = Math.min(...dailyGuessHistory.map((g) => g.distance));
+    const minDistance = Math.min(...guesses.map((g) => g.distance));
     const t = minDistance >= 1e3 ? `${(minDistance / 1e3).toFixed(1)} km` : `${Math.round(minDistance)} m`;
     r += `<div class="daily-result daily-result--fail">Votre meilleur score est ${t} en sept essais</div>`;
   }
