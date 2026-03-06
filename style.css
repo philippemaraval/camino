@@ -1067,14 +1067,6 @@ button {
     z-index: 1000;
   }
 
-  body.session-running #daily-guesses-history {
-    max-height: 110px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-right: 4px;
-    margin-bottom: 2px;
-  }
-
   body.session-running #map {
     flex: 1;
     opacity: 1;
@@ -1102,6 +1094,9 @@ button {
     padding: 6px 10px;
     border-left-width: 4px;
     border-radius: var(--radius-sm);
+    max-height: 140px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   body.session-running .actions-row {

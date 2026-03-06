@@ -3091,10 +3091,11 @@ function renderDailyGuessHistory(e) {
       }
     }
     if (window.innerWidth <= 900) {
-      if (historyContainer) {
+      const targetPanel = document.querySelector(".target-panel");
+      if (targetPanel) {
         setTimeout(() => {
-          historyContainer.scrollTo({
-            top: historyContainer.scrollHeight,
+          targetPanel.scrollTo({
+            top: targetPanel.scrollHeight,
             behavior: "smooth",
           });
         }, 150);
