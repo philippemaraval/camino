@@ -1818,3 +1818,128 @@ select:focus:not(:focus-visible) {
     height: 100px !important;
   }
 }
+/* Avatar Selection Modal */
+.avatar-selector-modal {
+  margin-top: 15px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  animation: slideDown 0.2s ease-out;
+}
+
+.avatar-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.avatar-modal-header h4 {
+  margin: 0;
+  font-size: var(--fs-m);
+  color: var(--primary-dark);
+}
+
+.avatar-modal-close {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 0;
+  width: auto;
+  line-height: 1;
+}
+
+.avatar-modal-close:hover {
+  color: #475569;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.avatar-item {
+  width: 45px;
+  height: 45px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+
+.avatar-item:hover:not(.locked) {
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+}
+
+.avatar-item.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.avatar-item.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(100%);
+}
+
+.avatar-item.locked::after {
+  content: '🔒';
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 12px;
+  background: #fff;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.edit-avatar-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--primary);
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+.edit-avatar-badge:hover {
+  transform: scale(1.15);
+}
+
+/* Leaderboard Avatars */
+.leaderboard-avatar {
+  font-size: 14px;
+  margin-right: 4px;
+  display: inline-block;
+  vertical-align: middle;
+}

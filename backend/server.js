@@ -73,7 +73,7 @@ app.post('/api/register', async (req, res) => {
     try {
         const userId = await db.createUser(username, password);
         const token = jwt.sign({ id: userId, username }, SECRET_KEY, { expiresIn: '7d' });
-        res.json({ token, username });
+        res.json({ token, username, avatar: '👤' });
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
@@ -88,7 +88,7 @@ app.post('/api/login', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, username: user.username }, SECRET_KEY, { expiresIn: '7d' });
-    res.json({ token, username: user.username });
+    res.json({ token, username: user.username, avatar: user.avatar || '👤' });
 });
 
 // ----------------------
@@ -125,11 +125,25 @@ app.post('/api/scores', authenticateToken, async (req, res) => {
 
 app.get('/api/profile', authenticateToken, async (req, res) => {
     try {
+        const user = await db.getUser(req.user.username);
         const stats = await db.getUserStats(req.user.id);
-        res.json({ username: req.user.username, ...stats });
+        res.json({ username: req.user.username, avatar: user ? (user.avatar || '👤') : '👤', ...stats });
     } catch (err) {
         console.error('Profile error:', err);
         res.status(500).json({ error: 'Failed to load profile' });
+    }
+});
+
+app.post('/api/profile/avatar', authenticateToken, async (req, res) => {
+    const { avatar } = req.body;
+    if (!avatar) return res.status(400).json({ error: 'Missing avatar' });
+
+    try {
+        await db.updateUserAvatar(req.user.id, avatar);
+        res.json({ success: true, avatar });
+    } catch (err) {
+        console.error('Update avatar error:', err);
+        res.status(500).json({ error: 'Failed to update avatar' });
     }
 });
 

@@ -18,6 +18,7 @@ async function initDb() {
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
+        avatar TEXT DEFAULT '👤',
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
@@ -66,6 +67,7 @@ async function initDb() {
 
     // Migration: add columns if missing (safe to run multiple times)
     const migrations = [
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT DEFAULT '👤'",
       'ALTER TABLE scores ADD COLUMN IF NOT EXISTS items_correct INTEGER DEFAULT 0',
       'ALTER TABLE scores ADD COLUMN IF NOT EXISTS items_total INTEGER DEFAULT 0',
       'ALTER TABLE scores ADD COLUMN IF NOT EXISTS time_sec REAL DEFAULT 0',
@@ -132,13 +134,15 @@ async function addScore(userId, username, mode, gameType, score, itemsCorrect, i
 
 async function getLeaderboard(mode, gameType, quartierName = null, limit = 10) {
   let query = `
-    SELECT username,
+    SELECT scores.username,
+           u.avatar,
            MAX(score) as high_score,
            MAX(items_correct) as items_correct,
            MAX(items_total) as items_total,
            MAX(time_sec) as time_sec,
            COUNT(*) as games_played
     FROM scores
+    LEFT JOIN users u ON scores.user_id = u.id
     WHERE mode = $1 AND game_type = $2 `;
 
   const params = [mode, gameType];
@@ -152,7 +156,7 @@ async function getLeaderboard(mode, gameType, quartierName = null, limit = 10) {
   }
 
   query += `
-    GROUP BY user_id, username
+    GROUP BY scores.user_id, scores.username, u.avatar
     ORDER BY high_score DESC
     LIMIT $${params.length + 1}
   `;
@@ -237,7 +241,7 @@ async function updateDailyUserAttempt(userId, date, distanceMeters, isSuccess) {
 
 async function getDailyLeaderboard(date) {
   const res = await pool.query(
-    `SELECT u.username, d.attempts_count, d.success
+    `SELECT u.username, u.avatar, d.attempts_count, d.success
      FROM daily_user_attempts d
      JOIN users u ON d.user_id = u.id
      WHERE d.date = $1 AND d.success = TRUE
@@ -306,6 +310,10 @@ async function getUserStats(userId) {
     modes: modeStats.rows,
     daily: dailyStats.rows[0] || { total_days: 0, successes: 0, avg_attempts: 0 }
   };
+}
+
+async function updateUserAvatar(userId, avatar) {
+  await pool.query('UPDATE users SET avatar = $1 WHERE id = $2', [avatar, userId]);
 }
 
 // ── Analytics ──
@@ -386,5 +394,6 @@ module.exports = {
   getUserStats,
   trackStreetAnswer,
   getAnalytics,
-  clearAllScores
+  clearAllScores,
+  updateUserAvatar
 };

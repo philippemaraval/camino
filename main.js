@@ -2413,7 +2413,7 @@ function updateUserUI() {
   if (currentUser && currentUser.username) {
     (e && (e.textContent = `Connecté en tant que ${currentUser.username}`),
       n &&
-      ((n.textContent = currentUser.username),
+      ((n.textContent = currentUser.avatar || '👤'),
         (n.style.display = "inline-block")),
       s && (s.style.display = "none"),
       t &&
@@ -2645,7 +2645,11 @@ function loadProfile() {
                 year: "numeric",
               })
               : "—";
-          let d = `\n        <div class="profile-header">\n          <div class="profile-avatar">${(t.username || "?")[0].toUpperCase()}</div>\n          <div class="profile-info">\n            <div class="profile-name">${t.username}</div>\n            <div class="profile-title">${a}</div>\n          </div>\n        </div>\n\n        <div class="profile-stats-grid">\n          <div class="profile-stat">\n            <span class="profile-stat-value">${n}</span>\n            <span class="profile-stat-label">Parties</span>\n          </div>\n          <div class="profile-stat">\n            <span class="profile-stat-value">${r.toFixed(1)}</span>\n            <span class="profile-stat-label">Meilleur</span>\n          </div>\n          <div class="profile-stat">\n            <span class="profile-stat-value">${s}</span>\n            <span class="profile-stat-label">Moyenne</span>\n          </div>\n          <div class="profile-stat">\n            <span class="profile-stat-value">${l}/${i}</span>\n            <span class="profile-stat-label">Daily ✅</span>\n          </div>\n        </div>`;
+          let d = `\n        <div class="profile-header">
+          <div class="profile-avatar" style="position:relative;">
+            ${t.avatar || '👤'}
+            <div class="edit-avatar-badge" id="btn-edit-avatar" title="Changer d'avatar">✏️</div>
+          </div>\n          <div class="profile-info">\n            <div class="profile-name">${t.username}</div>\n            <div class="profile-title">${a}</div>\n          </div>\n        </div>\n\n        <div class="profile-stats-grid">\n          <div class="profile-stat">\n            <span class="profile-stat-value">${n}</span>\n            <span class="profile-stat-label">Parties</span>\n          </div>\n          <div class="profile-stat">\n            <span class="profile-stat-value">${r.toFixed(1)}</span>\n            <span class="profile-stat-label">Meilleur</span>\n          </div>\n          <div class="profile-stat">\n            <span class="profile-stat-value">${s}</span>\n            <span class="profile-stat-label">Moyenne</span>\n          </div>\n          <div class="profile-stat">\n            <span class="profile-stat-value">${l}/${i}</span>\n            <span class="profile-stat-label">Daily ✅</span>\n          </div>\n        </div>`;
           (t.modes &&
             t.modes.length > 0 &&
             ((d += '<div class="profile-modes-title">Détail par mode</div>'),
@@ -2673,6 +2677,9 @@ function loadProfile() {
             (d += "</div>"),
             (d += `<div class="profile-member-since">Membre depuis le ${u}</div>`),
             (e.innerHTML = d));
+          
+          initAvatarSelector(t.avatar || '👤', r);
+          
         })
         .catch((t) => {
           (console.warn("Profile error:", t.message),
@@ -2680,6 +2687,79 @@ function loadProfile() {
               '<p style="color:#94a3b8;font-size:12px;">Profil indisponible.</p>'));
         }));
 }
+
+function initAvatarSelector(currentAvatar, bestScore) {
+  const btnEdit = document.getElementById('btn-edit-avatar');
+  const modal = document.getElementById('avatar-selector-modal');
+  const closeBtn = document.getElementById('avatar-modal-close');
+  const grid = document.getElementById('avatar-grid');
+  
+  if (!btnEdit || !modal || !grid) return;
+
+  btnEdit.addEventListener('click', () => {
+    modal.style.display = 'block';
+    renderAvatarGrid(currentAvatar, bestScore);
+  });
+
+  closeBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+}
+
+function renderAvatarGrid(currentAvatar, bestScore) {
+  const grid = document.getElementById('avatar-grid');
+  grid.innerHTML = '';
+  
+  AVATAR_UNLOCKS.forEach(avatarDef => {
+    const isUnlocked = bestScore >= avatarDef.reqScore;
+    const item = document.createElement('div');
+    item.className = 'avatar-item';
+    item.textContent = avatarDef.emoji;
+    
+    if (avatarDef.emoji === currentAvatar) {
+      item.classList.add('selected');
+    }
+    
+    if (!isUnlocked) {
+      item.classList.add('locked');
+      const reqTitle = TITLE_NAMES[avatarDef.reqTitleIdx];
+      item.title = `Débloqué au rang:\n${reqTitle}\n(Score: ${avatarDef.reqScore})`;
+    } else {
+      if (avatarDef.desc) item.title = avatarDef.desc;
+      
+      item.addEventListener('click', () => {
+        // Save avatar API call
+        fetch(API_URL + '/api/profile/avatar', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + currentUser.token 
+          },
+          body: JSON.stringify({ avatar: avatarDef.emoji })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error('Erreur sauvegarde avatar');
+          return res.json();
+        })
+        .then(data => {
+          // Update local status
+          currentUser.avatar = avatarDef.emoji;
+          saveCurrentUserToStorage(currentUser);
+          updateUserUI(); // Will refresh header & reload profile
+          document.getElementById('avatar-selector-modal').style.display = 'none';
+          showMessage("Avatar mis à jour !", "success");
+        })
+        .catch(err => {
+          console.error(err);
+          showMessage("Erreur lors de la sauvegarde de l'avatar", "error");
+        });
+      });
+    }
+    
+    grid.appendChild(item);
+  });
+}
+
 function sendScoreToServer(e) {
   if (!isDailyMode && currentUser && currentUser.token)
     try {
@@ -2724,6 +2804,36 @@ const TITLE_THRESHOLDS = {
     "🧒 Minot",
     "🧳 Touriste",
   ];
+
+const AVATAR_UNLOCKS = [
+  // Default (0 pts)
+  { emoji: '👤', reqScore: 0, reqTitleIdx: 4 },
+  { emoji: '🧑', reqScore: 0, reqTitleIdx: 4 },
+  { emoji: '👧', reqScore: 0, reqTitleIdx: 4 },
+  
+  // Minot (index 3)
+  { emoji: '🧒', reqScore: 30, reqTitleIdx: 3 },
+  { emoji: '🛴', reqScore: 30, reqTitleIdx: 3 },
+  { emoji: '🍕', reqScore: 30, reqTitleIdx: 3 },
+
+  // Habitué (index 2)
+  { emoji: '⚓', reqScore: 60, reqTitleIdx: 2 },
+  { emoji: '🐟', reqScore: 60, reqTitleIdx: 2 },
+  { emoji: '⛵', reqScore: 60, reqTitleIdx: 2 },
+  { emoji: '🌊', reqScore: 60, reqTitleIdx: 2 },
+
+  // Vrai Marseillais (index 1)
+  { emoji: '💪', reqScore: 90, reqTitleIdx: 1 },
+  { emoji: '☀️', reqScore: 90, reqTitleIdx: 1 },
+  { emoji: '🏖️', reqScore: 90, reqTitleIdx: 1 },
+  { emoji: '😎', reqScore: 90, reqTitleIdx: 1 },
+
+  // Maire (index 0)
+  { emoji: '🏛️', reqScore: 112, reqTitleIdx: 0 },
+  { emoji: '🦅', reqScore: 112, reqTitleIdx: 0, desc: 'Gabian' },
+  { emoji: '⚽', reqScore: 112, reqTitleIdx: 0 },
+  { emoji: '👑', reqScore: 112, reqTitleIdx: 0 }
+];
 function getPlayerTitle(e, t) {
   const r = TITLE_THRESHOLDS[t] || TITLE_THRESHOLDS.quartier;
   return e >= r[0]
@@ -2804,7 +2914,8 @@ function loadAllLeaderboards() {
             dailyRows.forEach((row, i) => {
               const tr = document.createElement("tr");
               const rank = (0 === i ? "🥇 " : 1 === i ? "🥈 " : 2 === i ? "🥉 " : "") || `${i + 1}`;
-              tr.innerHTML = `<td>${rank}</td><td>${row.username || "Anonyme"}</td><td>${row.attempts_count}/7</td>`;
+              const pAvatar = row.avatar || '👤';
+              tr.innerHTML = `<td>${rank}</td><td><span class="leaderboard-avatar">${pAvatar}</span>${row.username || "Anonyme"}</td><td>${row.attempts_count}/7</td>`;
               tbody.appendChild(tr);
             });
             table.appendChild(tbody);
@@ -2900,8 +3011,9 @@ function loadAllLeaderboards() {
                                     : 2 === a
                                       ? "🥉 "
                                       : "") || `${a + 1}`,
-                              i = getPlayerTitle(r.high_score || 0, t);
-                            let l = `<td>${s}</td><td>${r.username || "Anonyme"}<br><small style="color:#94a3b8;font-size:10px">${i}</small></td>`;
+                              i = getPlayerTitle(r.high_score || 0, t),
+                              pAvatar = r.avatar || '👤';
+                            let l = `<td>${s}</td><td><span class="leaderboard-avatar">${pAvatar}</span>${r.username || "Anonyme"}<br><small style="color:#94a3b8;font-size:10px">${i}</small></td>`;
                             ((l += `<td>${"number" == typeof r.high_score ? r.high_score.toFixed(1) : "-"}</td>`),
                               "marathon" === e &&
                               (l += `<td>${r.items_correct || 0}/${r.items_total || 0}</td>`),
