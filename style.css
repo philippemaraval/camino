@@ -1943,3 +1943,38 @@ select:focus:not(:focus-visible) {
   display: inline-block;
   vertical-align: middle;
 }
+
+.haptics-toggle {
+  position: absolute;
+  top: 44px;
+  right: 50px;
+  z-index: 10;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.2s,
+    transform 0.15s;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.haptics-toggle:hover {
+  background: rgba(37, 99, 235, 0.1);
+  transform: scale(1.1);
+}
+
+.daily-streak-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f59e0b;
+  margin-left: 6px;
+  vertical-align: middle;
+}

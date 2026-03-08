@@ -50,6 +50,8 @@
           </div>
           <button id="sound-toggle" class="sound-toggle" onclick="toggleSound()"
             title="Activer/désactiver le son">🔊</button>
+          <button id="haptics-toggle" class="haptics-toggle" onclick="toggleHaptics()"
+            title="Activer/désactiver les vibrations" style="right: 50px;">📳</button>
         </header>
 
         <!-- Panneau profil / auth repliable -->
@@ -80,10 +82,8 @@
 
             <!-- Profile panel (visible when logged in) -->
             <div id="profile-panel" class="profile-panel" style="display:none;">
-              <div id="profile-content"></div>
-
-              <!-- Avatar Selection Modal -->
-              <div id="avatar-selector-modal" class="avatar-selector-modal" style="display:none;">
+              <!-- Avatar Selection Modal (moved above dynamic content) -->
+              <div id="avatar-selector-modal" class="avatar-selector-modal" style="display:none; margin-bottom: 12px;">
                 <div class="avatar-modal-content">
                   <div class="avatar-modal-header">
                     <h4>Choisir un Avatar</h4>
@@ -92,6 +92,8 @@
                   <div id="avatar-grid" class="avatar-grid"></div>
                 </div>
               </div>
+
+              <div id="profile-content"></div>
             </div>
           </details>
         </section>

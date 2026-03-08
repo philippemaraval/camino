@@ -288,7 +288,7 @@ async function getUserStats(userId) {
     [userId]
   );
 
-  // Daily challenge stats
+  // Daily challenge stats (basic)
   const dailyStats = await pool.query(
     `SELECT COUNT(*) as total_days,
             SUM(CASE WHEN success THEN 1 ELSE 0 END) as successes,
@@ -296,6 +296,60 @@ async function getUserStats(userId) {
      FROM daily_user_attempts WHERE user_id = $1`,
     [userId]
   );
+
+  // Daily streak calculation
+  const dailyHistory = await pool.query(
+    `SELECT date FROM daily_user_attempts
+     WHERE user_id = $1 AND success = TRUE
+     ORDER BY date ASC`,
+    [userId]
+  );
+
+  let currentStreak = 0;
+  let maxStreak = 0;
+  
+  if (dailyHistory.rows.length > 0) {
+    const datesStr = dailyHistory.rows.map(r => r.date);
+    
+    let tempStreak = 1;
+    let localMax = 1;
+    
+    // Parse the actual current server date to see if streak is alive
+    // Assuming format YYYY-MM-DD
+    const todayObj = new Date();
+    const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+    
+    const yestObj = new Date(todayObj);
+    yestObj.setDate(yestObj.getDate() - 1);
+    const yestStr = `${yestObj.getFullYear()}-${String(yestObj.getMonth() + 1).padStart(2, '0')}-${String(yestObj.getDate()).padStart(2, '0')}`;
+
+    for (let i = 1; i < datesStr.length; i++) {
+        const d1 = new Date(datesStr[i - 1]);
+        const d2 = new Date(datesStr[i]);
+        
+        // Difference in days
+        const diffTime = Math.abs(d2 - d1);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+            tempStreak++;
+        } else if (diffDays > 1) {
+            if (tempStreak > localMax) localMax = tempStreak;
+            tempStreak = 1;
+        }
+    }
+    
+    if (tempStreak > localMax) localMax = tempStreak;
+    maxStreak = localMax;
+    
+    // Determine if streak is currently active
+    const lastDate = datesStr[datesStr.length - 1];
+    if (lastDate === todayStr || lastDate === yestStr) {
+       currentStreak = tempStreak;
+    } else {
+       currentStreak = 0;
+    }
+  }
 
   // Account creation date
   const userInfo = await pool.query(
@@ -308,7 +362,11 @@ async function getUserStats(userId) {
     overall: overall.rows[0] || { total_games: 0, best_score: 0, avg_score: 0 },
     bestMode: bestMode.rows[0] || null,
     modes: modeStats.rows,
-    daily: dailyStats.rows[0] || { total_days: 0, successes: 0, avg_attempts: 0 }
+    daily: {
+      ...(dailyStats.rows[0] || { total_days: 0, successes: 0, avg_attempts: 0 }),
+      current_streak: currentStreak,
+      max_streak: maxStreak
+    }
   };
 }
 

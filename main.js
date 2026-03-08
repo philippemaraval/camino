@@ -61,6 +61,7 @@ function toggleSound() {
   const e = document.getElementById("sound-toggle");
   (e && (e.textContent = soundEnabled ? "🔊" : "🔇"),
     soundEnabled && playDing());
+  triggerHaptic('click');
 }
 const FAMOUS_STREET_INFOS = {
   "la canebière":
@@ -1835,6 +1836,7 @@ function handleStreetClick(e, t, r) {
           `🎉 BRAVO ! Trouvé en ${u} essai${u > 1 ? "s" : ""} !`,
           "success",
         ),
+        triggerHaptic('success'),
         renderDailyGuessHistory({ success: !0, attempts: u }));
       const e = document.getElementById("target-panel-title");
       e && (e.textContent = "🎉 Défi réussi !");
@@ -1856,6 +1858,7 @@ function handleStreetClick(e, t, r) {
           `❌ Dommage ! C'était « ${dailyTargetData.streetName} ». Fin du défi.`,
           "error",
         ),
+        triggerHaptic('error'),
         renderDailyGuessHistory({ success: !1 }));
       const e = document.getElementById("target-panel-title");
       e && (e.textContent = "❌ Défi échoué");
@@ -1871,6 +1874,7 @@ function handleStreetClick(e, t, r) {
       a && a.geometry && highlightDailyTarget(a.geometry, !1);
     } else
       (renderDailyGuessHistory(),
+        triggerHaptic('error'),
         showMessage(
           `❌ Raté ! Distance : ${s >= 1e3 ? `${(s / 1e3).toFixed(1)} km` : `${Math.round(s)} m`}. Plus que ${d} essai${d > 1 ? "s" : ""}.`,
           "warning",
@@ -1926,6 +1930,7 @@ function handleStreetClick(e, t, r) {
         "success",
       ),
       highlightStreet("#00aa00"),
+      triggerHaptic('success'),
       feedbackCorrect());
   } else
     ((errorsCount += 1),
@@ -1937,6 +1942,7 @@ function handleStreetClick(e, t, r) {
       ),
       highlightStreet("#d00"),
       updateWeightedBar(0),
+      triggerHaptic('error'),
       feedbackError());
   ((totalAnswered += 1),
     summaryData.push({
@@ -1979,6 +1985,7 @@ function handleMonumentClick(e, t) {
         "success",
       ),
       highlightMonument(i, "#00aa00"),
+      triggerHaptic('success'),
       feedbackCorrect());
   } else
     ((errorsCount += 1),
@@ -1990,6 +1997,7 @@ function handleMonumentClick(e, t) {
       ),
       highlightMonument(i, "#d00"),
       updateWeightedBar(0),
+      triggerHaptic('error'),
       feedbackError());
   ((totalAnswered += 1),
     summaryData.push({ name: s, correct: n, time: a.toFixed(1) }),
@@ -2582,22 +2590,22 @@ const BADGE_DEFINITIONS = [
     id: "daily_5",
     emoji: "🔥",
     name: "Série de 10",
-    desc: "10 Daily Challenges réussis",
-    check: (e) => (parseInt(e.daily?.successes) || 0) >= 10,
+    desc: "10 Daily Challenges réussis d'affilée",
+    check: (e) => (parseInt(e.daily?.max_streak) || 0) >= 10,
   },
   {
     id: "daily_10",
     emoji: "⚡",
     name: "Série de 20",
-    desc: "20 Daily Challenges réussis",
-    check: (e) => (parseInt(e.daily?.successes) || 0) >= 20,
+    desc: "20 Daily Challenges réussis d'affilée",
+    check: (e) => (parseInt(e.daily?.max_streak) || 0) >= 20,
   },
   {
     id: "daily_30",
     emoji: "🏆",
     name: "Champion du Mois",
-    desc: "50 Daily Challenges réussis",
-    check: (e) => (parseInt(e.daily?.successes) || 0) >= 50,
+    desc: "50 Daily Challenges réussis d'affilée",
+    check: (e) => (parseInt(e.daily?.max_streak) || 0) >= 50,
   },
   {
     id: "perfect",
@@ -2662,7 +2670,7 @@ function loadProfile() {
               }),
               (d += "</div>")),
             i > 0 &&
-            (d += `\n          <div class="profile-daily-summary">\n            <span>📅 Daily : ${o} essais en moyenne</span>\n          </div>`));
+            (d += `\n          <div class="profile-daily-summary">\n            <span>📅 Daily : ${o} essais en moyenne</span>\n            ${t.daily?.current_streak > 0 ? `<br><span style="color:#f59e0b;font-weight:bold;">🔥 Série actuelle : ${t.daily.current_streak}</span>` : ''}\n            ${t.daily?.max_streak > 0 ? `<br><span style="color:#64748b;font-size:10px;">🏆 Meilleure série : ${t.daily.max_streak}</span>` : ''}\n          </div>`));
           const c = computeBadges(t),
             m = c.filter((e) => e.unlocked),
             p = c.filter((e) => !e.unlocked);
@@ -2693,8 +2701,14 @@ function initAvatarSelector(currentAvatar, bestScore) {
   const modal = document.getElementById('avatar-selector-modal');
   const closeBtn = document.getElementById('avatar-modal-close');
   const grid = document.getElementById('avatar-grid');
+  const profileStatsGrid = document.querySelector('.profile-stats-grid');
   
   if (!btnEdit || !modal || !grid) return;
+
+  // Move the modal explicitly after the profile stats grid
+  if (profileStatsGrid && profileStatsGrid.parentNode) {
+    profileStatsGrid.parentNode.insertBefore(modal, profileStatsGrid.nextSibling);
+  }
 
   btnEdit.addEventListener('click', () => {
     modal.style.display = 'block';
@@ -2720,12 +2734,15 @@ function renderAvatarGrid(currentAvatar, bestScore) {
       item.classList.add('selected');
     }
     
+    // Add badge-specific logic
+    const reqTitle = TITLE_NAMES[avatarDef.reqTitleIdx];
+
     if (!isUnlocked) {
       item.classList.add('locked');
-      const reqTitle = TITLE_NAMES[avatarDef.reqTitleIdx];
-      item.title = `Débloqué au rang:\n${reqTitle}\n(Score: ${avatarDef.reqScore})`;
+      item.title = `Titre requis:\n🔒 ${reqTitle}\n(Score: ${avatarDef.reqScore})`;
     } else {
-      if (avatarDef.desc) item.title = avatarDef.desc;
+      item.title = `Débloqué:\n✅ ${reqTitle}`;
+      if (avatarDef.desc) item.title += ` - ${avatarDef.desc}`;
       
       item.addEventListener('click', () => {
         // Save avatar API call
@@ -3650,6 +3667,7 @@ function updateDailyUI() {
       : (a.style.display = "none"));
 }
 function handleDailyStop() {
+  triggerHaptic('click');
   return !!isDailyMode && (endDailySession(), removeDailyHighlight(), !0);
 }
 function fitTargetStreetText() {
@@ -3683,4 +3701,59 @@ function fitTargetStreetText() {
       .register("/sw.js")
       .then((e) => console.log("SW registered:", e.scope))
       .catch((e) => console.warn("SW registration failed:", e));
+
+    updateHapticsUI();
+
+    const userPanelDetails = document.querySelector('.user-panel details');
+    if (userPanelDetails) {
+      userPanelDetails.addEventListener('toggle', () => {
+        triggerHaptic('click');
+      });
+    }
   }));
+
+// --- HAPTIC FEEDBACK ---
+const HAPTICS_ENABLED_KEY = "camino_haptics_enabled";
+
+function isHapticsEnabled() {
+  return localStorage.getItem(HAPTICS_ENABLED_KEY) !== "false"; // Default to true
+}
+
+function toggleHaptics() {
+  const current = isHapticsEnabled();
+  localStorage.setItem(HAPTICS_ENABLED_KEY, !current);
+  updateHapticsUI();
+  if (!current) {
+    triggerHaptic('success'); // Demo the activation
+  }
+}
+
+function updateHapticsUI() {
+  const btn = document.getElementById("haptics-toggle");
+  if (btn) {
+    btn.textContent = isHapticsEnabled() ? "📳" : "📴";
+  }
+}
+
+function triggerHaptic(type = 'click') {
+  if (!isHapticsEnabled() || !navigator.vibrate) return;
+  
+  try {
+    switch (type) {
+      case 'click':
+        navigator.vibrate(15);
+        break;
+      case 'success':
+        navigator.vibrate([40, 30, 80]); // Light, pause, stronger
+        break;
+      case 'error':
+        navigator.vibrate([50, 60, 50]); // Two distinct bumps
+        break;
+      case 'warm':
+        navigator.vibrate(10); // Very light
+        break;
+    }
+  } catch (e) {
+    console.warn("Haptics failed or blocked:", e);
+  }
+}
