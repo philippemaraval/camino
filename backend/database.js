@@ -366,6 +366,10 @@ async function getAnalytics(limit = 20) {
   };
 }
 
+async function clearAllScores() {
+  await pool.query('DELETE FROM scores');
+}
+
 module.exports = {
   initDb,
   createUser,
@@ -381,5 +385,6 @@ module.exports = {
   getDailyLeaderboard,
   getUserStats,
   trackStreetAnswer,
-  getAnalytics
+  getAnalytics,
+  clearAllScores
 };

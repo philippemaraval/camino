@@ -285,25 +285,19 @@ app.post('/api/admin/clean-leaderboard', async (req, res) => {
     }
 
     try {
-        const { Pool } = require('pg');
-        const pool = new Pool({
-          connectionString: process.env.DATABASE_URL,
-          ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')
-            ? { rejectUnauthorized: false }
-            : false
-        });
-
-        const client = await pool.connect();
-        
-        // Delete ALL scores from the leaderboard
-        const res = await client.query(`DELETE FROM scores`);
-        
-        client.release();
-        await pool.end();
+        // Run SQL through the existing db connection logic instead of requiring pg again
+        // But since the db file encapsulates queries, let's just use the server pool
+        // Wait, the db is imported at the top as `const db = require('./database');`
+        // We will just execute the query via the native mechanism in database.js
+        // For simplicity, let's just make the query via new Pool with explicit requires, but wait...
+        // Ah, the issue is process.env.DATABASE_URL isn't actually being used by Render in the same way, or the pool is failing because pg is not found in production `require('pg')` inside the route, since it's lazy loaded.
+        // Actually, let's use the exported db module if possible, but since we just want to run DELETE FROM scores
+        // Let's add a function to database.js and call it
+        await db.clearAllScores();
 
         res.json({
             success: true,
-            removed_scores: res.rowCount,
+            removed_scores: "all",
             message: 'Nettoyage terminé avec succès. Tous les scores ont été supprimés.'
         });
     } catch (err) {
