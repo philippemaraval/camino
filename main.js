@@ -2488,51 +2488,51 @@ const BADGE_DEFINITIONS = [
   {
     id: "games_10",
     emoji: "🔟",
-    name: "10 Parties",
-    desc: "Jouer 10 sessions",
-    check: (e) => (parseInt(e.overall?.total_games) || 0) >= 10,
+    name: "25 Parties",
+    desc: "Jouer 25 sessions",
+    check: (e) => (parseInt(e.overall?.total_games) || 0) >= 25,
   },
   {
     id: "games_50",
     emoji: "💯",
     name: "Habitué",
-    desc: "Jouer 50 sessions",
-    check: (e) => (parseInt(e.overall?.total_games) || 0) >= 50,
+    desc: "Jouer 100 sessions",
+    check: (e) => (parseInt(e.overall?.total_games) || 0) >= 100,
   },
   {
     id: "games_100",
     emoji: "💎",
     name: "Vétéran",
-    desc: "Jouer 100 sessions",
-    check: (e) => (parseInt(e.overall?.total_games) || 0) >= 100,
+    desc: "Jouer 250 sessions",
+    check: (e) => (parseInt(e.overall?.total_games) || 0) >= 250,
   },
   {
     id: "minot",
     emoji: "🧒",
     name: "Minot",
-    desc: "Atteindre le titre Minot",
-    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 30,
+    desc: "Atteindre le titre Minot (50 pts)",
+    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 50,
   },
   {
     id: "habitue",
     emoji: "⚓",
     name: "Habitué du Vieux-Port",
-    desc: "Atteindre le titre Habitué",
-    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 60,
+    desc: "Atteindre le titre Habitué (80 pts)",
+    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 80,
   },
   {
     id: "vrai",
     emoji: "💪",
     name: "Vrai Marseillais",
-    desc: "Atteindre le titre Vrai Marseillais",
-    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 90,
+    desc: "Atteindre le titre Vrai Marseillais (120 pts)",
+    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 120,
   },
   {
     id: "maire",
     emoji: "🏛️",
     name: "Maire de la Ville",
-    desc: "Atteindre le titre Maire",
-    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 85,
+    desc: "Atteindre le titre Maire (150 pts)",
+    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 150,
   },
   {
     id: "celebres",
@@ -2581,23 +2581,23 @@ const BADGE_DEFINITIONS = [
   {
     id: "daily_5",
     emoji: "🔥",
-    name: "Série de 5",
-    desc: "5 Daily Challenges réussis",
-    check: (e) => (parseInt(e.daily?.successes) || 0) >= 5,
-  },
-  {
-    id: "daily_10",
-    emoji: "⚡",
     name: "Série de 10",
     desc: "10 Daily Challenges réussis",
     check: (e) => (parseInt(e.daily?.successes) || 0) >= 10,
   },
   {
+    id: "daily_10",
+    emoji: "⚡",
+    name: "Série de 20",
+    desc: "20 Daily Challenges réussis",
+    check: (e) => (parseInt(e.daily?.successes) || 0) >= 20,
+  },
+  {
     id: "daily_30",
     emoji: "🏆",
     name: "Champion du Mois",
-    desc: "30 Daily Challenges réussis",
-    check: (e) => (parseInt(e.daily?.successes) || 0) >= 30,
+    desc: "50 Daily Challenges réussis",
+    check: (e) => (parseInt(e.daily?.successes) || 0) >= 50,
   },
   {
     id: "perfect",
@@ -2791,11 +2791,11 @@ function sendScoreToServer(e) {
     }
 }
 const TITLE_THRESHOLDS = {
-  "rues-celebres": [142, 105, 75, 45],
-  "rues-principales": [135, 98, 68, 38],
-  quartier: [128, 90, 60, 30],
-  ville: [112, 75, 45, 15],
-  monuments: [128, 90, 60, 30],
+  "rues-celebres": [180, 140, 100, 60],
+  "rues-principales": [170, 130, 90, 50],
+  quartier: [160, 120, 80, 40],
+  ville: [150, 110, 70, 30],
+  monuments: [160, 120, 80, 40],
 },
   TITLE_NAMES = [
     "🏛️ Maire de la Ville",
@@ -2812,27 +2812,27 @@ const AVATAR_UNLOCKS = [
   { emoji: '👧', reqScore: 0, reqTitleIdx: 4 },
   
   // Minot (index 3)
-  { emoji: '🧒', reqScore: 30, reqTitleIdx: 3 },
-  { emoji: '🛴', reqScore: 30, reqTitleIdx: 3 },
-  { emoji: '🍕', reqScore: 30, reqTitleIdx: 3 },
+  { emoji: '🧒', reqScore: 50, reqTitleIdx: 3 },
+  { emoji: '🛴', reqScore: 50, reqTitleIdx: 3 },
+  { emoji: '🍕', reqScore: 50, reqTitleIdx: 3 },
 
   // Habitué (index 2)
-  { emoji: '⚓', reqScore: 60, reqTitleIdx: 2 },
-  { emoji: '🐟', reqScore: 60, reqTitleIdx: 2 },
-  { emoji: '⛵', reqScore: 60, reqTitleIdx: 2 },
-  { emoji: '🌊', reqScore: 60, reqTitleIdx: 2 },
+  { emoji: '⚓', reqScore: 80, reqTitleIdx: 2 },
+  { emoji: '🐟', reqScore: 80, reqTitleIdx: 2 },
+  { emoji: '⛵', reqScore: 80, reqTitleIdx: 2 },
+  { emoji: '🌊', reqScore: 80, reqTitleIdx: 2 },
 
   // Vrai Marseillais (index 1)
-  { emoji: '💪', reqScore: 90, reqTitleIdx: 1 },
-  { emoji: '☀️', reqScore: 90, reqTitleIdx: 1 },
-  { emoji: '🏖️', reqScore: 90, reqTitleIdx: 1 },
-  { emoji: '😎', reqScore: 90, reqTitleIdx: 1 },
+  { emoji: '💪', reqScore: 120, reqTitleIdx: 1 },
+  { emoji: '☀️', reqScore: 120, reqTitleIdx: 1 },
+  { emoji: '🏖️', reqScore: 120, reqTitleIdx: 1 },
+  { emoji: '😎', reqScore: 120, reqTitleIdx: 1 },
 
   // Maire (index 0)
-  { emoji: '🏛️', reqScore: 112, reqTitleIdx: 0 },
-  { emoji: '🦅', reqScore: 112, reqTitleIdx: 0, desc: 'Gabian' },
-  { emoji: '⚽', reqScore: 112, reqTitleIdx: 0 },
-  { emoji: '👑', reqScore: 112, reqTitleIdx: 0 }
+  { emoji: '🏛️', reqScore: 150, reqTitleIdx: 0 },
+  { emoji: '🦅', reqScore: 150, reqTitleIdx: 0, desc: 'Gabian' },
+  { emoji: '⚽', reqScore: 150, reqTitleIdx: 0 },
+  { emoji: '👑', reqScore: 150, reqTitleIdx: 0 }
 ];
 function getPlayerTitle(e, t) {
   const r = TITLE_THRESHOLDS[t] || TITLE_THRESHOLDS.quartier;
