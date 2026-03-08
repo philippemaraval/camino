@@ -286,6 +286,55 @@ async function main() {
         'centre', 'complexe'
     ];
 
+    const whitelist = new Set([
+        "parvis madeleine et andré villard",
+        "parvis saint-laurent",
+        "pas d'ai de l'éboulis",
+        "pavillon des intendants",
+        "pavillon du parc",
+        "placette ange-marius michel",
+        "plateau cherchell chaix bryan",
+        "plateau sacoman",
+        "plateau de malmousque",
+        "plateau de l'église",
+        "plateau des marguerites",
+        "plateau des martégaux",
+        "plateau du peintre",
+        "porte d'air bel",
+        "porte de la castellane",
+        "porte de la pomme",
+        "ront-point robert dor",
+        "rond-point robert dor",
+        "ront-point abbé jean marcorelles",
+        "rond-point abbé jean marcorelles",
+        "ront-point monique gallician",
+        "rond-point monique gallician",
+        "rotonde pierre estrangin",
+        "ruelle saint-charles",
+        "vieux chemin d'endoume",
+        "digue berry",
+        "digue est",
+        "digue sainte-marie",
+        "digue du fort saint-jean",
+        "boulevard de la colline",
+        "bouvelard de la colline",
+        "voie saint -théodore",
+        "voie saint-théodore",
+        "grand rue",
+        "la canebière",
+        "l2"
+    ]);
+
+    const safePrefixes = new Set([
+        'rue', 'boulevard', 'bd', 'avenue', 'av', 'cours', 'place', 'chemin', 'traverse',
+        'impasse', 'montée', 'quai', 'route', 'corniche', 'square', 'promenade', 'rond-point',
+        'esplanade', 'tunnel', 'pont', 'viaduc', 'autoroute', 'escaliers', 'escalier',
+        'passerelle', 'bretelle', 'vallon', 'clos', 'carrefour', 'échangeur',
+        'ancien', 'ancienne', 'plage', 'rampe',
+        // Conservés explicitement par l'utilisateur:
+        'passage', 'allée', 'allées'
+    ]);
+
     const lightFeatures = features.filter(f => {
         if (!f.name) return false;
         
@@ -295,6 +344,11 @@ async function main() {
         let lowerName = f.name.toLowerCase();
         let firstWord = f.name.trim().split(/[\s']/)[0].toLowerCase();
         
+        if (lowerName === "l2" || lowerName.startsWith("l2 ")) firstWord = "autoroute";
+
+        // Whitelist absolue (pour les pistes, autres et voies à sauver)
+        if (whitelist.has(lowerName)) return true;
+
         if (excludedPrefixes.has(firstWord)) return false;
 
         for (const kw of excludedKeywords) {
@@ -304,6 +358,11 @@ async function main() {
             } else {
                  if (lowerName.includes(kw)) return false;
             }
+        }
+
+        // On supprime toutes les autres "Voies", "Pistes" et "Autres" (ie. qui ne sont pas dans safePrefixes)
+        if (!safePrefixes.has(firstWord)) {
+            return false;
         }
 
         return true;
