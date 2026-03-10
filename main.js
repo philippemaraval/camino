@@ -23,6 +23,65 @@ const UI_THEME = {
   timerWarn: "#e08a00",
   timerDanger: "#d2463c",
 };
+const ONBOARDING_SEEN_KEY = "camino-onboarding-seen";
+const ONBOARDING_LEGACY_KEY = "camino-onboarded";
+const ONBOARDING_COOKIE_MAX_AGE_SECONDS = 31536000;
+
+function readPersistentFlag(flagKey) {
+  try {
+    if ("1" === localStorage.getItem(flagKey)) return !0;
+  } catch (e) { }
+  try {
+    return document.cookie
+      .split(";")
+      .map((e) => e.trim())
+      .some((e) => e === `${flagKey}=1`);
+  } catch (e) {
+    return !1;
+  }
+}
+
+function writePersistentFlag(flagKey) {
+  try {
+    localStorage.setItem(flagKey, "1");
+  } catch (e) { }
+  try {
+    document.cookie = `${flagKey}=1; path=/; max-age=${ONBOARDING_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
+  } catch (e) { }
+}
+
+function hasSeenOnboarding() {
+  return (
+    readPersistentFlag(ONBOARDING_SEEN_KEY) ||
+    readPersistentFlag(ONBOARDING_LEGACY_KEY)
+  );
+}
+
+function markOnboardingSeen() {
+  (writePersistentFlag(ONBOARDING_SEEN_KEY),
+    writePersistentFlag(ONBOARDING_LEGACY_KEY));
+}
+
+function setOnboardingVisibility(showBanner) {
+  const banner = document.getElementById("onboarding-banner");
+  if (!banner) return;
+  showBanner
+    ? (banner.classList.remove("hidden"), (banner.style.display = "flex"))
+    : (banner.classList.add("hidden"), (banner.style.display = "none"));
+}
+
+function initOnboardingBanner() {
+  const closeButton = document.getElementById("onboarding-close");
+  closeButton &&
+    !closeButton.__onboardingBound &&
+    ((closeButton.__onboardingBound = !0),
+      closeButton.addEventListener("click", () => {
+        (markOnboardingSeen(), setOnboardingVisibility(!1));
+      }));
+  if (hasSeenOnboarding()) return void setOnboardingVisibility(!1);
+  (markOnboardingSeen(), setOnboardingVisibility(!0));
+}
+
 let soundEnabled = "off" !== localStorage.getItem("camino-sound"),
   audioCtx = null;
 function getAudioCtx() {
@@ -590,21 +649,7 @@ function initUI() {
     updateUserUI(),
     initLectureStreetSearch());
   const S = document.getElementById("sound-toggle");
-  if (
-    (S && (S.textContent = soundEnabled ? "🔊" : "🔇"),
-      !localStorage.getItem("camino-onboarded"))
-  ) {
-    const e = document.getElementById("onboarding-banner");
-    if (e) {
-      e.style.display = "flex";
-      const t = document.getElementById("onboarding-close");
-      t &&
-        t.addEventListener("click", () => {
-          ((e.style.display = "none"),
-            localStorage.setItem("camino-onboarded", "1"));
-        });
-    }
-  }
+  (S && (S.textContent = soundEnabled ? "🔊" : "🔇"), initOnboardingBanner());
   function L(e) {
     const t = document.getElementById("offline-banner");
     t && (t.style.display = e ? "block" : "none");
