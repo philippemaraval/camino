@@ -2345,29 +2345,29 @@ const BADGE_DEFINITIONS = [
     id: "minot",
     emoji: "🧒",
     name: "Minot",
-    desc: "Atteindre le titre Minot (50 pts)",
-    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 50,
+    desc: "Atteindre Minot dans tous les modes et toutes les zones",
+    check: (e) => hasReachedGlobalRank(e, "M"),
   },
   {
     id: "habitue",
     emoji: "⚓",
     name: "Habitué du Vieux-Port",
-    desc: "Atteindre le titre Habitué (80 pts)",
-    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 80,
+    desc: "Atteindre Habitué dans tous les modes et toutes les zones",
+    check: (e) => hasReachedGlobalRank(e, "H"),
   },
   {
     id: "vrai",
     emoji: "💪",
     name: "Vrai Marseillais",
-    desc: "Atteindre le titre Vrai Marseillais (120 pts)",
-    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 120,
+    desc: "Atteindre Vrai Marseillais dans tous les modes et toutes les zones",
+    check: (e) => hasReachedGlobalRank(e, "V"),
   },
   {
     id: "maire",
     emoji: "🏛️",
     name: "Maire de la Ville",
-    desc: "Atteindre le titre Maire (150 pts)",
-    check: (e) => (parseFloat(e.overall?.best_score) || 0) >= 150,
+    desc: "Atteindre Maire dans tous les modes et toutes les zones",
+    check: (e) => hasReachedGlobalRank(e, "MV"),
   },
   {
     id: "celebres",
@@ -2467,13 +2467,8 @@ function loadProfile() {
         })
         .then((t) => {
           const r = parseFloat(t.overall?.best_score) || 0,
-            a = getPlayerTitle(
-              r,
-              t.bestMode?.mode || null,
-              t.bestMode?.game_type || "classique",
-              t.bestMode?.items_total || 0,
-              t.bestMode?.items_correct || null,
-            ),
+            gRank = getGlobalRankMeta(t),
+            a = gRank.title,
             n = parseInt(t.overall?.total_games) || 0,
             s = parseFloat(t.overall?.avg_score) || 0,
             i = parseInt(t.daily?.total_days) || 0,
@@ -2530,7 +2525,7 @@ function loadProfile() {
             (d += `<div class="profile-member-since">Membre depuis le ${u}</div>`),
             (e.innerHTML = d));
           
-          initAvatarSelector(t.avatar || '👤', r);
+          initAvatarSelector(t.avatar || '👤', gRank.level);
           
         })
         .catch((t) => {
@@ -2540,7 +2535,7 @@ function loadProfile() {
         }));
 }
 
-function initAvatarSelector(currentAvatar, bestScore) {
+function initAvatarSelector(currentAvatar, globalRankLevel) {
   const btnEdit = document.getElementById('btn-edit-avatar');
   const modal = document.getElementById('avatar-selector-modal');
   const closeBtn = document.getElementById('avatar-modal-close');
@@ -2556,7 +2551,7 @@ function initAvatarSelector(currentAvatar, bestScore) {
 
   btnEdit.addEventListener('click', () => {
     modal.style.display = 'block';
-    renderAvatarGrid(currentAvatar, bestScore);
+    renderAvatarGrid(currentAvatar, globalRankLevel);
   });
 
   closeBtn.addEventListener('click', () => {
@@ -2564,12 +2559,13 @@ function initAvatarSelector(currentAvatar, bestScore) {
   });
 }
 
-function renderAvatarGrid(currentAvatar, bestScore) {
+function renderAvatarGrid(currentAvatar, globalRankLevel) {
   const grid = document.getElementById('avatar-grid');
   grid.innerHTML = '';
   
   AVATAR_UNLOCKS.forEach(avatarDef => {
-    const isUnlocked = bestScore >= avatarDef.reqScore;
+    const requiredLevel = getGlobalRankLevelForTitleIndex(avatarDef.reqTitleIdx);
+    const isUnlocked = globalRankLevel >= requiredLevel;
     const item = document.createElement('div');
     item.className = 'avatar-item';
     item.textContent = avatarDef.emoji;
@@ -2583,9 +2579,9 @@ function renderAvatarGrid(currentAvatar, bestScore) {
 
     if (!isUnlocked) {
       item.classList.add('locked');
-      item.title = `Titre requis:\n🔒 ${reqTitle}\n(Score: ${avatarDef.reqScore})`;
+      item.title = `Titre global requis:\n🔒 ${reqTitle}\n(à atteindre dans tous les modes et zones)`;
     } else {
-      item.title = `Débloqué:\n✅ ${reqTitle}`;
+      item.title = `Débloqué:\n✅ ${reqTitle} (global)`;
       if (avatarDef.desc) item.title += ` - ${avatarDef.desc}`;
       
       item.addEventListener('click', () => {
@@ -2702,6 +2698,66 @@ function getTitleScoreValue(e, t, r = "classique") {
   if ("classique" === r) return parseFloat(e) || 0;
   const a = parseFloat(t);
   return Number.isFinite(a) ? a : parseFloat(e) || 0;
+}
+const SCORING_GAME_TYPES = ["classique", "marathon", "chrono"],
+  SCORING_ZONES = [
+    "rues-celebres",
+    "rues-principales",
+    "quartier",
+    "ville",
+    "monuments",
+  ];
+function getGlobalRankLevelForTitleIndex(e) {
+  return Math.max(0, 4 - (parseInt(e, 10) || 4));
+}
+function getGlobalRankTitleFromLevel(e) {
+  return e >= 4
+    ? TITLE_NAMES[0]
+    : e >= 3
+      ? TITLE_NAMES[1]
+      : e >= 2
+        ? TITLE_NAMES[2]
+        : e >= 1
+          ? TITLE_NAMES[3]
+          : TITLE_NAMES[4];
+}
+function buildScoringComboMap(e) {
+  const t = new Map();
+  return (
+    (e?.modes || []).forEach((e) => {
+      if (!e || !SCORING_GAME_TYPES.includes(e.game_type) || !SCORING_ZONES.includes(e.mode))
+        return;
+      t.set(`${e.mode}|${e.game_type}`, e);
+    }),
+    t
+  );
+}
+function hasReachedGlobalRank(e, t) {
+  const r = buildScoringComboMap(e);
+  return SCORING_GAME_TYPES.every((a) =>
+    SCORING_ZONES.every((n) => {
+      const s = r.get(`${n}|${a}`);
+      if (!s) return !1;
+      const i = getTitleThresholds(n, a, s.best_items_total || 0),
+        l = getTitleScoreValue(s.high_score, s.best_items_correct, a);
+      return "number" == typeof i?.[t] && l >= i[t];
+    }),
+  );
+}
+function getGlobalRankLevel(e) {
+  return hasReachedGlobalRank(e, "MV")
+    ? 4
+    : hasReachedGlobalRank(e, "V")
+      ? 3
+      : hasReachedGlobalRank(e, "H")
+        ? 2
+        : hasReachedGlobalRank(e, "M")
+          ? 1
+          : 0;
+}
+function getGlobalRankMeta(e) {
+  const t = getGlobalRankLevel(e);
+  return { level: t, title: getGlobalRankTitleFromLevel(t) };
 }
 
 const AVATAR_UNLOCKS = [

@@ -287,16 +287,50 @@ async function getDailyLeaderboard(date) {
 async function getUserStats(userId) {
   // Per-mode stats
   const modeStats = await pool.query(
-    `SELECT mode, game_type,
-            COUNT(*) as games_played,
-            MAX(score) as high_score,
-            ROUND(AVG(score)::numeric, 1) as avg_score,
-            MAX(items_correct) as best_items_correct,
-            MAX(items_total) as best_items_total
-     FROM scores
-     WHERE user_id = $1
-     GROUP BY mode, game_type
-     ORDER BY mode, game_type`,
+    `WITH grouped AS (
+       SELECT
+         mode,
+         game_type,
+         COUNT(*) as games_played,
+         ROUND(AVG(score)::numeric, 1) as avg_score
+       FROM scores
+       WHERE user_id = $1
+       GROUP BY mode, game_type
+     ),
+     best AS (
+       SELECT
+         mode,
+         game_type,
+         score AS high_score,
+         items_correct AS best_items_correct,
+         items_total AS best_items_total,
+         ROW_NUMBER() OVER (
+           PARTITION BY mode, game_type
+           ORDER BY
+             CASE
+               WHEN game_type = 'classique' THEN score::double precision
+               ELSE items_correct::double precision
+             END DESC,
+             time_sec ASC,
+             timestamp ASC
+         ) AS rn
+       FROM scores
+       WHERE user_id = $1
+     )
+     SELECT
+       grouped.mode,
+       grouped.game_type,
+       grouped.games_played,
+       best.high_score,
+       grouped.avg_score,
+       best.best_items_correct,
+       best.best_items_total
+     FROM grouped
+     JOIN best ON
+       best.mode = grouped.mode
+       AND best.game_type = grouped.game_type
+       AND best.rn = 1
+     ORDER BY grouped.mode, grouped.game_type`,
     [userId]
   );
 
