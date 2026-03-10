@@ -6,10 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Camino - Jeu des rues de Marseille</title>
 
-  <!-- Google Fonts : Montserrat (titres), Nunito (texte) -->
+  <!-- Google Fonts : Montserrat (titres), Nunito (texte), JetBrains Mono (chiffres) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&family=Nunito:wght@400;600&display=swap"
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700&family=Montserrat:wght@600;800&family=Nunito:wght@400;600&display=swap"
     rel="stylesheet">
 
   <!-- Favicons pour toutes les plateformes -->
@@ -19,7 +20,7 @@
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#ffffff">
 
-  <link rel="stylesheet" href="style.css?v=20260310b">
+  <link rel="stylesheet" href="style.css?v=20260310c">
 
   <!-- Preload heavy GeoJSON data as early as possible -->
   <link rel="preload" href="data/marseille_rues_light.geojson?v=3" as="fetch" crossorigin>
@@ -34,30 +35,30 @@
       <!-- WRAPPER UNIQUE POUR DÉCALER TOUT LE CONTENU EN MOBILE -->
       <div id="sidebar-content">
         <!-- Offline / network error banner -->
-        <div id="offline-banner" class="offline-banner" style="display:none;">
+        <div id="offline-banner" class="offline-banner hidden">
           ⚠️ Mode hors-ligne — les scores ne seront pas sauvegardés
         </div>
         <!-- Bandeau titre -->
         <header class="panel header-panel">
           <div class="header-main">
-            <h1 class="header-title"><a href="/" style="color:inherit;text-decoration:none;">Camino</a></h1>
+            <h1 class="header-title"><a href="/" class="header-title-link">Camino</a></h1>
             <p class="header-subtitle">Connaissez-vous vraiment votre ville ?</p>
           </div>
 
           <!-- Petit statut carte, particulièrement utile sur mobile -->
-          <div id="map-status" class="map-status-pill">
+          <div id="map-status" class="map-status-pill" aria-live="polite">
             <!-- rempli par le JS -->
           </div>
           <button id="sound-toggle" class="sound-toggle" onclick="toggleSound()"
             title="Activer/désactiver le son">🔊</button>
           <button id="haptics-toggle" class="haptics-toggle" onclick="toggleHaptics()"
-            title="Activer/désactiver les vibrations" style="left: 10px;">📳</button>
+            title="Activer/désactiver les vibrations">📳</button>
         </header>
 
         <!-- Panneau profil / auth repliable -->
         <section class="panel user-panel">
           <details>
-            <summary class="panel-title" style="display:flex;align-items:center;gap:6px;">Profil <span id="login-hint"
+            <summary class="panel-title">Profil <span id="login-hint"
                 class="login-hint">cliquer pour se connecter</span><span id="user-sticker" class="user-sticker"></span>
             </summary>
 
@@ -76,18 +77,19 @@
               <div class="auth-buttons">
                 <button id="login-btn" class="btn-secondary">Connexion</button>
                 <button id="register-btn" class="btn-secondary">Inscription</button>
-                <button id="logout-btn" class="btn-tertiary" style="display:none;">Déconnexion</button>
+                <button id="logout-btn" class="btn-tertiary hidden">Déconnexion</button>
               </div>
             </div>
 
             <!-- Profile panel (visible when logged in) -->
-            <div id="profile-panel" class="profile-panel" style="display:none;">
+            <div id="profile-panel" class="profile-panel hidden">
               <!-- Avatar Selection Modal (moved above dynamic content) -->
-              <div id="avatar-selector-modal" class="avatar-selector-modal" style="display:none; margin-bottom: 12px;">
+              <div id="avatar-selector-modal" class="avatar-selector-modal hidden">
                 <div class="avatar-modal-content">
                   <div class="avatar-modal-header">
                     <h4>Choisir un Avatar</h4>
-                    <button class="avatar-modal-close" id="avatar-modal-close">✕</button>
+                    <button class="avatar-modal-close" id="avatar-modal-close" type="button"
+                      aria-label="Fermer la sélection d'avatar">✕</button>
                   </div>
                   <div id="avatar-grid" class="avatar-grid"></div>
                 </div>
@@ -99,7 +101,7 @@
         </section>
 
         <!-- Onboarding banner (first visit) -->
-        <div id="onboarding-banner" class="onboarding-banner" style="display:none;">
+        <div id="onboarding-banner" class="onboarding-banner hidden">
           <div class="onboarding-content">
             <span class="onboarding-emoji">🗺️</span>
             <div>
@@ -113,11 +115,9 @@
 
         <!-- Panneau paramètres -->
         <section class="panel panel-params">
-          <div class="panel-title-row"
-            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <div class="panel-title" style="margin-bottom: 0;">Paramètres</div>
-            <button id="daily-mode-btn" class="btn-emphasis"
-              style="display:none; padding: 4px 10px; font-size: 11px; margin: 0; width: auto; min-width: 0; min-height: 0;">🏆
+          <div class="panel-title-row">
+            <div class="panel-title panel-title--compact">Paramètres</div>
+            <button id="daily-mode-btn" class="btn-emphasis btn-emphasis--compact hidden">🏆
               Daily</button>
           </div>
 
@@ -144,7 +144,7 @@
               </ul>
             </div>
 
-            <select id="mode-select" style="display:none !important;">
+            <select id="mode-select" class="native-select">
               <option value="rues-celebres" selected>Rues célèbres</option>
               <option value="rues-principales">Rues principales</option>
               <option value="quartier">Par quartier</option>
@@ -153,7 +153,7 @@
             </select>
           </div>
 
-          <div class="info-block" id="quartier-block" style="display:none;">
+          <div class="info-block hidden" id="quartier-block">
             <label for="quartier-select">Quartier :</label>
 
             <!-- Faux select stylé pour les quartiers (PAS de pastille) -->
@@ -163,7 +163,7 @@
               </button>
               <ul id="quartier-select-list" class="custom-select-list"></ul>
             </div>
-            <select id="quartier-select" style="display:none !important;"></select>
+            <select id="quartier-select" class="native-select"></select>
           </div>
 
           <div class="info-block">
@@ -188,7 +188,7 @@
               </ul>
             </div>
 
-            <select id="game-mode-select" style="display:none !important;">
+            <select id="game-mode-select" class="native-select">
               <option value="classique" selected>Classique</option>
               <option value="marathon">Marathon</option>
               <option value="chrono">Mode Chrono</option>
@@ -201,16 +201,16 @@
         <!-- Boutons de session (séparés pour rester visibles en mode mobile session) -->
         <div class="actions-row">
           <button id="restart-btn" class="btn-primary">Commencer la session</button>
-          <button id="skip-btn" class="btn-skip" style="display:none;">Passer</button>
-          <button id="pause-btn" class="btn-secondary" style="display:none;">Pause</button>
+          <button id="skip-btn" class="btn-skip hidden">Passer</button>
+          <button id="pause-btn" class="btn-secondary hidden">Pause</button>
         </div>
 
         <!-- Panneau Rue à trouver -->
         <section class="panel target-panel">
           <div id="target-panel-title" class="panel-title">Rue à trouver</div>
           <div id="target-street" class="target-name">—</div>
-          <div id="daily-guesses-history" style="display:none;"></div>
-          <div id="daily-tries-counter" class="tries-counter" style="display:none;"></div>
+          <div id="daily-guesses-history" class="hidden"></div>
+          <div id="daily-tries-counter" class="tries-counter hidden"></div>
         </section>
 
         <!-- Panneau infos rue principale -->
@@ -259,7 +259,7 @@
                   </div>
 
                   <div class="weighted-score-progress" aria-hidden="true">
-                    <div id="weighted-score-bar" class="weighted-score-bar" style="width: 0%;"></div>
+                    <div id="weighted-score-bar" class="weighted-score-bar"></div>
                   </div>
 
                   <div class="weighted-score-meta">
@@ -290,7 +290,7 @@
         </section>
 
         <!-- Panneau de résultat Daily (affiché uniquement à la fin d'un daily) -->
-        <section id="daily-result-panel" class="panel" style="display:none;">
+        <section id="daily-result-panel" class="panel hidden">
           <div class="panel-title">Résultat Daily</div>
           <div id="daily-result-content"></div>
         </section>
@@ -306,7 +306,7 @@
 
         <!-- Panneau messages + récap -->
         <section class="panel panel-feedback">
-          <div id="message" class="message"></div>
+          <div id="message" class="message" role="status" aria-live="polite"></div>
           <div id="summary" class="summary hidden"></div>
         </section>
 
@@ -320,7 +320,7 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet-minimap@3.6.1/dist/Control.MiniMap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.js"></script>
   <script src="data_rules.js?v=20260304y"></script>
-  <script src="main.js?v=20260310b"></script>
+  <script src="main.js?v=20260310c"></script>
 </body>
 
 </html>

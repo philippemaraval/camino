@@ -1452,7 +1452,7 @@ function updateStartStopButton() {
           ? ((e.textContent = "Arrêter la session"),
             e.classList.remove("btn-primary"),
             e.classList.add("btn-stop"),
-            t && (t.style.display = ""))
+            t && (t.style.display = "block"))
           : ((e.textContent = "Commencer la session"),
             e.classList.remove("btn-stop"),
             e.classList.add("btn-primary"),
@@ -1494,7 +1494,7 @@ function updatePauseButton() {
           (e.textContent = "Pause"),
           void (e.disabled = !0)
         );
-      ((e.style.display = ""),
+      ((e.style.display = "block"),
         (e.disabled = !1),
         (e.textContent = isPaused ? "Reprendre" : "Pause"));
     } else e.style.display = "none";
@@ -2275,7 +2275,7 @@ function updateUserUI() {
           .querySelectorAll("button:not(#logout-btn)")
           .forEach((e) => (e.style.display = "none"))),
       r && (r.style.display = "inline-block"),
-      a && (a.style.display = "inline-block"));
+      a && (a.style.display = "inline-flex"));
     const i = document.getElementById("profile-panel");
     (i && (i.style.display = "block"), loadProfile());
   } else {
@@ -2475,7 +2475,7 @@ function loadProfile() {
   const e = document.getElementById("profile-content");
   e &&
     ((e.innerHTML =
-      '<div class="skeleton skeleton-avatar"></div><div class="skeleton skeleton-line" style="width:60%"></div><div class="skeleton skeleton-block"></div><div class="skeleton skeleton-line" style="width:80%"></div>'),
+      '<div class="skeleton skeleton-avatar"></div><div class="skeleton skeleton-line skeleton-line--60"></div><div class="skeleton skeleton-block"></div><div class="skeleton skeleton-line skeleton-line--80"></div>'),
       fetch(API_URL + "/api/profile", {
         headers: { Authorization: "Bearer " + currentUser.token },
       })
@@ -2500,9 +2500,9 @@ function loadProfile() {
               })
               : "—";
           let d = `\n        <div class="profile-header">
-          <div class="profile-avatar" style="position:relative;">
+          <div class="profile-avatar">
             ${t.avatar || '👤'}
-            <div class="edit-avatar-badge" id="btn-edit-avatar" title="Changer d'avatar">✏️</div>
+            <button type="button" class="edit-avatar-badge" id="btn-edit-avatar" title="Changer d'avatar" aria-label="Changer d'avatar">✏️</button>
           </div>\n          <div class="profile-info">\n            <div class="profile-name">${t.username}</div>\n            <div class="profile-title">${a}</div>\n          </div>\n        </div>\n\n        <div class="profile-stats-grid">\n          <div class="profile-stat">\n            <span class="profile-stat-value">${n}</span>\n            <span class="profile-stat-label">Parties</span>\n          </div>\n          <div class="profile-stat">\n            <span class="profile-stat-value">${r.toFixed(1)}</span>\n            <span class="profile-stat-label">Meilleur</span>\n          </div>\n          <div class="profile-stat">\n            <span class="profile-stat-value">${s}</span>\n            <span class="profile-stat-label">Moyenne</span>\n          </div>\n          <div class="profile-stat">\n            <span class="profile-stat-value">${l}/${i}</span>\n            <span class="profile-stat-label">Daily ✅</span>\n          </div>\n        </div>`;
           (t.modes &&
             t.modes.length > 0 &&
@@ -2527,17 +2527,17 @@ function loadProfile() {
               }),
               (d += "</div>")),
             i > 0 &&
-            (d += `\n          <div class="profile-daily-summary">\n            <span>📅 Daily : ${o} essais en moyenne</span>\n            ${t.daily?.current_streak > 0 ? `<br><span style="color:#e08a00;font-weight:bold;">🔥 Série actuelle : ${t.daily.current_streak}</span>` : ''}\n            ${t.daily?.max_streak > 0 ? `<br><span style="color:#64748b;font-size:10px;">🏆 Meilleure série : ${t.daily.max_streak}</span>` : ''}\n          </div>`));
+            (d += `\n          <div class="profile-daily-summary">\n            <span>📅 Daily : ${o} essais en moyenne</span>\n            ${t.daily?.current_streak > 0 ? `<br><span class="profile-daily-current-streak">🔥 Série actuelle : ${t.daily.current_streak}</span>` : ''}\n            ${t.daily?.max_streak > 0 ? `<br><span class="profile-daily-best-streak">🏆 Meilleure série : ${t.daily.max_streak}</span>` : ''}\n          </div>`));
           const c = computeBadges(t),
             m = c.filter((e) => e.unlocked),
             p = c.filter((e) => !e.unlocked);
           ((d += `<div class="profile-badges-title">Succès (${m.length}/${c.length})</div>`),
             (d += '<div class="profile-badges-grid">'),
             m.forEach((e) => {
-              d += `<div class="profile-badge unlocked" title="${e.name}\n✅ ${e.desc}">\n          <span class="badge-emoji">${e.emoji}</span>\n          <span class="badge-name">${e.name}</span>\n        </div>`;
+              d += `<div class="profile-badge unlocked" tabindex="0" title="${e.name}\n✅ ${e.desc}" aria-label="${e.name} débloqué. ${e.desc}">\n          <span class="badge-emoji">${e.emoji}</span>\n          <span class="badge-name">${e.name}</span>\n        </div>`;
             }),
             p.forEach((e) => {
-              d += `<div class="profile-badge locked" title="${e.name}\n🔒 ${e.desc}">\n          <span class="badge-emoji">🔒</span>\n          <span class="badge-name">${e.name}</span>\n        </div>`;
+              d += `<div class="profile-badge locked" tabindex="0" title="${e.name}\n🔒 ${e.desc}" aria-label="${e.name} verrouillé. ${e.desc}">\n          <span class="badge-emoji">🔒</span>\n          <span class="badge-name">${e.name}</span>\n        </div>`;
             }),
             (d += "</div>"),
             (d += `<div class="profile-member-since">Membre depuis le ${u}</div>`),
@@ -2549,7 +2549,7 @@ function loadProfile() {
         .catch((t) => {
           (console.warn("Profile error:", t.message),
             (e.innerHTML =
-              '<p style="color:#94a3b8;font-size:12px;">Profil indisponible.</p>'));
+              '<p class="profile-unavailable">Profil indisponible.</p>'));
         }));
 }
 
@@ -2584,7 +2584,8 @@ function renderAvatarGrid(currentAvatar, globalRankLevel) {
   AVATAR_UNLOCKS.forEach(avatarDef => {
     const requiredLevel = getGlobalRankLevelForTitleIndex(avatarDef.reqTitleIdx);
     const isUnlocked = globalRankLevel >= requiredLevel;
-    const item = document.createElement('div');
+    const item = document.createElement('button');
+    item.type = 'button';
     item.className = 'avatar-item';
     item.textContent = avatarDef.emoji;
     
@@ -2597,6 +2598,7 @@ function renderAvatarGrid(currentAvatar, globalRankLevel) {
 
     if (!isUnlocked) {
       item.classList.add('locked');
+      item.disabled = true;
       item.title = `Titre global requis:\n🔒 ${reqTitle}\n(à atteindre dans tous les modes et zones)`;
     } else {
       item.title = `Débloqué:\n✅ ${reqTitle} (global)`;
@@ -2845,7 +2847,7 @@ function loadAllLeaderboards() {
   const e = document.getElementById("leaderboard");
   e &&
     ((e.innerHTML =
-      '<div class="skeleton skeleton-line" style="width:50%"></div><div class="skeleton skeleton-block"></div><div class="skeleton skeleton-block"></div>'),
+      '<div class="skeleton skeleton-line skeleton-line--50"></div><div class="skeleton skeleton-block"></div><div class="skeleton skeleton-block"></div>'),
       Promise.all([
         fetch(API_URL + "/api/leaderboards").then(res => {
           if (!res.ok) throw new Error("HTTP " + res.status);
@@ -2994,7 +2996,7 @@ function loadAllLeaderboards() {
                                 r.items_correct || 0,
                               ),
                               pAvatar = r.avatar || '👤';
-                            let l = `<td>${s}</td><td><span class="leaderboard-avatar">${pAvatar}</span>${r.username || "Anonyme"}<br><small style="color:#94a3b8;font-size:10px">${i}</small></td>`;
+                            let l = `<td>${s}</td><td><span class="leaderboard-avatar">${pAvatar}</span>${r.username || "Anonyme"}<br><small class="leaderboard-player-meta">${i}</small></td>`;
                             const scoreCell =
                               "classique" === e
                                 ? "number" == typeof r.high_score
@@ -3016,16 +3018,13 @@ function loadAllLeaderboards() {
                           r.rows.length > 3)
                       ) {
                         const e = document.createElement("div");
-                        ((e.style.marginTop = "8px"),
-                          (e.style.textAlign = "center"));
+                        e.className = "leaderboard-toggle-wrap";
                         const t = document.createElement("button");
-                        ((t.className = "btn-basic btn-small"),
-                          (t.style.fontSize = "12px"),
-                          (t.style.padding = "4px 8px"),
+                        ((t.className = "leaderboard-toggle-btn"),
                           (t.textContent = "▼ Voir les autres scores"),
                           (t.onclick = () => {
                             "none" === u.style.display
-                              ? ((u.style.display = ""),
+                              ? ((u.style.display = "table-row-group"),
                                 (t.textContent = "▲ Masquer les scores"))
                               : ((u.style.display = "none"),
                                 (t.textContent = "▼ Voir les autres scores"));
