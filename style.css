@@ -2237,7 +2237,7 @@ select:focus:not(:focus-visible) {
 
 .sidebar-footer {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   column-gap: 8px;
   margin: 12px 0 6px;
@@ -2249,10 +2249,6 @@ select:focus:not(:focus-visible) {
   gap: 6px;
 }
 
-.sidebar-social-group--left {
-  justify-self: start;
-}
-
 .sidebar-social-group--right {
   justify-self: end;
 }
@@ -2261,8 +2257,9 @@ select:focus:not(:focus-visible) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 20px;
-  padding: 0 8px;
+  min-width: 24px;
+  min-height: 22px;
+  padding: 0 7px;
   border-radius: var(--radius-pill);
   border: 1px solid rgba(176, 184, 196, 0.45);
   background: rgba(255, 255, 255, 0.22);
@@ -2277,18 +2274,29 @@ select:focus:not(:focus-visible) {
     color var(--motion-fast) var(--easing-standard);
 }
 
+.sidebar-social-icon {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+  display: block;
+  flex: 0 0 auto;
+}
+
 .sidebar-social-link:hover {
   background: rgba(255, 255, 255, 0.45);
   border-color: rgba(176, 184, 196, 0.7);
 }
 
 .sidebar-credit {
-  text-align: center;
+  text-align: left;
   font-size: 10px;
   color: var(--footer-muted);
   margin: 0;
   font-style: italic;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 900px) {
