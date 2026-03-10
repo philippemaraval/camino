@@ -510,12 +510,22 @@ function updateStreetInfoPanelVisibility() {
     t = document.getElementById("street-info");
   if (!e || !t) return;
   const r = getZoneMode();
+  updateStreetInfoPanelTitle(r);
   "rues-principales" === r || "main" === r
     ? (e.style.display = "block")
     : ((e.style.display = "none"),
       e.classList.remove("is-visible"),
       (t.textContent = ""),
       t.classList.remove("is-visible"));
+}
+function getStreetInfoPanelTitle(e = getZoneMode()) {
+  return "rues-celebres" === e || "famous" === e
+    ? "Infos rues célèbres"
+    : "Infos rues principales";
+}
+function updateStreetInfoPanelTitle(e = getZoneMode()) {
+  const t = document.getElementById("street-info-title");
+  t && (t.textContent = getStreetInfoPanelTitle(e));
 }
 function initMap() {
   if (
@@ -2067,6 +2077,7 @@ function showStreetInfo(e) {
     r = document.getElementById("street-info");
   if (!t || !r || !e) return;
   const a = getZoneMode();
+  updateStreetInfoPanelTitle(a);
   
   const isMain = "rues-principales" === a || "main" === a;
   const isFamous = "rues-celebres" === a || "famous" === a;
@@ -2220,7 +2231,7 @@ function clearHighlight() {
 }
 function focusStreetByName(e) {
   const t = highlightStreetByName(e, UI_THEME.mapStreetHover);
-  if (!t || 0 === t.length) return;
+  if (!t || 0 === t.length) return null;
   let r = null;
   (t.forEach((e) => {
     if ("function" == typeof e.getBounds) {
@@ -2232,6 +2243,7 @@ function focusStreetByName(e) {
     r.isValid &&
     r.isValid() &&
     map.fitBounds(r, { padding: [40, 40], animate: !0, duration: 1.5 }));
+  return t[0] || null;
 }
 function endSession() {
   document.body.classList.add("session-ended");
@@ -2328,7 +2340,7 @@ function endSession() {
   const v = document.createElement("div");
   v.className = "summary-detail-header";
   const f = document.createElement("h3");
-  ((f.textContent = "Détail par item (cliquable pour zoomer sur les rues)"),
+  ((f.textContent = "Détail par item (cliquable pour zoomer et voir la fiche)"),
     v.appendChild(f));
   const b = document.createElement("div");
   b.className = "summary-filters";
@@ -2372,7 +2384,8 @@ function endSession() {
         (t.textContent = `${e.name} – ${e.correct ? "Correct" : "Incorrect"} – ${e.time} s`),
         (t.dataset.streetName = e.name),
         t.addEventListener("click", () => {
-          focusStreetByName(e.name);
+          const t = focusStreetByName(e.name);
+          t && t.feature && showStreetInfo(t.feature);
         }),
         L.appendChild(t));
     }),
@@ -2507,29 +2520,37 @@ function clearCurrentUserFromStorage() {
     console.warn("Impossible de supprimer l’utilisateur stocké.", e);
   }
 }
+
+function renderUserSticker() {
+  const sticker = document.getElementById("user-sticker"),
+    loginHint = document.getElementById("login-hint");
+  if (!sticker) return;
+  if (currentUser && currentUser.username) {
+    const avatarValue = currentUser.avatar || '👤',
+      avatarEl = document.createElement("span"),
+      nameEl = document.createElement("span");
+    ((avatarEl.className = "user-sticker-avatar"),
+      (avatarEl.textContent = avatarValue),
+      (nameEl.className = "user-sticker-name"),
+      (nameEl.textContent = currentUser.username),
+      sticker.replaceChildren(avatarEl, nameEl),
+      (sticker.style.display = "inline-flex"),
+      loginHint && (loginHint.style.display = "none"));
+    return;
+  }
+  ((sticker.textContent = ""),
+    (sticker.style.display = "none"),
+    loginHint && (loginHint.style.display = ""));
+}
+
 function updateUserUI() {
   const e = document.getElementById("current-user-label"),
     t = document.querySelector(".auth-block"),
     r = document.getElementById("logout-btn"),
-    a = document.getElementById("daily-mode-btn"),
-    n = document.getElementById("user-sticker"),
-    s = document.getElementById("login-hint");
+    a = document.getElementById("daily-mode-btn");
   if (currentUser && currentUser.username) {
     (e && (e.textContent = `Connecté en tant que ${currentUser.username}`),
-      n &&
-      ((n.textContent = ""),
-        (() => {
-          const e = document.createElement("span");
-          e.className = "user-sticker-avatar";
-          e.textContent = currentUser.avatar || '👤';
-          const t = document.createElement("span");
-          t.className = "user-sticker-name";
-          t.textContent = currentUser.username;
-          n.appendChild(e);
-          n.appendChild(t);
-        })(),
-        (n.style.display = "inline-flex")),
-      s && (s.style.display = "none"),
+      renderUserSticker(),
       t &&
       (t.querySelectorAll("input").forEach((e) => (e.style.display = "none")),
         t
@@ -2541,8 +2562,7 @@ function updateUserUI() {
     (i && (i.style.display = "block"), loadProfile());
   } else {
     (e && (e.textContent = "Non connecté."),
-      n && ((n.textContent = ""), (n.style.display = "none")),
-      s && (s.style.display = ""),
+      renderUserSticker(),
       t &&
       (t.querySelectorAll("input").forEach((e) => (e.style.display = "")),
         t
@@ -2745,6 +2765,15 @@ function loadProfile() {
           return e.json();
         })
         .then((t) => {
+          if (currentUser) {
+            const e = t.avatar || '👤',
+              r = t.username || currentUser.username,
+              a = currentUser.avatar !== e || currentUser.username !== r;
+            ((currentUser.avatar = e),
+              (currentUser.username = r),
+              a && saveCurrentUserToStorage(currentUser),
+              renderUserSticker());
+          }
           const r = parseFloat(t.overall?.best_score) || 0,
             gRank = getGlobalRankMeta(t),
             a = gRank.title,

@@ -49,6 +49,12 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-pill: 999px;
+  --sidebar-section-gap: 8px;
+  --leaderboard-panel-max-h: min(70vh, 620px);
+  --leaderboard-root-max-h: min(62vh, 560px);
+  --leaderboard-zone-max-h: min(52vh, 480px);
+  --leaderboard-mode-max-h: min(40vh, 360px);
+  --leaderboard-section-max-h: min(28vh, 260px);
 }
 
 body,
@@ -115,6 +121,17 @@ body {
   z-index: 10;
   box-shadow: 2px 0 20px rgba(0, 0, 0, 0.02);
   overflow-x: visible;
+}
+
+#sidebar-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sidebar-section-gap);
+}
+
+#sidebar-content > * {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .panel {
@@ -1427,8 +1444,8 @@ button {
     font-size: 11px;
   }
 
-  .user-panel {
-    margin-top: 14px;
+  #sidebar-content > .user-panel {
+    margin-top: 12px;
   }
 
   .user-panel details:not([open]) summary {
@@ -1481,16 +1498,61 @@ button {
 
 .leaderboard-section {
   margin-bottom: 12px;
+  max-height: var(--leaderboard-section-max-h);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px;
+  border: 1px solid rgba(18, 41, 122, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.8);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .leaderboard-section:last-child {
   margin-bottom: 0;
 }
 
+.leaderboard-section > summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.95);
+}
+
 .leaderboard-zone-content {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: calc(var(--leaderboard-zone-max-h) - 44px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.leaderboard-mode-container {
+  max-height: var(--leaderboard-mode-max-h);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px;
+  border: 1px solid rgba(18, 41, 122, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.75);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.leaderboard-mode-title {
+  margin: 0 0 6px;
+  font-size: var(--fs-s);
+  color: var(--primary-dark);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 2px 0;
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .leaderboard-section-title {
@@ -1570,6 +1632,57 @@ button {
   font-weight: 700;
   color: var(--primary-dark);
   border-bottom: 1px solid rgba(18, 41, 122, 0.08);
+}
+
+.leaderboard-zone-details {
+  max-height: var(--leaderboard-zone-max-h);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 8px 8px;
+  border: 1px solid rgba(18, 41, 122, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.82);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.leaderboard-zone-details > summary {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.leaderboard-panel {
+  max-height: var(--leaderboard-panel-max-h);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.leaderboard-panel > details {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#leaderboard {
+  max-height: var(--leaderboard-root-max-h);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --leaderboard-panel-max-h: min(64vh, 520px);
+    --leaderboard-root-max-h: min(56vh, 460px);
+    --leaderboard-zone-max-h: min(46vh, 400px);
+    --leaderboard-mode-max-h: min(34vh, 300px);
+    --leaderboard-section-max-h: min(24vh, 220px);
+  }
 }
 
 .leaderboard-zone-title {
