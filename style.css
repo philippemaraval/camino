@@ -178,7 +178,7 @@ body {
 
 .header-title-link {
   color: var(--brand-sea-900);
-  background: linear-gradient(125deg, var(--brand-sea-950) 0%, #10256f 56%, var(--brand-sea-900) 100%);
+  background: linear-gradient(135deg, var(--primary-dark) 0, var(--primary) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -233,6 +233,23 @@ body {
   font-weight: 600;
   display: none;
   margin-left: auto;
+  align-items: center;
+  gap: 6px;
+  max-width: 170px;
+}
+
+.user-sticker-avatar {
+  font-size: 12px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.user-sticker-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .login-hint {
@@ -2176,12 +2193,6 @@ select:focus:not(:focus-visible) {
   font-size: 14px !important;
 }
 
-@media (max-width: 600px) {
-  .leaflet-control-minimap {
-    width: 100px !important;
-    height: 100px !important;
-  }
-}
 /* Avatar Selection Modal */
 .avatar-selector-modal {
   margin: 12px 0;

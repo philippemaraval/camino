@@ -539,8 +539,8 @@ function initMap() {
       position: "bottomright",
       toggleDisplay: !0,
       minimized: IS_TOUCH_DEVICE,
-      width: 150,
-      height: 150,
+      width: IS_TOUCH_DEVICE ? 100 : 150,
+      height: IS_TOUCH_DEVICE ? 100 : 150,
       zoomLevelOffset: -5,
       zoomLevelFixed: !1,
       collapsedWidth: 24,
@@ -2517,8 +2517,18 @@ function updateUserUI() {
   if (currentUser && currentUser.username) {
     (e && (e.textContent = `Connecté en tant que ${currentUser.username}`),
       n &&
-      ((n.textContent = currentUser.avatar || '👤'),
-        (n.style.display = "inline-block")),
+      ((n.textContent = ""),
+        (() => {
+          const e = document.createElement("span");
+          e.className = "user-sticker-avatar";
+          e.textContent = currentUser.avatar || '👤';
+          const t = document.createElement("span");
+          t.className = "user-sticker-name";
+          t.textContent = currentUser.username;
+          n.appendChild(e);
+          n.appendChild(t);
+        })(),
+        (n.style.display = "inline-flex")),
       s && (s.style.display = "none"),
       t &&
       (t.querySelectorAll("input").forEach((e) => (e.style.display = "none")),
