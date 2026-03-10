@@ -1,7 +1,7 @@
 # Visual QA Checklist v1
 
 ## Marque
-- [ ] Le bleu logo `#2596BE` apparait sur les elements marque.
+- [ ] Le bleu logo `#12297A` apparait sur les elements marque.
 - [ ] Aucune teinte violette n'apparait dans les badges/profil.
 - [ ] Les etats success/warning/danger sont semantiquement corrects.
 
@@ -35,4 +35,3 @@
 - [ ] Mobile <= 900px: lisibilite score/chrono/boutons.
 - [ ] Aucun debordement de panneau ou tooltip.
 - [ ] Interactions tactiles lisibles (hover equivalent).
-

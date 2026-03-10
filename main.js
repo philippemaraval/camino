@@ -15,9 +15,9 @@ const UI_THEME = {
   mapStreetHover: "#f8c870",
   mapCorrect: "#1f9d66",
   mapWrong: "#d2463c",
-  mapQuartier: "#2596be",
-  mapMonumentStroke: "#d7eff6",
-  mapMonumentFill: "#5dbdd9",
+  mapQuartier: "#12297a",
+  mapMonumentStroke: "#dfe6ff",
+  mapMonumentFill: "#4057b2",
   timerSafe: "#1f9d66",
   timerWarn: "#e08a00",
   timerDanger: "#d2463c",
@@ -1877,7 +1877,7 @@ function feedbackCorrect() {
         particleCount: 60,
         spread: 55,
         origin: { y: 0.7 },
-        colors: [UI_THEME.mapCorrect, "#5dbdd9", "#9ad6e8", UI_THEME.mapStreet],
+        colors: [UI_THEME.mapCorrect, UI_THEME.mapMonumentFill, "#a9b8ec", UI_THEME.mapStreet],
         gravity: 1.2,
         scalar: 0.8,
         ticks: 120,
@@ -3405,8 +3405,8 @@ function handleDailyShareImage(e) {
   const m = r.createLinearGradient(0, 0, 0, n);
   (m.addColorStop(0, "#f8dca5"),
     m.addColorStop(0.35, "#f2a900"),
-    m.addColorStop(0.68, "#2596be"),
-    m.addColorStop(1, "#1e6e8b"),
+    m.addColorStop(0.68, "#4057b2"),
+    m.addColorStop(1, "#12297a"),
     (r.fillStyle = m),
     r.fillRect(0, 0, a, n));
   const p = n * 0.47;
@@ -3417,11 +3417,11 @@ function handleDailyShareImage(e) {
     r.fill(),
     (r.globalAlpha = 1));
   const g = r.createLinearGradient(0, p, 0, n);
-  (g.addColorStop(0, "rgba(17,94,149,0.85)"),
-    g.addColorStop(1, "rgba(9,40,66,0.95)"),
+  (g.addColorStop(0, "rgba(18,41,122,0.85)"),
+    g.addColorStop(1, "rgba(12,29,87,0.95)"),
     (r.fillStyle = g),
     r.fillRect(0, p, a, n - p),
-    (r.fillStyle = "rgba(13,35,58,0.55)"),
+    (r.fillStyle = "rgba(10,23,69,0.55)"),
     r.beginPath(),
     r.moveTo(0, p + 30),
     r.lineTo(120, p + 8),
