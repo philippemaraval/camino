@@ -96,17 +96,27 @@ app.post('/api/login', async (req, res) => {
 // ----------------------
 
 app.get('/api/leaderboard', async (req, res) => {
-    const mode = req.query.mode || req.query.zone_mode;
-    const gameType = req.query.gameType || req.query.game_mode;
-    if (!mode || !gameType) return res.status(400).json({ error: 'Missing mode or gameType' });
+    try {
+        const mode = req.query.mode || req.query.zone_mode;
+        const gameType = req.query.gameType || req.query.game_mode;
+        if (!mode || !gameType) return res.status(400).json({ error: 'Missing mode or gameType' });
 
-    const rows = await db.getLeaderboard(mode, gameType);
-    res.json(rows);
+        const rows = await db.getLeaderboard(mode, gameType);
+        res.json(rows);
+    } catch (err) {
+        console.error('Leaderboard error:', err);
+        res.status(500).json({ error: 'Failed to load leaderboard' });
+    }
 });
 
 app.get('/api/leaderboards', async (req, res) => {
-    const data = await db.getAllLeaderboards();
-    res.json(data);
+    try {
+        const data = await db.getAllLeaderboards();
+        res.json(data);
+    } catch (err) {
+        console.error('Leaderboards error:', err);
+        res.status(500).json({ error: 'Failed to load leaderboards' });
+    }
 });
 
 app.post('/api/scores', authenticateToken, async (req, res) => {
@@ -283,9 +293,14 @@ app.post('/api/daily/guess', authenticateToken, async (req, res) => {
 });
 
 app.get('/api/daily/leaderboard', async (req, res) => {
-    const date = new Date().toISOString().split('T')[0];
-    const rows = await db.getDailyLeaderboard(date);
-    res.json(rows);
+    try {
+        const date = new Date().toISOString().split('T')[0];
+        const rows = await db.getDailyLeaderboard(date);
+        res.json(rows);
+    } catch (err) {
+        console.error('Daily leaderboard error:', err);
+        res.status(500).json({ error: 'Failed to load daily leaderboard' });
+    }
 });
 
 // ----------------------

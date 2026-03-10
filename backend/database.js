@@ -171,21 +171,32 @@ async function getLeaderboard(mode, gameType, quartierName = null, limit = 10) {
             filtered.timestamp ASC
         ) AS rn
       FROM filtered
+    ),
+    best_runs AS (
+      SELECT
+        username,
+        avatar,
+        score AS high_score,
+        items_correct,
+        items_total,
+        time_sec,
+        games_played
+      FROM ranked
+      WHERE rn = 1
     )
     SELECT
       username,
       avatar,
-      score AS high_score,
+      high_score,
       items_correct,
       items_total,
       time_sec,
       games_played
-    FROM ranked
-    WHERE rn = 1
+    FROM best_runs
     ORDER BY
       CASE
-        WHEN $2 = 'classique' THEN high_score::double precision
-        ELSE items_correct::double precision
+        WHEN $2 = 'classique' THEN best_runs.high_score::double precision
+        ELSE best_runs.items_correct::double precision
       END DESC,
       time_sec ASC,
       username ASC
