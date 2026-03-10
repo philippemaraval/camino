@@ -133,34 +133,64 @@ async function addScore(userId, username, mode, gameType, score, itemsCorrect, i
 }
 
 async function getLeaderboard(mode, gameType, quartierName = null, limit = 10) {
-  let query = `
-    SELECT scores.username,
-           u.avatar,
-           MAX(score) as high_score,
-           MAX(items_correct) as items_correct,
-           MAX(items_total) as items_total,
-           MAX(time_sec) as time_sec,
-           COUNT(*) as games_played
-    FROM scores
-    LEFT JOIN users u ON scores.user_id = u.id
-    WHERE mode = $1 AND game_type = $2 `;
-
   const params = [mode, gameType];
+  let whereClause = `s.mode = $1 AND s.game_type = $2`;
 
   if (quartierName) {
-    query += ` AND quartier_name = $3 `;
+    whereClause += ` AND s.quartier_name = $3 `;
     params.push(quartierName);
   } else if (mode === 'quartier') {
     // Legacy scores with no quartier_name fallback
-    query += ` AND quartier_name IS NULL `;
+    whereClause += ` AND s.quartier_name IS NULL `;
   }
 
-  query += `
-    GROUP BY scores.user_id, scores.username, u.avatar
-    ORDER BY high_score DESC
-    LIMIT $${params.length + 1}
-  `;
+  const limitParam = `$${params.length + 1}`;
   params.push(limit);
+
+  const query = `
+    WITH filtered AS (
+      SELECT s.*, u.avatar
+      FROM scores s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE ${whereClause}
+    ),
+    ranked AS (
+      SELECT
+        filtered.*,
+        COUNT(*) OVER (
+          PARTITION BY filtered.user_id, filtered.username
+        ) AS games_played,
+        ROW_NUMBER() OVER (
+          PARTITION BY filtered.user_id, filtered.username
+          ORDER BY
+            CASE
+              WHEN $2 = 'classique' THEN filtered.score::double precision
+              ELSE filtered.items_correct::double precision
+            END DESC,
+            filtered.time_sec ASC,
+            filtered.timestamp ASC
+        ) AS rn
+      FROM filtered
+    )
+    SELECT
+      username,
+      avatar,
+      score AS high_score,
+      items_correct,
+      items_total,
+      time_sec,
+      games_played
+    FROM ranked
+    WHERE rn = 1
+    ORDER BY
+      CASE
+        WHEN $2 = 'classique' THEN high_score::double precision
+        ELSE items_correct::double precision
+      END DESC,
+      time_sec ASC,
+      username ASC
+    LIMIT ${limitParam}
+  `;
 
   const res = await pool.query(query, params);
   return res.rows;
@@ -281,10 +311,29 @@ async function getUserStats(userId) {
 
   // Best mode (highest high score)
   const bestMode = await pool.query(
-    `SELECT mode, game_type, MAX(score) as high_score
-     FROM scores WHERE user_id = $1
-     GROUP BY mode, game_type
-     ORDER BY high_score DESC LIMIT 1`,
+    `WITH ranked AS (
+       SELECT
+         mode,
+         game_type,
+         score AS high_score,
+         items_correct,
+         items_total,
+         time_sec,
+         ROW_NUMBER() OVER (
+           ORDER BY
+             CASE
+               WHEN game_type = 'classique' THEN score::double precision
+               ELSE items_correct::double precision
+             END DESC,
+             time_sec ASC,
+             timestamp ASC
+         ) AS rn
+       FROM scores
+       WHERE user_id = $1
+     )
+     SELECT mode, game_type, high_score, items_correct, items_total
+     FROM ranked
+     WHERE rn = 1`,
     [userId]
   );
 

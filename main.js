@@ -138,6 +138,54 @@ let sessionStreets = [],
   currentUser = null,
   isLectureMode = !1,
   hasAnsweredCurrentItem = !1;
+function getSessionScoreValue(e = getGameMode()) {
+  return "classique" === e ? weightedScore : correctCount;
+}
+function getCurrentSessionPoolSize() {
+  return "monuments" === getZoneMode() ? sessionMonuments.length : sessionStreets.length;
+}
+function getScoreMetricUIConfig(e = getGameMode()) {
+  if ("marathon" === e)
+    return {
+      label: "Rues trouvées",
+      legend: "Score = nombre de rues trouvées (objectif: aller le plus loin possible).",
+      help:
+        "<strong>Rues trouvées (Marathon)</strong><br>Le score correspond au nombre de rues trouvées avant la limite d'erreurs.<br><br>Le maximum dépend de la zone sélectionnée.",
+      decimals: 0,
+    };
+  if ("chrono" === e)
+    return {
+      label: "Rues trouvées",
+      legend: "Score = nombre de rues trouvées en 60 secondes.",
+      help:
+        "<strong>Rues trouvées (Chrono)</strong><br>Le score correspond au nombre de rues trouvées dans le temps imparti (60 s).",
+      decimals: 0,
+    };
+  return {
+    label: "Score pondéré",
+    legend: "Chaque bonne réponse: jusqu'à 10 points selon la rapidité.",
+    help:
+      "<strong>Score pondéré</strong><br>Chaque bonne réponse rapporte jusqu'à 10 points selon la rapidité: 1 point en moins par seconde.<br>Au-delà de 10 secondes, aucun point.<br><br>Le score affiché est la somme des points de la session.",
+    decimals: 1,
+  };
+}
+function updateScoreMetricUI() {
+  const e = getScoreMetricUIConfig(),
+    t = document.getElementById("weighted-score-label"),
+    r = document.getElementById("weighted-score-legend"),
+    a = document.getElementById("weighted-score-help"),
+    n = document.getElementById("weighted-score-help-btn");
+  t && (t.textContent = e.label);
+  r && (r.textContent = e.legend);
+  a && (a.innerHTML = e.help);
+  n &&
+    n.setAttribute(
+      "aria-label",
+      "classique" === getGameMode()
+        ? "Information sur le score pondéré"
+        : "Information sur le score",
+    );
+}
 function setMapStatus(e, t) {
   const r = document.getElementById("map-status");
   r &&
@@ -204,7 +252,10 @@ function updateGameModeControls() {
     r &&
     ("lecture" === e.value
       ? ((t.style.display = "none"), (r.style.display = "none"))
-      : (t.style.display = ""));
+      : (t.style.display = ""),
+      updateScoreMetricUI(),
+      updateWeightedScoreUI(),
+      updateSessionProgressBar());
 }
 function updateStreetInfoPanelVisibility() {
   const e = document.getElementById("street-info-panel"),
@@ -569,7 +620,9 @@ function initUI() {
   (q && (q.textContent = "—"),
     updateScoreUI(),
     updateTimeUI(0, 0),
+    updateScoreMetricUI(),
     updateWeightedScoreUI(),
+    updateSessionProgressBar(),
     updateStartStopButton(),
     updatePauseButton(),
     updateStreetInfoPanelVisibility(),
@@ -621,7 +674,8 @@ function startTimersLoop() {
           ? Math.max(0, (chronoEndTime - t) / 1e3)
           : null,
       ),
-        hasAnsweredCurrentItem || updateWeightedBar(computeItemPoints(a) / 10));
+        "classique" === getGameMode() &&
+          (hasAnsweredCurrentItem || updateWeightedBar(computeItemPoints(a) / 10)));
     }
     requestAnimationFrame(e);
   });
@@ -1134,7 +1188,9 @@ function startNewSession() {
     (remainingChronoMs = null),
     updateScoreUI(),
     updateTimeUI(0, 0),
-    updateWeightedScoreUI());
+    updateScoreMetricUI(),
+    updateWeightedScoreUI(),
+    updateSessionProgressBar());
   const n = document.getElementById("summary");
   if (
     (n && n.classList.add("hidden"),
@@ -1629,15 +1685,23 @@ function handleStreetClick(e, t, r) {
     l = currentTarget;
   if (i) {
     correctCount += 1;
-    const e = computeItemPoints(s);
-    ((weightedScore += e),
-      updateWeightedScoreUI(),
-      updateWeightedBar(e / 10),
-      (hasAnsweredCurrentItem = !0),
+    (hasAnsweredCurrentItem = !0);
+    if ("classique" === n) {
+      const e = computeItemPoints(s);
+      ((weightedScore += e),
+        updateWeightedBar(e / 10),
+        showMessage(
+          `Correct (${s.toFixed(1)} s, +${e.toFixed(1)} pts)`,
+          "success",
+        ));
+    } else if ("marathon" === n) {
+      const e = getCurrentSessionPoolSize();
       showMessage(
-        `Correct (${s.toFixed(1)} s, +${e.toFixed(1)} pts)`,
+        `Correct (${correctCount}/${e > 0 ? e : "?"})`,
         "success",
-      ),
+      );
+    } else showMessage(`Correct (${correctCount} trouvées)`, "success");
+    (updateSessionProgressBar(),
       highlightStreet("#00aa00"),
       triggerHaptic('success'),
       feedbackCorrect());
@@ -1650,7 +1714,7 @@ function handleStreetClick(e, t, r) {
         "error",
       ),
       highlightStreet("#d00"),
-      updateWeightedBar(0),
+      "classique" === n ? updateWeightedBar(0) : updateSessionProgressBar(),
       triggerHaptic('error'),
       feedbackError());
   ((totalAnswered += 1),
@@ -1660,6 +1724,7 @@ function handleStreetClick(e, t, r) {
       time: s.toFixed(1),
     }),
     trackAnswer(currentTarget.properties.name, getZoneMode(), i, s),
+    updateWeightedScoreUI(),
     updateScoreUI(),
     showStreetInfo(l),
     !i && "marathon" === n && errorsCount >= 3
@@ -1684,15 +1749,23 @@ function handleMonumentClick(e, t) {
     i = findMonumentLayerByName(currentMonumentTarget.properties.name);
   if (n) {
     correctCount += 1;
-    const e = computeItemPoints(a);
-    ((weightedScore += e),
-      updateWeightedScoreUI(),
-      updateWeightedBar(e / 10),
-      (hasAnsweredCurrentItem = !0),
+    (hasAnsweredCurrentItem = !0);
+    if ("classique" === r) {
+      const e = computeItemPoints(a);
+      ((weightedScore += e),
+        updateWeightedBar(e / 10),
+        showMessage(
+          `Correct (${a.toFixed(1)} s, +${e.toFixed(1)} pts)`,
+          "success",
+        ));
+    } else if ("marathon" === r) {
+      const e = getCurrentSessionPoolSize();
       showMessage(
-        `Correct (${a.toFixed(1)} s, +${e.toFixed(1)} pts)`,
+        `Correct (${correctCount}/${e > 0 ? e : "?"})`,
         "success",
-      ),
+      );
+    } else showMessage(`Correct (${correctCount} trouvés)`, "success");
+    (updateSessionProgressBar(),
       highlightMonument(i, "#00aa00"),
       triggerHaptic('success'),
       feedbackCorrect());
@@ -1705,12 +1778,13 @@ function handleMonumentClick(e, t) {
         "error",
       ),
       highlightMonument(i, "#d00"),
-      updateWeightedBar(0),
+      "classique" === r ? updateWeightedBar(0) : updateSessionProgressBar(),
       triggerHaptic('error'),
       feedbackError());
   ((totalAnswered += 1),
     summaryData.push({ name: s, correct: n, time: a.toFixed(1) }),
     trackAnswer(s, "monuments", n, a),
+    updateWeightedScoreUI(),
     updateScoreUI(),
     !n && "marathon" === r && errorsCount >= 3
       ? endSession()
@@ -1923,7 +1997,10 @@ function endSession() {
     i =
       0 === a ? 0 : summaryData.reduce((e, t) => e + parseFloat(t.time), 0) / a,
     l = getGameMode(),
-    o = getZoneMode();
+    o = getZoneMode(),
+    uScore = getSessionScoreValue(l),
+    poolSize =
+      "marathon" === l || "chrono" === l ? getCurrentSessionPoolSize() : a;
   let u = null;
   if ("quartier" === o) {
     const e = document.getElementById("quartier-select");
@@ -1970,8 +2047,14 @@ function endSession() {
   const g = document.createElement("p");
   ((g.textContent = p), c.appendChild(g));
   const h = document.createElement("div");
+  const yScoreLine =
+    "classique" === l
+      ? `<p>Score pondéré : <strong>${uScore.toFixed(1)} pts</strong></p>`
+      : "marathon" === l
+        ? `<p>Rues trouvées : <strong>${Math.round(uScore)} / ${poolSize || 0}</strong></p>`
+        : `<p>Rues trouvées : <strong>${Math.round(uScore)}</strong> en 60 s</p>`;
   ((h.className = "summary-stats"),
-    (h.innerHTML = `<p>Temps total : <strong>${t.toFixed(1)} s</strong></p>\n     <p>Temps moyen par item : <strong>${i.toFixed(1)} s</strong></p>\n     <p>Score : <strong>${s} %</strong> (${n} bonnes réponses / ${a})</p>\n     <p>Score pondéré : <strong>${weightedScore.toFixed(1)} pts</strong></p>`),
+    (h.innerHTML = `<p>Temps total : <strong>${t.toFixed(1)} s</strong></p>\n     <p>Temps moyen par item : <strong>${i.toFixed(1)} s</strong></p>\n     <p>Score : <strong>${s} %</strong> (${n} bonnes réponses / ${a})</p>\n     ${yScoreLine}`),
     c.appendChild(h),
     d.appendChild(c));
   const y = document.createElement("div");
@@ -2052,10 +2135,10 @@ function endSession() {
       zoneMode: o,
       quartierName: u,
       gameMode: l,
-      weightedScore: weightedScore,
+      score: uScore,
       percentCorrect: s,
       totalTimeSec: t,
-      itemsAnswered: a,
+      itemsTotal: poolSize,
       itemsCorrect: n,
     }),
     loadLeaderboard(o, u, l));
@@ -2098,7 +2181,11 @@ function updateTimeUI(e, t, r) {
 }
 function updateWeightedScoreUI() {
   const e = document.getElementById("weighted-score");
-  e && (e.textContent = weightedScore.toFixed(1));
+  if (!e) return;
+  const t = getScoreMetricUIConfig(),
+    r = getSessionScoreValue();
+  e.textContent =
+    t.decimals > 0 ? r.toFixed(t.decimals) : String(Math.round(r));
 }
 function updateWeightedBar(e) {
   const t = document.getElementById("weighted-score-bar");
@@ -2106,8 +2193,26 @@ function updateWeightedBar(e) {
   const r = 100 * Math.max(0, Math.min(1, e));
   t.style.width = r + "%";
 }
+function updateSessionProgressBar() {
+  const e = getGameMode();
+  if ("classique" === e) return;
+  if ("marathon" === e) {
+    const e = getCurrentSessionPoolSize();
+    return void updateWeightedBar(e > 0 ? correctCount / e : 0);
+  }
+  if ("chrono" === e) {
+    const e = getTitleThresholds(
+      getZoneMode(),
+      "chrono",
+      getCurrentSessionPoolSize(),
+    ),
+      t = Math.max(1, e.MV || 1);
+    return void updateWeightedBar(correctCount / t);
+  }
+  updateWeightedBar(0);
+}
 function resetWeightedBar() {
-  updateWeightedBar(1);
+  "classique" === getGameMode() ? updateWeightedBar(1) : updateSessionProgressBar();
 }
 function saveCurrentUserToStorage(e) {
   if (e)
@@ -2362,7 +2467,13 @@ function loadProfile() {
         })
         .then((t) => {
           const r = parseFloat(t.overall?.best_score) || 0,
-            a = getPlayerTitle(r, t.bestMode?.mode || null),
+            a = getPlayerTitle(
+              r,
+              t.bestMode?.mode || null,
+              t.bestMode?.game_type || "classique",
+              t.bestMode?.items_total || 0,
+              t.bestMode?.items_correct || null,
+            ),
             n = parseInt(t.overall?.total_games) || 0,
             s = parseFloat(t.overall?.avg_score) || 0,
             i = parseInt(t.daily?.total_days) || 0,
@@ -2387,8 +2498,19 @@ function loadProfile() {
               t.modes.forEach((e) => {
                 const t = ZONE_LABELS[e.mode] || e.mode,
                   r = GAME_LABELS[e.game_type] || e.game_type,
-                  a = getPlayerTitle(parseFloat(e.high_score) || 0, e.mode);
-                d += `\n            <div class="profile-mode-row">\n              <div class="profile-mode-name">${t} — ${r}</div>\n              <div class="profile-mode-details">\n                <span>🏆 ${parseFloat(e.high_score).toFixed(1)}</span>\n                <span>📊 Ø${parseFloat(e.avg_score).toFixed(1)}</span>\n                <span>🎮 ${e.games_played}</span>\n              </div>\n              <div class="profile-mode-title">${a}</div>\n            </div>`;
+                  n = parseFloat(e.high_score) || 0,
+                  s =
+                    "classique" === e.game_type
+                      ? n.toFixed(1)
+                      : String(Math.round(n)),
+                  a = getPlayerTitle(
+                    n,
+                    e.mode,
+                    e.game_type,
+                    e.best_items_total || 0,
+                    e.best_items_correct || 0,
+                  );
+                d += `\n            <div class="profile-mode-row">\n              <div class="profile-mode-name">${t} — ${r}</div>\n              <div class="profile-mode-details">\n                <span>🏆 ${s}</span>\n                <span>📊 Ø${parseFloat(e.avg_score).toFixed(1)}</span>\n                <span>🎮 ${e.games_played}</span>\n              </div>\n              <div class="profile-mode-title">${a}</div>\n            </div>`;
               }),
               (d += "</div>")),
             i > 0 &&
@@ -2511,9 +2633,9 @@ function sendScoreToServer(e) {
         body: JSON.stringify({
           mode: e.zoneMode,
           gameType: e.gameMode,
-          score: e.weightedScore,
+          score: e.score,
           itemsCorrect: e.itemsCorrect,
-          itemsTotal: e.itemsAnswered,
+          itemsTotal: e.itemsTotal,
           timeSec: e.totalTimeSec,
           quartierName: e.quartierName,
         }),
@@ -2529,12 +2651,27 @@ function sendScoreToServer(e) {
       console.error("Erreur envoi score (synchrone) :", e);
     }
 }
-const TITLE_THRESHOLDS = {
-  "rues-celebres": [180, 140, 100, 60],
-  "rues-principales": [170, 130, 90, 50],
-  quartier: [160, 120, 80, 40],
-  ville: [150, 110, 70, 30],
-  monuments: [160, 120, 80, 40],
+const TITLE_THRESHOLDS_BY_MODE = {
+  classique: {
+    "rues-celebres": { M: 60, H: 100, V: 140, MV: 180 },
+    "rues-principales": { M: 50, H: 90, V: 130, MV: 170 },
+    quartier: { M: 40, H: 80, V: 120, MV: 160 },
+    ville: { M: 30, H: 70, V: 110, MV: 150 },
+    monuments: { M: 40, H: 80, V: 120, MV: 160 },
+  },
+  marathon: {
+    "rues-celebres": { M: 10, H: 20, V: 35, MV: 55 },
+    "rues-principales": { M: 9, H: 18, V: 30, MV: 48 },
+    ville: { M: 8, H: 16, V: 28, MV: 44 },
+    monuments: { M: 9, H: 18, V: 30, MV: 46 },
+  },
+  chrono: {
+    "rues-celebres": { M: 7, H: 11, V: 16, MV: 22 },
+    "rues-principales": { M: 6, H: 10, V: 14, MV: 19 },
+    quartier: { M: 5, H: 8, V: 12, MV: 16 },
+    ville: { M: 4, H: 7, V: 10, MV: 14 },
+    monuments: { M: 5, H: 8, V: 12, MV: 16 },
+  },
 },
   TITLE_NAMES = [
     "🏛️ Maire de la Ville",
@@ -2543,6 +2680,29 @@ const TITLE_THRESHOLDS = {
     "🧒 Minot",
     "🧳 Touriste",
   ];
+function buildQuartierMarathonThresholds(e) {
+  const t = Math.max(1, parseInt(e, 10) || 55),
+    r = Math.min(t, Math.max(1, Math.ceil(0.1 * t))),
+    a = Math.min(t, Math.max(r + 1, Math.ceil(0.2 * t))),
+    n = Math.min(t, Math.max(a + 1, Math.ceil(0.35 * t))),
+    s = Math.min(t, Math.max(n + 1, Math.ceil(0.55 * t)));
+  return { M: r, H: a, V: n, MV: s };
+}
+function getTitleThresholds(e, t = "classique", r = 0) {
+  const a = TITLE_THRESHOLDS_BY_MODE[t] || TITLE_THRESHOLDS_BY_MODE.classique;
+  if ("marathon" === t && "quartier" === e) return buildQuartierMarathonThresholds(r);
+  return (
+    a[e] ||
+    a.quartier ||
+    TITLE_THRESHOLDS_BY_MODE.classique[e] ||
+    TITLE_THRESHOLDS_BY_MODE.classique.quartier
+  );
+}
+function getTitleScoreValue(e, t, r = "classique") {
+  if ("classique" === r) return parseFloat(e) || 0;
+  const a = parseFloat(t);
+  return Number.isFinite(a) ? a : parseFloat(e) || 0;
+}
 
 const AVATAR_UNLOCKS = [
   // Default (0 pts)
@@ -2573,15 +2733,16 @@ const AVATAR_UNLOCKS = [
   { emoji: '⚽', reqScore: 150, reqTitleIdx: 0 },
   { emoji: '👑', reqScore: 150, reqTitleIdx: 0 }
 ];
-function getPlayerTitle(e, t) {
-  const r = TITLE_THRESHOLDS[t] || TITLE_THRESHOLDS.quartier;
-  return e >= r[0]
+function getPlayerTitle(e, t, r = "classique", a = 0, n = null) {
+  const s = getTitleThresholds(t, r, a),
+    i = getTitleScoreValue(e, n, r);
+  return i >= s.MV
     ? TITLE_NAMES[0]
-    : e >= r[1]
+    : i >= s.V
       ? TITLE_NAMES[1]
-      : e >= r[2]
+      : i >= s.H
         ? TITLE_NAMES[2]
-        : e >= r[3]
+        : i >= s.M
           ? TITLE_NAMES[3]
           : TITLE_NAMES[4];
 }
@@ -2729,12 +2890,13 @@ function loadAllLeaderboards() {
                       const s = document.createElement("table");
                       s.className = "leaderboard-table";
                       const i = document.createElement("thead");
-                      let l = "<tr><th>#</th><th>Joueur</th><th>Score</th>";
-                      ("marathon" === e && (l += "<th>Trouvés</th>"),
-                        "chrono" === e && (l += "<th>Temps</th>"),
-                        (l += "<th>Parties</th></tr>"),
-                        (i.innerHTML = l),
-                        s.appendChild(i));
+                      let l = "<tr><th>#</th><th>Joueur</th>";
+                      l += "classique" === e ? "<th>Score</th>" : "<th>Rues trouvées</th>";
+                      "marathon" === e && (l += "<th>Max zone</th>");
+                      "chrono" === e && (l += "<th>Temps</th>");
+                      l += "<th>Parties</th></tr>";
+                      i.innerHTML = l;
+                      s.appendChild(i);
                       const o = document.createElement("tbody"),
                         u = document.createElement("tbody");
                       if (
@@ -2750,12 +2912,24 @@ function loadAllLeaderboards() {
                                     : 2 === a
                                       ? "🥉 "
                                       : "") || `${a + 1}`,
-                              i = getPlayerTitle(r.high_score || 0, t),
+                              i = getPlayerTitle(
+                                r.high_score || 0,
+                                t,
+                                e,
+                                r.items_total || 0,
+                                r.items_correct || 0,
+                              ),
                               pAvatar = r.avatar || '👤';
                             let l = `<td>${s}</td><td><span class="leaderboard-avatar">${pAvatar}</span>${r.username || "Anonyme"}<br><small style="color:#94a3b8;font-size:10px">${i}</small></td>`;
-                            ((l += `<td>${"number" == typeof r.high_score ? r.high_score.toFixed(1) : "-"}</td>`),
+                            const scoreCell =
+                              "classique" === e
+                                ? "number" == typeof r.high_score
+                                  ? r.high_score.toFixed(1)
+                                  : "-"
+                                : `${r.items_correct || 0}`;
+                            ((l += `<td>${scoreCell}</td>`),
                               "marathon" === e &&
-                              (l += `<td>${r.items_correct || 0}/${r.items_total || 0}</td>`),
+                              (l += `<td>${r.items_total || 0}</td>`),
                               "chrono" === e &&
                               (l += `<td>${(r.time_sec || 0).toFixed(1)}s</td>`),
                               (l += `<td>${r.games_played || 0}</td>`),
