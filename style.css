@@ -50,11 +50,11 @@
   --radius-lg: 16px;
   --radius-pill: 999px;
   --sidebar-section-gap: 8px;
-  --leaderboard-panel-max-h: min(78vh, 760px);
-  --leaderboard-root-max-h: min(72vh, 700px);
-  --leaderboard-zone-max-h: min(62vh, 620px);
-  --leaderboard-mode-max-h: min(50vh, 500px);
-  --leaderboard-section-max-h: min(44vh, 420px);
+  --leaderboard-panel-max-h: min(88vh, 860px);
+  --leaderboard-root-max-h: min(84vh, 820px);
+  --leaderboard-zone-max-h: min(78vh, 760px);
+  --leaderboard-mode-max-h: min(72vh, 700px);
+  --leaderboard-section-max-h: min(66vh, 640px);
   --footer-muted: #b0b8c4;
 }
 
@@ -1686,11 +1686,11 @@ button {
 
 @media (max-width: 900px) {
   :root {
-    --leaderboard-panel-max-h: min(72vh, 620px);
-    --leaderboard-root-max-h: min(64vh, 560px);
-    --leaderboard-zone-max-h: min(56vh, 500px);
-    --leaderboard-mode-max-h: min(46vh, 420px);
-    --leaderboard-section-max-h: min(40vh, 360px);
+    --leaderboard-panel-max-h: min(85vh, 760px);
+    --leaderboard-root-max-h: min(80vh, 720px);
+    --leaderboard-zone-max-h: min(74vh, 660px);
+    --leaderboard-mode-max-h: min(68vh, 600px);
+    --leaderboard-section-max-h: min(62vh, 540px);
   }
 }
 
