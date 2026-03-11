@@ -3146,7 +3146,8 @@ const SCORING_GAME_TYPES = ["classique", "marathon", "chrono"],
     "monuments",
   ];
 function getGlobalRankLevelForTitleIndex(e) {
-  return Math.max(0, 4 - (parseInt(e, 10) || 4));
+  const parsed = parseInt(e, 10);
+  return Math.max(0, 4 - (isNaN(parsed) ? 4 : parsed));
 }
 function getGlobalRankTitleFromLevel(e) {
   return e >= 4
