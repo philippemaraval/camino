@@ -3000,8 +3000,15 @@ function renderAvatarGrid(currentAvatar, globalRankLevel) {
   grid.innerHTML = '';
   
   AVATAR_UNLOCKS.forEach(avatarDef => {
-    const requiredLevel = getGlobalRankLevelForTitleIndex(avatarDef.reqTitleIdx);
-    const isUnlocked = globalRankLevel >= requiredLevel;
+    let requiredLevel = 0;
+    let isUnlocked = false;
+
+    if (typeof avatarDef.check === 'function') {
+      isUnlocked = avatarDef.check(currentUser);
+    } else {
+      requiredLevel = getGlobalRankLevelForTitleIndex(avatarDef.reqTitleIdx);
+      isUnlocked = globalRankLevel >= requiredLevel;
+    }
     const item = document.createElement('button');
     item.type = 'button';
     item.className = 'avatar-item';
@@ -3011,17 +3018,28 @@ function renderAvatarGrid(currentAvatar, globalRankLevel) {
       item.classList.add('selected');
     }
     
-    // Add badge-specific logic
-    const reqTitle = TITLE_NAMES[avatarDef.reqTitleIdx];
-
-    if (!isUnlocked) {
-      item.classList.add('locked');
-      item.disabled = true;
-      item.title = `Titre global requis:\n🔒 ${reqTitle}\n(à atteindre dans tous les modes et zones)`;
+    if (typeof avatarDef.check === 'function') {
+      if (!isUnlocked) {
+        item.classList.add('locked');
+        item.disabled = true;
+        item.title = `Titre spécifique requis:\n🔒 ${avatarDef.name}\n(${avatarDef.desc})`;
+      } else {
+        item.title = `Débloqué:\n✅ ${avatarDef.name}\n- ${avatarDef.desc}`;
+      }
     } else {
-      item.title = `Débloqué:\n✅ ${reqTitle} (global)`;
-      if (avatarDef.desc) item.title += ` - ${avatarDef.desc}`;
-      
+      const reqTitle = TITLE_NAMES[avatarDef.reqTitleIdx];
+
+      if (!isUnlocked) {
+        item.classList.add('locked');
+        item.disabled = true;
+        item.title = `Titre global requis:\n🔒 ${reqTitle}\n(à atteindre dans tous les modes et zones)`;
+      } else {
+        item.title = `Débloqué:\n✅ ${reqTitle} (global)`;
+        if (avatarDef.desc) item.title += ` - ${avatarDef.desc}`;
+      }
+    }
+    
+    if (isUnlocked) {
       item.addEventListener('click', () => {
         // Save avatar API call
         fetch(API_URL + '/api/profile/avatar', {
@@ -3142,7 +3160,6 @@ const SCORING_GAME_TYPES = ["classique", "marathon", "chrono"],
     "rues-celebres",
     "rues-principales",
     "quartier",
-    "ville",
     "monuments",
   ];
 function getGlobalRankLevelForTitleIndex(e) {
@@ -3226,8 +3243,33 @@ const AVATAR_UNLOCKS = [
   { emoji: '🏛️', reqScore: 150, reqTitleIdx: 0 },
   { emoji: '🦅', reqScore: 150, reqTitleIdx: 0, desc: 'Gabian' },
   { emoji: '⚽', reqScore: 150, reqTitleIdx: 0 },
-  { emoji: '👑', reqScore: 150, reqTitleIdx: 0 }
+  { emoji: '👑', reqScore: 150, reqTitleIdx: 0 },
+  
+  // Ville Spécial 
+  { 
+    emoji: '🛸',
+    name: "Extraterrestre",
+    desc: "Atteindre Maire sur la Ville Entière (Tous modes)",
+    check: (user) => isMayorOfVille(user)
+  },
+  { 
+    emoji: '🚀',
+    name: "Astronaute",
+    desc: "Atteindre Maire sur la Ville Entière (Tous modes)",
+    check: (user) => isMayorOfVille(user)
+  }
 ];
+
+function isMayorOfVille(user) {
+  const r = buildScoringComboMap(user);
+  return SCORING_GAME_TYPES.every((gameType) => {
+    const s = r.get(`ville|${gameType}`);
+    if (!s) return false;
+    const i = getTitleThresholds("ville", gameType, s.best_items_total || 0),
+      l = getTitleScoreValue(s.high_score, s.best_items_correct, gameType);
+    return typeof i?.MV === "number" && l >= i.MV;
+  });
+}
 function getPlayerTitle(e, t, r = "classique", a = 0, n = null) {
   const s = getTitleThresholds(t, r, a),
     i = getTitleScoreValue(e, n, r);
