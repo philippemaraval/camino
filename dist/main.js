@@ -105,7 +105,7 @@
     });
     return combos;
   }
-  function hasReachedGlobalRank2(userStats, rankLetter) {
+  function hasReachedGlobalRank(userStats, rankLetter) {
     const combos = buildScoringComboMap(userStats);
     return SCORING_GAME_TYPES.every(
       (gameType) => SCORING_ZONES.every((zoneMode) => {
@@ -120,7 +120,7 @@
     );
   }
   function getGlobalRankLevel(userStats) {
-    return hasReachedGlobalRank2(userStats, "MV") ? 4 : hasReachedGlobalRank2(userStats, "V") ? 3 : hasReachedGlobalRank2(userStats, "H") ? 2 : hasReachedGlobalRank2(userStats, "M") ? 1 : 0;
+    return hasReachedGlobalRank(userStats, "MV") ? 4 : hasReachedGlobalRank(userStats, "V") ? 3 : hasReachedGlobalRank(userStats, "H") ? 2 : hasReachedGlobalRank(userStats, "M") ? 1 : 0;
   }
   function getGlobalRankMeta(userStats) {
     const level = getGlobalRankLevel(userStats);

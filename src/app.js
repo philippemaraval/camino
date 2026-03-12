@@ -15,6 +15,7 @@ import {
   ZONE_LABELS,
   getGlobalRankLevelForTitleIndex,
   getGlobalRankMeta,
+  hasReachedGlobalRank,
   getPlayerTitle,
   getTitleThresholds,
   loadAllLeaderboards,

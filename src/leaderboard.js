@@ -111,7 +111,7 @@ function buildScoringComboMap(userStats) {
   return combos;
 }
 
-function hasReachedGlobalRank(userStats, rankLetter) {
+export function hasReachedGlobalRank(userStats, rankLetter) {
   const combos = buildScoringComboMap(userStats);
   return SCORING_GAME_TYPES.every((gameType) =>
     SCORING_ZONES.every((zoneMode) => {
