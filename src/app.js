@@ -73,6 +73,11 @@ import {
   getTodayDailyStorageDate,
 } from "./daily.js";
 import {
+  buildSessionShareText,
+  copySessionShareText,
+  shareSessionShareText,
+} from "./session-share.js";
+import {
   cleanOldDailyGuessStorageRuntime,
   fitTargetStreetTextRuntime,
   handleDailyShareImageRuntime,
@@ -1051,7 +1056,7 @@ function initUI() {
         "info",
       ));
   const I = document.getElementById("summary");
-  I && I.classList.add("hidden");
+  I && ((I.classList.add("hidden"), (I.innerHTML = "")));
 }
 document.addEventListener("DOMContentLoaded", () => {
   loadStreetInfos();
@@ -1357,7 +1362,7 @@ function startNewSession() {
     updateSessionProgressBar());
   const n = document.getElementById("summary");
   if (
-    (n && n.classList.add("hidden"),
+    (n && ((n.classList.add("hidden"), (n.innerHTML = ""))),
       (isChronoMode = "chrono" === r),
       (chronoEndTime = isChronoMode ? performance.now() + 6e4 : null),
       setLectureTooltipsEnabled(!1),
@@ -2201,7 +2206,66 @@ function endSession() {
         : `<p>Rues trouvées : <strong>${Math.round(uScore)}</strong> en 60 s</p>`;
   ((h.className = "summary-stats"),
     (h.innerHTML = `<p>Temps total : <strong>${t.toFixed(1)} s</strong></p>\n     <p>Temps moyen par item : <strong>${i.toFixed(1)} s</strong></p>\n     <p>Score : <strong>${s} %</strong> (${n} bonnes réponses / ${a})</p>\n     ${yScoreLine}`),
-    c.appendChild(h),
+    c.appendChild(h));
+  const shareHost =
+    window.location &&
+    window.location.hostname &&
+    "localhost" !== window.location.hostname &&
+    "127.0.0.1" !== window.location.hostname
+      ? window.location.host
+      : "camino-ajm.pages.dev";
+  const sessionShareText = buildSessionShareText({
+    summaryData,
+    gameMode: l,
+    zoneMode: o,
+    quartierName: u,
+    totalTimeSec: t,
+    averageTimeSec: i,
+    scorePercent: s,
+    correctCount: n,
+    answeredCount: a,
+    sessionScoreValue: uScore,
+    poolSize,
+    gameLabels: GAME_LABELS,
+    zoneLabels: ZONE_LABELS,
+    host: shareHost,
+  });
+  const sessionSharePanel = document.createElement("div");
+  sessionSharePanel.className = "session-share";
+  const sessionShareButtons = document.createElement("div");
+  sessionShareButtons.className = "daily-share-buttons session-share-buttons";
+  const copyShareBtn = document.createElement("button");
+  ((copyShareBtn.type = "button"),
+    (copyShareBtn.className = "btn-secondary daily-share-btn"),
+    (copyShareBtn.textContent = "📋 Copier le partage"),
+    copyShareBtn.addEventListener("click", async () => {
+      (copyShareBtn.disabled = !0);
+      const e = await copySessionShareText(sessionShareText);
+      ((copyShareBtn.disabled = !1),
+        showMessage(e ? "Résultat copié !" : "Impossible de copier le résultat.", e ? "success" : "error"));
+    }));
+  const nativeShareBtn = document.createElement("button");
+  ((nativeShareBtn.type = "button"),
+    (nativeShareBtn.className = "btn-primary daily-share-btn"),
+    (nativeShareBtn.textContent = "📤 Partager"));
+  if (navigator.share)
+    nativeShareBtn.addEventListener("click", async () => {
+      (nativeShareBtn.disabled = !0);
+      const e = await shareSessionShareText(sessionShareText);
+      ((nativeShareBtn.disabled = !1),
+        !0 === e
+          ? showMessage("Partage envoyé !", "success")
+          : !1 === e && showMessage("Impossible de partager ce résultat.", "error"));
+    });
+  else nativeShareBtn.style.display = "none";
+  (sessionShareButtons.appendChild(copyShareBtn),
+    sessionShareButtons.appendChild(nativeShareBtn),
+    sessionSharePanel.appendChild(sessionShareButtons));
+  const sessionShareHint = document.createElement("p");
+  ((sessionShareHint.className = "daily-share-hint session-share-hint"),
+    (sessionShareHint.textContent = "Résumé en grille emoji (format type Wordle)."),
+    sessionSharePanel.appendChild(sessionShareHint),
+    c.appendChild(sessionSharePanel),
     d.appendChild(c));
   const y = document.createElement("div");
   y.className = "summary-detail";

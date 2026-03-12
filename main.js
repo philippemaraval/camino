@@ -1900,6 +1900,131 @@
     return ["\u2B06\uFE0F", "\u2197\uFE0F", "\u27A1\uFE0F", "\u2198\uFE0F", "\u2B07\uFE0F", "\u2199\uFE0F", "\u2B05\uFE0F", "\u2196\uFE0F"][Math.round(angle / 45) % 8];
   }
 
+  // src/session-share.js
+  function chunk(items, size) {
+    if (!Array.isArray(items) || items.length === 0 || size <= 0) {
+      return [];
+    }
+    const rows = [];
+    for (let i = 0; i < items.length; i += size) {
+      rows.push(items.slice(i, i + size));
+    }
+    return rows;
+  }
+  function buildSessionEmojiGrid(summaryData2, {
+    columns = 5,
+    correctEmoji = "\u{1F7E9}",
+    wrongEmoji = "\u{1F7E5}",
+    emptyEmoji = "\u2B1C"
+  } = {}) {
+    if (!Array.isArray(summaryData2) || summaryData2.length === 0) {
+      return emptyEmoji;
+    }
+    const cells = summaryData2.map((item) => item && item.correct ? correctEmoji : wrongEmoji);
+    return chunk(cells, columns).map((row) => row.join("")).join("\n");
+  }
+  function getSessionResultLine({
+    gameMode,
+    scorePercent,
+    correctCount: correctCount2,
+    answeredCount,
+    sessionScoreValue,
+    poolSize
+  }) {
+    if (gameMode === "marathon") {
+      return `\u{1F3AF} R\xE9sultat : ${Math.round(sessionScoreValue)} / ${poolSize || 0} rues trouv\xE9es`;
+    }
+    if (gameMode === "chrono") {
+      return `\u{1F3AF} R\xE9sultat : ${Math.round(sessionScoreValue)} rues trouv\xE9es en 60 s`;
+    }
+    return `\u{1F3AF} R\xE9sultat : ${scorePercent}% (${correctCount2}/${answeredCount}) \u2022 ${sessionScoreValue.toFixed(1)} pts`;
+  }
+  function buildSessionShareText({
+    summaryData: summaryData2,
+    gameMode,
+    zoneMode,
+    quartierName,
+    totalTimeSec,
+    averageTimeSec,
+    scorePercent,
+    correctCount: correctCount2,
+    answeredCount,
+    sessionScoreValue,
+    poolSize,
+    gameLabels,
+    zoneLabels,
+    now = /* @__PURE__ */ new Date(),
+    host = "camino-ajm.pages.dev"
+  }) {
+    const modeLabel = gameLabels[gameMode] || gameMode;
+    const zoneLabel = zoneLabels[zoneMode] || zoneMode;
+    const dateLabel = new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    }).format(now);
+    let header = `\u{1F5FA}\uFE0F Camino \u2014 ${dateLabel}`;
+    header += `
+\u{1F9E9} ${modeLabel} \u2022 ${zoneLabel}`;
+    if (quartierName) {
+      header += ` (${quartierName})`;
+    }
+    const resultLine = getSessionResultLine({
+      gameMode,
+      scorePercent,
+      correctCount: correctCount2,
+      answeredCount,
+      sessionScoreValue,
+      poolSize
+    });
+    const timeLine = `\u23F1\uFE0F Temps : ${totalTimeSec.toFixed(1)} s (moyenne ${averageTimeSec.toFixed(1)} s)`;
+    const grid = buildSessionEmojiGrid(summaryData2);
+    return `${header}
+${resultLine}
+${timeLine}
+
+${grid}
+
+Essaie de faire mieux sur ${host}`;
+  }
+  async function copySessionShareText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (error) {
+      }
+    }
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  async function shareSessionShareText(text) {
+    if (!navigator.share) {
+      return false;
+    }
+    try {
+      await navigator.share({
+        title: "Camino - R\xE9sultat de session",
+        text
+      });
+      return true;
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        return null;
+      }
+      return false;
+    }
+  }
+
   // src/daily-runtime.js
   function saveDailyMetaToStorageRuntime(dailyTargetData2, getDailyMetaStorageKey2) {
     if (dailyTargetData2 && dailyTargetData2.date) {
@@ -3247,7 +3372,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       "info"
     );
     const I = document.getElementById("summary");
-    I && I.classList.add("hidden");
+    I && (I.classList.add("hidden"), I.innerHTML = "");
   }
   document.addEventListener("DOMContentLoaded", () => {
     loadStreetInfos();
@@ -3451,7 +3576,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const e = document.getElementById("quartier-select"), t = getZoneMode(), r = getGameMode(), a = document.getElementById("street-info");
     a && (a.textContent = "", a.style.display = "none"), clearHighlight(), correctCount = 0, totalAnswered = 0, summaryData = [], weightedScore = 0, errorsCount = 0, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateScoreUI(), updateTimeUI(0, 0), updateScoreMetricUI(), updateWeightedScoreUI(), updateSessionProgressBar();
     const n = document.getElementById("summary");
-    if (n && n.classList.add("hidden"), isChronoMode = "chrono" === r, chronoEndTime = isChronoMode ? performance.now() + 6e4 : null, setLectureTooltipsEnabled(false), "lecture" === r) {
+    if (n && (n.classList.add("hidden"), n.innerHTML = ""), isChronoMode = "chrono" === r, chronoEndTime = isChronoMode ? performance.now() + 6e4 : null, setLectureTooltipsEnabled(false), "lecture" === r) {
       isLectureMode = true, isSessionRunning = false, isChronoMode = false, chronoEndTime = null, sessionStartTime = null, streetStartTime = null, currentTarget = null, setLectureTooltipsEnabled(true), currentMonumentTarget = null, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateTargetPanelTitle(), updateLayoutSessionState(), "monuments" === t ? (streetsLayer && map.hasLayer(streetsLayer) && map.removeLayer(streetsLayer), monumentsLayer && !map.hasLayer(monumentsLayer) && monumentsLayer.addTo(map), clearQuartierOverlay()) : (monumentsLayer && map.hasLayer(monumentsLayer) && map.removeLayer(monumentsLayer), streetsLayer && !map.hasLayer(streetsLayer) && streetsLayer.addTo(map), "quartier" === t && e && e.value ? highlightQuartier(e.value) : clearQuartierOverlay()), (() => {
         const r3 = document.getElementById("target-street");
         r3 && ("monuments" === t ? (r3.textContent = "Mode lecture : survolez la carte", requestAnimationFrame(fitTargetStreetText)) : r3.textContent = "\u2014");
@@ -3920,7 +4045,46 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     h.className = "summary-stats", h.innerHTML = `<p>Temps total : <strong>${t.toFixed(1)} s</strong></p>
      <p>Temps moyen par item : <strong>${i.toFixed(1)} s</strong></p>
      <p>Score : <strong>${s} %</strong> (${n} bonnes r\xE9ponses / ${a})</p>
-     ${yScoreLine}`, c.appendChild(h), d.appendChild(c);
+     ${yScoreLine}`, c.appendChild(h);
+    const shareHost = window.location && window.location.hostname && "localhost" !== window.location.hostname && "127.0.0.1" !== window.location.hostname ? window.location.host : "camino-ajm.pages.dev";
+    const sessionShareText = buildSessionShareText({
+      summaryData,
+      gameMode: l,
+      zoneMode: o,
+      quartierName: u,
+      totalTimeSec: t,
+      averageTimeSec: i,
+      scorePercent: s,
+      correctCount: n,
+      answeredCount: a,
+      sessionScoreValue: uScore,
+      poolSize,
+      gameLabels: GAME_LABELS,
+      zoneLabels: ZONE_LABELS,
+      host: shareHost
+    });
+    const sessionSharePanel = document.createElement("div");
+    sessionSharePanel.className = "session-share";
+    const sessionShareButtons = document.createElement("div");
+    sessionShareButtons.className = "daily-share-buttons session-share-buttons";
+    const copyShareBtn = document.createElement("button");
+    copyShareBtn.type = "button", copyShareBtn.className = "btn-secondary daily-share-btn", copyShareBtn.textContent = "\u{1F4CB} Copier le partage", copyShareBtn.addEventListener("click", async () => {
+      copyShareBtn.disabled = true;
+      const e2 = await copySessionShareText(sessionShareText);
+      copyShareBtn.disabled = false, showMessage(e2 ? "R\xE9sultat copi\xE9 !" : "Impossible de copier le r\xE9sultat.", e2 ? "success" : "error");
+    });
+    const nativeShareBtn = document.createElement("button");
+    nativeShareBtn.type = "button", nativeShareBtn.className = "btn-primary daily-share-btn", nativeShareBtn.textContent = "\u{1F4E4} Partager";
+    if (navigator.share)
+      nativeShareBtn.addEventListener("click", async () => {
+        nativeShareBtn.disabled = true;
+        const e2 = await shareSessionShareText(sessionShareText);
+        nativeShareBtn.disabled = false, true === e2 ? showMessage("Partage envoy\xE9 !", "success") : false === e2 && showMessage("Impossible de partager ce r\xE9sultat.", "error");
+      });
+    else nativeShareBtn.style.display = "none";
+    sessionShareButtons.appendChild(copyShareBtn), sessionShareButtons.appendChild(nativeShareBtn), sessionSharePanel.appendChild(sessionShareButtons);
+    const sessionShareHint = document.createElement("p");
+    sessionShareHint.className = "daily-share-hint session-share-hint", sessionShareHint.textContent = "R\xE9sum\xE9 en grille emoji (format type Wordle).", sessionSharePanel.appendChild(sessionShareHint), c.appendChild(sessionSharePanel), d.appendChild(c);
     const y = document.createElement("div");
     y.className = "summary-detail";
     const v = document.createElement("div");
