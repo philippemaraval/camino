@@ -1056,7 +1056,7 @@ function initUI() {
         "info",
       ));
   const I = document.getElementById("summary");
-  I && ((I.classList.add("hidden"), (I.innerHTML = "")));
+  (I && ((I.classList.add("hidden"), (I.innerHTML = ""))), clearSessionShareSlot());
 }
 document.addEventListener("DOMContentLoaded", () => {
   loadStreetInfos();
@@ -1115,6 +1115,10 @@ function showMessage(e, t) {
       (messageTimeoutId = setTimeout(() => {
         (r.classList.remove("message--visible"), (messageTimeoutId = null));
       }, 3e3)));
+}
+function clearSessionShareSlot() {
+  const e = document.getElementById("session-share-slot");
+  e && ((e.innerHTML = ""), e.classList.add("hidden"));
 }
 function getBaseStreetStyleFromName(e) {
   return getBaseStreetStyleFromNameCore({
@@ -1363,6 +1367,7 @@ function startNewSession() {
   const n = document.getElementById("summary");
   if (
     (n && ((n.classList.add("hidden"), (n.innerHTML = ""))),
+      clearSessionShareSlot(),
       (isChronoMode = "chrono" === r),
       (chronoEndTime = isChronoMode ? performance.now() + 6e4 : null),
       setLectureTooltipsEnabled(!1),
@@ -2290,8 +2295,12 @@ function endSession() {
   const sessionShareHint = document.createElement("p");
   ((sessionShareHint.className = "daily-share-hint session-share-hint"),
     (sessionShareHint.textContent = "Résumé en grille emoji (format type Wordle)."),
-    sessionSharePanel.appendChild(sessionShareHint),
-    y.appendChild(sessionSharePanel));
+    sessionSharePanel.appendChild(sessionShareHint));
+  const sessionShareSlot = document.getElementById("session-share-slot");
+  sessionShareSlot &&
+    ((sessionShareSlot.innerHTML = ""),
+      sessionShareSlot.appendChild(sessionSharePanel),
+      sessionShareSlot.classList.remove("hidden"));
   const L = document.createElement("ul");
   function M(e) {
     L.querySelectorAll(".summary-item").forEach((t) => {
@@ -2571,6 +2580,7 @@ function startDailySession(e) {
         dailyGuessHistory.length > 0 && renderDailyGuessHistory()),
     cleanOldDailyGuessStorage(e.date),
     isSessionRunning && endSession(),
+    clearSessionShareSlot(),
     removeDailyHighlight(),
     (currentZoneMode = "ville"));
   const s = document.getElementById("mode-select"),

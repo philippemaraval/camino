@@ -3372,7 +3372,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       "info"
     );
     const I = document.getElementById("summary");
-    I && (I.classList.add("hidden"), I.innerHTML = "");
+    I && (I.classList.add("hidden"), I.innerHTML = ""), clearSessionShareSlot();
   }
   document.addEventListener("DOMContentLoaded", () => {
     loadStreetInfos();
@@ -3401,6 +3401,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     r && (r.className = "message", "success" === t ? r.classList.add("message--success") : "error" === t ? r.classList.add("message--error") : r.classList.add("message--info"), r.textContent = e, r.classList.add("message--visible"), null !== messageTimeoutId && clearTimeout(messageTimeoutId), messageTimeoutId = setTimeout(() => {
       r.classList.remove("message--visible"), messageTimeoutId = null;
     }, 3e3));
+  }
+  function clearSessionShareSlot() {
+    const e = document.getElementById("session-share-slot");
+    e && (e.innerHTML = "", e.classList.add("hidden"));
   }
   function getBaseStreetStyle2(e) {
     return getBaseStreetStyle({
@@ -3576,7 +3580,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const e = document.getElementById("quartier-select"), t = getZoneMode(), r = getGameMode(), a = document.getElementById("street-info");
     a && (a.textContent = "", a.style.display = "none"), clearHighlight(), correctCount = 0, totalAnswered = 0, summaryData = [], weightedScore = 0, errorsCount = 0, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateScoreUI(), updateTimeUI(0, 0), updateScoreMetricUI(), updateWeightedScoreUI(), updateSessionProgressBar();
     const n = document.getElementById("summary");
-    if (n && (n.classList.add("hidden"), n.innerHTML = ""), isChronoMode = "chrono" === r, chronoEndTime = isChronoMode ? performance.now() + 6e4 : null, setLectureTooltipsEnabled(false), "lecture" === r) {
+    if (n && (n.classList.add("hidden"), n.innerHTML = ""), clearSessionShareSlot(), isChronoMode = "chrono" === r, chronoEndTime = isChronoMode ? performance.now() + 6e4 : null, setLectureTooltipsEnabled(false), "lecture" === r) {
       isLectureMode = true, isSessionRunning = false, isChronoMode = false, chronoEndTime = null, sessionStartTime = null, streetStartTime = null, currentTarget = null, setLectureTooltipsEnabled(true), currentMonumentTarget = null, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateTargetPanelTitle(), updateLayoutSessionState(), "monuments" === t ? (streetsLayer && map.hasLayer(streetsLayer) && map.removeLayer(streetsLayer), monumentsLayer && !map.hasLayer(monumentsLayer) && monumentsLayer.addTo(map), clearQuartierOverlay()) : (monumentsLayer && map.hasLayer(monumentsLayer) && map.removeLayer(monumentsLayer), streetsLayer && !map.hasLayer(streetsLayer) && streetsLayer.addTo(map), "quartier" === t && e && e.value ? highlightQuartier(e.value) : clearQuartierOverlay()), (() => {
         const r3 = document.getElementById("target-street");
         r3 && ("monuments" === t ? (r3.textContent = "Mode lecture : survolez la carte", requestAnimationFrame(fitTargetStreetText)) : r3.textContent = "\u2014");
@@ -4102,7 +4106,9 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     else nativeShareBtn.style.display = "none";
     sessionShareButtons.appendChild(copyShareBtn), sessionShareButtons.appendChild(nativeShareBtn), sessionSharePanel.appendChild(sessionShareButtons);
     const sessionShareHint = document.createElement("p");
-    sessionShareHint.className = "daily-share-hint session-share-hint", sessionShareHint.textContent = "R\xE9sum\xE9 en grille emoji (format type Wordle).", sessionSharePanel.appendChild(sessionShareHint), y.appendChild(sessionSharePanel);
+    sessionShareHint.className = "daily-share-hint session-share-hint", sessionShareHint.textContent = "R\xE9sum\xE9 en grille emoji (format type Wordle).", sessionSharePanel.appendChild(sessionShareHint);
+    const sessionShareSlot = document.getElementById("session-share-slot");
+    sessionShareSlot && (sessionShareSlot.innerHTML = "", sessionShareSlot.appendChild(sessionSharePanel), sessionShareSlot.classList.remove("hidden"));
     const L2 = document.createElement("ul");
     function M(e2) {
       L2.querySelectorAll(".summary-item").forEach((t2) => {
@@ -4284,7 +4290,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     let r = false, a = null;
     t.success ? (r = true, a = { success: true, attempts: t.attempts_count }) : t.attempts_count >= 7 && (r = true, a = { success: false, attempts: t.attempts_count }), isDailyMode = true, isLectureMode = false, setLectureTooltipsEnabled(false), dailyGuessHistory = [], window._dailyGameOver = false, window._dailyGuessInFlight = false;
     const n = document.getElementById("daily-guesses-history");
-    n && (n.style.display = "none", n.innerHTML = ""), r ? restoreDailyGuessesFromStorage(e.date) : (t.attempts_count || 0) > 0 && !t.success && (restoreDailyGuessesFromStorage(e.date), dailyGuessHistory.length > 0 && renderDailyGuessHistory()), cleanOldDailyGuessStorage(e.date), isSessionRunning && endSession(), removeDailyHighlight(), currentZoneMode = "ville";
+    n && (n.style.display = "none", n.innerHTML = ""), r ? restoreDailyGuessesFromStorage(e.date) : (t.attempts_count || 0) > 0 && !t.success && (restoreDailyGuessesFromStorage(e.date), dailyGuessHistory.length > 0 && renderDailyGuessHistory()), cleanOldDailyGuessStorage(e.date), isSessionRunning && endSession(), clearSessionShareSlot(), removeDailyHighlight(), currentZoneMode = "ville";
     const s = document.getElementById("mode-select"), i = document.getElementById("mode-select-button");
     s && (s.value = "ville", i && (i.innerHTML = '<span class="custom-select-label">Ville enti\xE8re</span><span class="difficulty-pill difficulty-pill--hard">Difficile</span>'));
     const l = document.getElementById("target-street");
