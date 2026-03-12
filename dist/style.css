@@ -50,11 +50,11 @@
   --radius-lg: 16px;
   --radius-pill: 999px;
   --sidebar-section-gap: 8px;
-  --leaderboard-panel-max-h: min(78vh, 760px);
-  --leaderboard-root-max-h: min(72vh, 700px);
-  --leaderboard-zone-max-h: min(62vh, 620px);
-  --leaderboard-mode-max-h: min(50vh, 500px);
-  --leaderboard-section-max-h: min(44vh, 420px);
+  --leaderboard-panel-max-h: min(92vh, 940px);
+  --leaderboard-root-max-h: min(88vh, 900px);
+  --leaderboard-zone-max-h: min(82vh, 840px);
+  --leaderboard-mode-max-h: min(76vh, 780px);
+  --leaderboard-section-max-h: min(70vh, 720px);
   --footer-muted: #b0b8c4;
 }
 
@@ -191,22 +191,18 @@ body {
   font-weight: 800;
   margin: 0;
   letter-spacing: -0.03em;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  text-shadow: none;
   line-height: 1;
 }
 
 .header-title-link {
-  color: var(--brand-sea-900);
-  background: linear-gradient(135deg, var(--primary-dark) 0, var(--primary) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--primary);
   text-decoration: none;
-  transition: filter var(--motion-fast) var(--easing-standard);
+  transition: color var(--motion-fast) var(--easing-standard);
 }
 
 .header-title-link:hover {
-  filter: brightness(0.96);
+  color: var(--primary-dark);
 }
 
 .header-subtitle {
@@ -894,6 +890,23 @@ button {
   }
 }
 
+@keyframes premium-pulse-mobile {
+  0% {
+    box-shadow: 0 0 0 0 rgba(18, 41, 122, 0.5);
+    background-color: var(--surface-white);
+  }
+
+  50% {
+    box-shadow: 0 0 0 12px rgba(18, 41, 122, 0);
+    background-color: #f0f4ff; /* Lighter background flash instead of scale */
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    background-color: var(--surface-white);
+  }
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1348,6 +1361,7 @@ button {
     padding: 8px 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     z-index: 1000;
+    overflow-anchor: none;
   }
 
   body.session-running #map {
@@ -1381,6 +1395,11 @@ button {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch;
+    overflow-anchor: none;
+  }
+
+  body.session-running .target-panel.pulse {
+    animation: premium-pulse-mobile var(--motion-slow) var(--easing-emphasis);
   }
 
   body.daily-game-over .target-panel {
@@ -1511,14 +1530,13 @@ button {
 
 .leaderboard-section {
   margin-bottom: 12px;
-  max-height: var(--leaderboard-section-max-h);
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   padding: 6px;
   border: 1px solid rgba(18, 41, 122, 0.08);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.8);
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1537,23 +1555,21 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: calc(var(--leaderboard-zone-max-h) - 44px);
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   padding-right: 4px;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .leaderboard-mode-container {
-  max-height: var(--leaderboard-mode-max-h);
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   padding: 6px;
   border: 1px solid rgba(18, 41, 122, 0.08);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.75);
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1648,14 +1664,13 @@ button {
 }
 
 .leaderboard-zone-details {
-  max-height: var(--leaderboard-zone-max-h);
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   padding: 0 8px 8px;
   border: 1px solid rgba(18, 41, 122, 0.1);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.82);
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1669,7 +1684,7 @@ button {
 .leaderboard-panel {
   max-height: var(--leaderboard-panel-max-h);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1684,17 +1699,17 @@ button {
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: 900px) {
   :root {
-    --leaderboard-panel-max-h: min(72vh, 620px);
-    --leaderboard-root-max-h: min(64vh, 560px);
-    --leaderboard-zone-max-h: min(56vh, 500px);
-    --leaderboard-mode-max-h: min(46vh, 420px);
-    --leaderboard-section-max-h: min(40vh, 360px);
+    --leaderboard-panel-max-h: min(90vh, 840px);
+    --leaderboard-root-max-h: min(85vh, 800px);
+    --leaderboard-zone-max-h: min(79vh, 740px);
+    --leaderboard-mode-max-h: min(73vh, 680px);
+    --leaderboard-section-max-h: min(67vh, 620px);
   }
 }
 
@@ -1954,6 +1969,7 @@ button {
   padding: 7px 3px 6px;
   border-radius: 10px;
   text-align: center;
+  cursor: help;
   transition:
     transform var(--motion-fast) var(--easing-standard),
     box-shadow var(--motion-fast) var(--easing-standard);
@@ -2048,7 +2064,9 @@ button {
   padding: 8px 10px;
   border-radius: 6px;
   width: 220px;
+  max-width: calc(100vw - 16px);
   text-align: left;
+  white-space: pre-line;
   pointer-events: none;
   z-index: 99999;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);

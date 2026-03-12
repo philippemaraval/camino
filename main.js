@@ -27,6 +27,8 @@ const UI_THEME = {
 const ONBOARDING_SEEN_KEY = "camino-onboarding-seen";
 const ONBOARDING_LEGACY_KEY = "camino-onboarded";
 const ONBOARDING_COOKIE_MAX_AGE_SECONDS = 31536000;
+const DAILY_GUESSES_STORAGE_PREFIX = "camino_daily_guesses_";
+const DAILY_META_STORAGE_PREFIX = "camino_daily_meta_";
 
 function readPersistentFlag(flagKey) {
   try {
@@ -155,6 +157,110 @@ function normalizeName(e) {
 }
 function normalizeSearchText(e) {
   return normalizeName(e).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+let tooltipPopupEl = null,
+  tooltipPopupTarget = null,
+  tooltipHideTimeoutId = null;
+function prefersTouchTooltips() {
+  return !!(
+    window.matchMedia &&
+    window.matchMedia("(hover: none), (pointer: coarse)").matches
+  );
+}
+function getTooltipTextFromTarget(e) {
+  if (!e || "function" != typeof e.getAttribute) return "";
+  const t = e.getAttribute("data-tooltip");
+  return "string" == typeof t ? t.trim() : "";
+}
+function clearTooltipAutoHide() {
+  tooltipHideTimeoutId &&
+    (clearTimeout(tooltipHideTimeoutId), (tooltipHideTimeoutId = null));
+}
+function positionTooltipPopup(e) {
+  if (!tooltipPopupEl || !e) return;
+  const t = 8;
+  tooltipPopupEl.style.maxWidth = `${Math.max(180, Math.min(280, window.innerWidth - 2 * t))}px`;
+  const r = e.getBoundingClientRect();
+  tooltipPopupEl.style.left = `${t}px`;
+  tooltipPopupEl.style.top = `${t}px`;
+  const a = tooltipPopupEl.getBoundingClientRect();
+  let n = r.left + r.width / 2 - a.width / 2;
+  n = Math.max(t, Math.min(n, window.innerWidth - a.width - t));
+  let s = r.top - a.height - t;
+  s < t && (s = r.bottom + t);
+  const i = window.innerHeight - a.height - t;
+  i < t ? (s = t) : s > i && (s = i);
+  ((tooltipPopupEl.style.left = `${Math.round(n)}px`),
+    (tooltipPopupEl.style.top = `${Math.round(s)}px`));
+}
+function showTooltipPopup(e) {
+  if (!tooltipPopupEl || !e) return;
+  const t = getTooltipTextFromTarget(e);
+  if (!t) return;
+  clearTooltipAutoHide(),
+    (tooltipPopupTarget = e),
+    (tooltipPopupEl.textContent = t),
+    tooltipPopupEl.classList.add("visible"),
+    positionTooltipPopup(e);
+}
+function hideTooltipPopup() {
+  clearTooltipAutoHide(),
+    tooltipPopupEl && tooltipPopupEl.classList.remove("visible"),
+    (tooltipPopupTarget = null);
+}
+function scheduleTooltipAutoHide() {
+  clearTooltipAutoHide(),
+    (tooltipHideTimeoutId = setTimeout(() => {
+      hideTooltipPopup();
+    }, 2600));
+}
+function shouldShowTapTooltip(e) {
+  return !!(
+    e &&
+    (e.classList.contains("tooltip-icon") ||
+      e.classList.contains("profile-badge") ||
+      (e.classList.contains("avatar-item") && e.classList.contains("locked")))
+  );
+}
+function initTooltipPopup() {
+  if (tooltipPopupEl) return;
+  ((tooltipPopupEl = document.createElement("div")),
+    (tooltipPopupEl.className = "tooltip-popup"),
+    document.body.appendChild(tooltipPopupEl),
+    document.addEventListener("mouseover", (e) => {
+      if (prefersTouchTooltips()) return;
+      const t = e.target.closest("[data-tooltip]");
+      t && showTooltipPopup(t);
+    }),
+    document.addEventListener("mouseout", (e) => {
+      if (prefersTouchTooltips()) return;
+      const t = e.target.closest("[data-tooltip]");
+      if (!t || t !== tooltipPopupTarget) return;
+      const r = e.relatedTarget;
+      (!r || !t.contains(r)) && hideTooltipPopup();
+    }),
+    document.addEventListener("focusin", (e) => {
+      const t = e.target.closest("[data-tooltip]");
+      t && showTooltipPopup(t);
+    }),
+    document.addEventListener("focusout", (e) => {
+      const t = e.target.closest("[data-tooltip]");
+      t && t === tooltipPopupTarget && hideTooltipPopup();
+    }),
+    document.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-tooltip]");
+      if (!t) return void (tooltipPopupTarget && hideTooltipPopup());
+      if (!prefersTouchTooltips() || !shouldShowTapTooltip(t)) return;
+      tooltipPopupTarget === t && tooltipPopupEl.classList.contains("visible")
+        ? hideTooltipPopup()
+        : (showTooltipPopup(t), scheduleTooltipAutoHide());
+    }),
+    window.addEventListener("scroll", () => {
+      tooltipPopupTarget && positionTooltipPopup(tooltipPopupTarget);
+    }, !0),
+    window.addEventListener("resize", () => {
+      tooltipPopupTarget && positionTooltipPopup(tooltipPopupTarget);
+    }));
 }
 let map = null,
   currentZoneMode = "ville",
@@ -792,25 +898,7 @@ function initUI() {
     const t = document.getElementById("offline-banner");
     t && (t.style.display = e ? "block" : "none");
   }
-  (!(function () {
-    const e = document.createElement("div");
-    ((e.className = "tooltip-popup"),
-      document.body.appendChild(e),
-      document.querySelectorAll(".tooltip-icon[data-tooltip]").forEach((t) => {
-        (t.addEventListener("mouseenter", () => {
-          const r = t.getAttribute("data-tooltip");
-          if (!r) return;
-          e.textContent = r;
-          const a = t.getBoundingClientRect();
-          ((e.style.top = a.top - e.offsetHeight - 8 + "px"),
-            (e.style.left = a.left + "px"),
-            e.classList.add("visible"));
-        }),
-          t.addEventListener("mouseleave", () => {
-            e.classList.remove("visible");
-          }));
-      }));
-  })(),
+  (initTooltipPopup(),
     window.addEventListener("offline", () => L(!0)),
     window.addEventListener("online", () => {
       fetch(API_URL + "/api/leaderboards", { method: "HEAD" })
@@ -2952,10 +3040,10 @@ function loadProfile() {
           ((d += `<div class="profile-badges-title">Succès (${m.length}/${c.length})</div>`),
             (d += '<div class="profile-badges-grid">'),
             m.forEach((e) => {
-              d += `<div class="profile-badge unlocked" tabindex="0" title="${e.name}\n✅ ${e.desc}" aria-label="${e.name} débloqué. ${e.desc}">\n          <span class="badge-emoji">${e.emoji}</span>\n          <span class="badge-name">${e.name}</span>\n        </div>`;
+              d += `<div class="profile-badge unlocked" tabindex="0" title="${e.name}\n✅ ${e.desc}" data-tooltip="${e.name}\n✅ ${e.desc}" aria-label="${e.name} débloqué. ${e.desc}">\n          <span class="badge-emoji">${e.emoji}</span>\n          <span class="badge-name">${e.name}</span>\n        </div>`;
             }),
             p.forEach((e) => {
-              d += `<div class="profile-badge locked" tabindex="0" title="${e.name}\n🔒 ${e.desc}" aria-label="${e.name} verrouillé. ${e.desc}">\n          <span class="badge-emoji">🔒</span>\n          <span class="badge-name">${e.name}</span>\n        </div>`;
+              d += `<div class="profile-badge locked" tabindex="0" title="${e.name}\n🔒 ${e.desc}" data-tooltip="${e.name}\n🔒 ${e.desc}" aria-label="${e.name} verrouillé. ${e.desc}">\n          <span class="badge-emoji">🔒</span>\n          <span class="badge-name">${e.name}</span>\n        </div>`;
             }),
             (d += "</div>"),
             (d += `<div class="profile-member-since">Membre depuis le ${u}</div>`),
@@ -3021,8 +3109,8 @@ function renderAvatarGrid(currentAvatar, globalRankLevel) {
     if (typeof avatarDef.check === 'function') {
       if (!isUnlocked) {
         item.classList.add('locked');
-        item.disabled = true;
         item.title = `Titre spécifique requis:\n🔒 ${avatarDef.name}\n(${avatarDef.desc})`;
+        item.setAttribute('aria-disabled', 'true');
       } else {
         item.title = `Débloqué:\n✅ ${avatarDef.name}\n- ${avatarDef.desc}`;
       }
@@ -3031,13 +3119,14 @@ function renderAvatarGrid(currentAvatar, globalRankLevel) {
 
       if (!isUnlocked) {
         item.classList.add('locked');
-        item.disabled = true;
         item.title = `Titre global requis:\n🔒 ${reqTitle}\n(à atteindre dans tous les modes et zones)`;
+        item.setAttribute('aria-disabled', 'true');
       } else {
         item.title = `Débloqué:\n✅ ${reqTitle} (global)`;
         if (avatarDef.desc) item.title += ` - ${avatarDef.desc}`;
       }
     }
+    item.setAttribute('data-tooltip', item.title || '');
     
     if (isUnlocked) {
       item.addEventListener('click', () => {
@@ -3551,6 +3640,7 @@ let dailyTargetData = null,
 function startDailySession(e) {
   document.body.classList.remove("session-ended", "daily-game-over");
   ((dailyTargetData = e), (dailyTargetGeoJson = JSON.parse(e.targetGeoJson)));
+  saveDailyMetaToStorage();
   const t = e.userStatus || {};
   let r = !1,
     a = null;
@@ -3716,6 +3806,60 @@ function renderDailyGuessHistory(e) {
     console.error("Error in renderDailyGuessHistory:", err);
   }
 }
+function getTodayDailyStorageDate() {
+  return new Date().toISOString().split("T")[0];
+}
+function getDailyGuessesStorageKey(e) {
+  return `${DAILY_GUESSES_STORAGE_PREFIX}${e}`;
+}
+function getDailyMetaStorageKey(e) {
+  return `${DAILY_META_STORAGE_PREFIX}${e}`;
+}
+function restoreDailyMetaFromStorage(e) {
+  if (!e) return !1;
+  try {
+    const t = localStorage.getItem(getDailyMetaStorageKey(e));
+    if (!t) return !1;
+    const r = JSON.parse(t);
+    return !(!r || !r.streetName) && ((dailyTargetData = {
+      ...(dailyTargetData || {}),
+      date: e,
+      streetName: r.streetName,
+      quartier: r.quartier || dailyTargetData?.quartier || "",
+    }), !0);
+  } catch (e) {
+    return !1;
+  }
+}
+async function ensureDailyShareContext(e, t) {
+  Array.isArray(t) &&
+    t.length > 0 &&
+    (dailyGuessHistory = t.slice(0, 7).map((e) => ({ ...e })));
+  if (
+    dailyTargetData &&
+    dailyTargetData.streetName &&
+    (!e || !dailyTargetData.date || dailyTargetData.date === e)
+  )
+    return !0;
+  if (restoreDailyMetaFromStorage(e)) return !0;
+  if (!(currentUser && currentUser.token)) return !1;
+  try {
+    const t = await fetch(API_URL + "/api/daily", {
+      headers: { Authorization: `Bearer ${currentUser.token}` },
+    });
+    if (!t.ok) return !1;
+    const r = await t.json();
+    if (!r || !r.streetName) return !1;
+    if (e && r.date && r.date !== e) return !1;
+    return (
+      (dailyTargetData = { ...(dailyTargetData || {}), ...r }),
+      saveDailyMetaToStorage(),
+      !0
+    );
+  } catch (t) {
+    return !1;
+  }
+}
 
 function updateDailyResultPanel() {
   const panel = document.getElementById("daily-result-panel");
@@ -3727,22 +3871,25 @@ function updateDailyResultPanel() {
     return;
   }
 
-  let guesses = dailyGuessHistory;
+  let guesses = Array.isArray(dailyGuessHistory) ? dailyGuessHistory.slice() : [];
+  const dailyDate = dailyTargetData?.date || getTodayDailyStorageDate();
 
-  if (guesses.length === 0 && !window._dailyGameOver) {
-    const today = new Date().toISOString().split("T")[0];
-    const stored = localStorage.getItem(`camino_daily_guesses_${today}`);
+  if (guesses.length === 0 && !window._dailyGameOver && dailyDate) {
+    const stored = localStorage.getItem(getDailyGuessesStorageKey(dailyDate));
     if (stored) {
       try {
         guesses = JSON.parse(stored);
       } catch (err) { }
     }
   }
+  Array.isArray(guesses) || (guesses = []);
 
   if (guesses.length === 0) {
     panel.style.display = "none";
     return;
   }
+  dailyGuessHistory = guesses.slice(0, 7).map((e) => ({ ...e }));
+  restoreDailyMetaFromStorage(dailyDate);
 
   const isSuccess = guesses.some(g => g.distance < 20);
   const isFinished = isSuccess || guesses.length >= 7 || window._dailyGameOver;
@@ -3778,8 +3925,26 @@ function updateDailyResultPanel() {
 
   const shareTextBtn = document.getElementById("daily-share-text"),
     shareImageBtn = document.getElementById("daily-share-image");
-  if (shareTextBtn) shareTextBtn.onclick = () => handleDailyShareText(e);
-  if (shareImageBtn) shareImageBtn.onclick = () => handleDailyShareImage(e);
+  if (shareTextBtn)
+    shareTextBtn.onclick = async () => {
+      shareTextBtn.disabled = !0;
+      const t = await ensureDailyShareContext(dailyDate, guesses);
+      if (((shareTextBtn.disabled = !1), !t)) {
+        showMessage("Impossible de préparer le partage du Daily.", "error");
+        return;
+      }
+      handleDailyShareText(e);
+    };
+  if (shareImageBtn)
+    shareImageBtn.onclick = async () => {
+      shareImageBtn.disabled = !0;
+      const t = await ensureDailyShareContext(dailyDate, guesses);
+      if (((shareImageBtn.disabled = !1), !t)) {
+        showMessage("Impossible de préparer le partage du Daily.", "error");
+        return;
+      }
+      handleDailyShareImage(e);
+    };
 }
 
 function formatDailyDistanceForShare(e) {
@@ -4061,13 +4226,27 @@ function getDirectionArrow(e, t) {
 function saveDailyGuessesToStorage() {
   if (dailyTargetData && dailyTargetData.date)
     try {
-      const e = `camino_daily_guesses_${dailyTargetData.date}`;
+      const e = getDailyGuessesStorageKey(dailyTargetData.date);
       localStorage.setItem(e, JSON.stringify(dailyGuessHistory));
+      saveDailyMetaToStorage();
+    } catch (e) { }
+}
+function saveDailyMetaToStorage() {
+  if (dailyTargetData && dailyTargetData.date)
+    try {
+      localStorage.setItem(
+        getDailyMetaStorageKey(dailyTargetData.date),
+        JSON.stringify({
+          date: dailyTargetData.date,
+          streetName: dailyTargetData.streetName || "",
+          quartier: dailyTargetData.quartier || "",
+        }),
+      );
     } catch (e) { }
 }
 function restoreDailyGuessesFromStorage(e) {
   try {
-    const t = `camino_daily_guesses_${e}`,
+    const t = getDailyGuessesStorageKey(e),
       r = localStorage.getItem(t);
     r && (dailyGuessHistory = JSON.parse(r));
   } catch (e) {
@@ -4079,7 +4258,11 @@ function cleanOldDailyGuessStorage(e) {
     for (let t = localStorage.length - 1; t >= 0; t--) {
       const r = localStorage.key(t);
       r &&
-        r.startsWith("camino_daily_guesses_") &&
+        r.startsWith(DAILY_GUESSES_STORAGE_PREFIX) &&
+        !r.endsWith(e) &&
+        localStorage.removeItem(r);
+      r &&
+        r.startsWith(DAILY_META_STORAGE_PREFIX) &&
         !r.endsWith(e) &&
         localStorage.removeItem(r);
     }
