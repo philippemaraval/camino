@@ -218,6 +218,8 @@ function extractStreetGeometry(streetName) {
     return null;
 }
 
+const { ARRONDISSEMENT_PAR_QUARTIER } = require('../data_rules.js');
+
 function dateHash(dateStr) {
     let h = 0;
     for (let i = 0; i < dateStr.length; i++) {
@@ -229,9 +231,55 @@ function dateHash(dateStr) {
 async function ensureDailyTarget() {
     const date = new Date().toISOString().split('T')[0];
     let target = await db.getDailyTarget(date);
+    
     if (!target && streetIndex.length > 0) {
-        const idx = dateHash(date) % streetIndex.length;
-        const street = streetIndex[idx];
+        // Find recent arrondissements to avoid
+        const recentTargets = await db.getRecentDailyTargets(5);
+        const forbiddenArrondissements = new Set();
+        
+        // Normalize function for keys (remove accents, dashes, lowercase)
+        const normalizeStr = (str) => {
+            if (!str) return '';
+            return str
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[-\s]/g, "")
+                .toLowerCase();
+        };
+
+        // Normalize the map keys for robust lookup
+        const normalizedMap = {};
+        for (const [key, val] of Object.entries(ARRONDISSEMENT_PAR_QUARTIER)) {
+            normalizedMap[normalizeStr(key)] = val;
+        }
+
+        recentTargets.forEach(t => {
+            const arr = normalizedMap[normalizeStr(t.quartier)];
+            if (arr) forbiddenArrondissements.add(arr);
+        });
+
+        let attempts = 0;
+        let street;
+        let hashSeed = date;
+
+        while (attempts < 100) {
+            const idx = dateHash(hashSeed) % streetIndex.length;
+            street = streetIndex[idx];
+
+            const arr = normalizedMap[normalizeStr(street.quartier)];
+            if (!forbiddenArrondissements.has(arr)) {
+                break; // Found a good street!
+            }
+
+            // Street belongs to a recently used arrondissement, retry
+            hashSeed += "_retry";
+            attempts++;
+        }
+        
+        if (attempts >= 100) {
+            console.warn(`[Daily] Could not find a street in a new arrondissement after 100 attempts for date ${date}. Using fallback.`);
+        }
+
         await db.setDailyTarget(date, street.name, street.quartier, street.centroid, null);
     } else if (!target) {
         await db.setDailyTarget(date, 'La Canebière', '1er', [5.380, 43.295], null);
