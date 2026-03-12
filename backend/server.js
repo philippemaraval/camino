@@ -7,32 +7,57 @@ const db = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.SECRET_KEY || 'camino-secret-key-change-me';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const JWT_SECRET_KEY = process.env.SECRET_KEY || '';
+const ENABLE_ADMIN_ROUTES = process.env.ENABLE_ADMIN_ROUTES === 'true';
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
+
+if (!JWT_SECRET_KEY) {
+    if (IS_PRODUCTION) {
+        throw new Error('SECURITY: SECRET_KEY must be set in production');
+    }
+    console.warn('⚠️ SECRET_KEY is not set. Using a temporary in-memory key for development.');
+}
+
+const EFFECTIVE_JWT_SECRET = JWT_SECRET_KEY || crypto.randomBytes(32).toString('hex');
 
 // CORS configuration
-const allowedOrigins = [
+const allowedOrigins = new Set([
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
     'https://camino4.netlify.app',
     'https://camino5.netlify.app',
     'https://marseille-camino6.netlify.app',
     'https://camino7.netlify.app',
     'https://camino8.netlify.app',
     'https://camino-ajm.pages.dev',
-    process.env.FRONTEND_URL
-].filter(Boolean);
+    process.env.FRONTEND_URL,
+    ...(process.env.CORS_ALLOWED_ORIGINS || '')
+        .split(',')
+        .map(origin => origin.trim())
+        .filter(Boolean)
+].filter(Boolean));
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin || allowedOrigins.has(origin)) {
             callback(null, true);
         } else {
             console.warn('CORS blocked origin:', origin);
-            callback(null, true); // Allow all for now
+            callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true
 }));
+
+app.use((err, req, res, next) => {
+    if (err && err.message === 'Not allowed by CORS') {
+        return res.status(403).json({ error: 'Origin not allowed by CORS policy' });
+    }
+    return next(err);
+});
 
 app.use(express.json());
 
@@ -57,11 +82,41 @@ function authenticateToken(req, res, next) {
 
     if (!token) return res.sendStatus(401);
 
-    jwt.verify(token, SECRET_KEY, (err, user) => {
+    jwt.verify(token, EFFECTIVE_JWT_SECRET, (err, user) => {
         if (err) return res.sendStatus(403);
         req.user = user;
         next();
     });
+}
+
+function timingSafeSecretMatch(providedValue, expectedValue) {
+    const provided = Buffer.from(String(providedValue || ''), 'utf8');
+    const expected = Buffer.from(String(expectedValue || ''), 'utf8');
+    if (provided.length !== expected.length || expected.length === 0) {
+        return false;
+    }
+    return crypto.timingSafeEqual(provided, expected);
+}
+
+function requireAdminApiKey(req, res, next) {
+    if (!ENABLE_ADMIN_ROUTES) {
+        return res.status(404).json({ error: 'Not found' });
+    }
+
+    if (!ADMIN_API_KEY) {
+        console.error('SECURITY: ENABLE_ADMIN_ROUTES=true but ADMIN_API_KEY is not configured');
+        return res.status(503).json({ error: 'Admin route misconfigured' });
+    }
+
+    const headerValue = req.headers['x-admin-key'] || '';
+    const bearerValue = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const providedSecret = headerValue || bearerValue;
+
+    if (!timingSafeSecretMatch(providedSecret, ADMIN_API_KEY)) {
+        return res.status(403).json({ error: 'Unauthorized route access' });
+    }
+
+    next();
 }
 
 // ----------------------
@@ -74,7 +129,7 @@ app.post('/api/register', async (req, res) => {
 
     try {
         const userId = await db.createUser(username, password);
-        const token = jwt.sign({ id: userId, username }, SECRET_KEY, { expiresIn: '7d' });
+        const token = jwt.sign({ id: userId, username }, EFFECTIVE_JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, username, avatar: '👤' });
     } catch (err) {
         res.status(400).json({ error: err.message });
@@ -89,7 +144,7 @@ app.post('/api/login', async (req, res) => {
         return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user.id, username: user.username }, SECRET_KEY, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, username: user.username }, EFFECTIVE_JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, username: user.username, avatar: user.avatar || '👤' });
 });
 
@@ -390,22 +445,8 @@ app.get('/api/daily/leaderboard', async (req, res) => {
 // ----------------------
 // Admin Routes (Temporary for DB cleanup)
 // ----------------------
-app.post('/api/admin/clean-leaderboard', async (req, res) => {
-    // Basic protection using the admin secret
-    const { secret } = req.body;
-    if (secret !== SECRET_KEY && secret !== 'nettoyer2026') {
-        return res.status(403).json({ error: 'Unauthorized route access' });
-    }
-
+app.post('/api/admin/clean-leaderboard', requireAdminApiKey, async (req, res) => {
     try {
-        // Run SQL through the existing db connection logic instead of requiring pg again
-        // But since the db file encapsulates queries, let's just use the server pool
-        // Wait, the db is imported at the top as `const db = require('./database');`
-        // We will just execute the query via the native mechanism in database.js
-        // For simplicity, let's just make the query via new Pool with explicit requires, but wait...
-        // Ah, the issue is process.env.DATABASE_URL isn't actually being used by Render in the same way, or the pool is failing because pg is not found in production `require('pg')` inside the route, since it's lazy loaded.
-        // Actually, let's use the exported db module if possible, but since we just want to run DELETE FROM scores
-        // Let's add a function to database.js and call it
         await db.clearAllScores();
 
         res.json({
