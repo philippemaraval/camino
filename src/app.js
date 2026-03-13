@@ -1712,19 +1712,19 @@ function handleStreetClick(e, t, r) {
       i = "";
     const l = computeFeatureCentroid(e),
       o = dailyTargetGeoJson;
+    let m = l[0],
+      p = l[1];
+    r && r.latlng && ((m = r.latlng.lng), (p = r.latlng.lat));
     if (!n) {
-      let e = l[0],
-        t = l[1];
-      r && r.latlng && ((e = r.latlng.lng), (t = r.latlng.lat));
       const a = normalizeName(dailyTargetData.streetName),
         n = allStreetFeatures.find(
           (e) => e.properties && normalizeName(e.properties.name) === a,
         );
       ((s =
         n && n.geometry
-          ? getDistanceToFeature(t, e, n.geometry)
-          : getDistanceMeters(t, e, o[1], o[0])),
-        (i = getDirectionArrow(l, o)));
+          ? getDistanceToFeature(p, m, n.geometry)
+          : getDistanceMeters(p, m, o[1], o[0])),
+        (i = getDirectionArrow([m, p], o)));
     }
     if (!n && t && "function" == typeof t.setStyle) {
       const e = getBaseStreetStyle(t);

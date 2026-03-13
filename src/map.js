@@ -13,16 +13,33 @@ export function getDistanceMeters(lat1, lon1, lat2, lon2) {
 }
 
 export function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
+  // Approximate local projection (meters) to avoid degree-based distances.
+  const earthRadius = 6371000;
+  const cosLat = Math.cos((px * Math.PI) / 180);
+
+  const pxMeters = (py * cosLat * earthRadius * Math.PI) / 180;
+  const pyMeters = (px * earthRadius * Math.PI) / 180;
+
+  const x1Meters = (x1 * cosLat * earthRadius * Math.PI) / 180;
+  const y1Meters = (y1 * earthRadius * Math.PI) / 180;
+  const x2Meters = (x2 * cosLat * earthRadius * Math.PI) / 180;
+  const y2Meters = (y2 * earthRadius * Math.PI) / 180;
+
+  const dx = x2Meters - x1Meters;
+  const dy = y2Meters - y1Meters;
   const l2 = dx * dx + dy * dy;
   let t = 0;
   if (l2 !== 0) {
-    t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / l2));
+    t = Math.max(
+      0,
+      Math.min(1, ((pxMeters - x1Meters) * dx + (pyMeters - y1Meters) * dy) / l2),
+    );
   }
-  const projX = x1 + t * dx;
-  const projY = y1 + t * dy;
-  return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
+
+  const projX = x1Meters + t * dx;
+  const projY = y1Meters + t * dy;
+  const dist2 = (pxMeters - projX) * (pxMeters - projX) + (pyMeters - projY) * (pyMeters - projY);
+  return Math.sqrt(dist2);
 }
 
 export function getDistanceToFeature(lat, lon, geometry) {

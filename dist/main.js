@@ -1179,16 +1179,28 @@
     return 2 * earthRadius * Math.asin(Math.sqrt(a));
   }
   function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
+    const earthRadius = 6371e3;
+    const cosLat = Math.cos(px * Math.PI / 180);
+    const pxMeters = py * cosLat * earthRadius * Math.PI / 180;
+    const pyMeters = px * earthRadius * Math.PI / 180;
+    const x1Meters = x1 * cosLat * earthRadius * Math.PI / 180;
+    const y1Meters = y1 * earthRadius * Math.PI / 180;
+    const x2Meters = x2 * cosLat * earthRadius * Math.PI / 180;
+    const y2Meters = y2 * earthRadius * Math.PI / 180;
+    const dx = x2Meters - x1Meters;
+    const dy = y2Meters - y1Meters;
     const l2 = dx * dx + dy * dy;
     let t = 0;
     if (l2 !== 0) {
-      t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / l2));
+      t = Math.max(
+        0,
+        Math.min(1, ((pxMeters - x1Meters) * dx + (pyMeters - y1Meters) * dy) / l2)
+      );
     }
-    const projX = x1 + t * dx;
-    const projY = y1 + t * dy;
-    return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
+    const projX = x1Meters + t * dx;
+    const projY = y1Meters + t * dy;
+    const dist2 = (pxMeters - projX) * (pxMeters - projX) + (pyMeters - projY) * (pyMeters - projY);
+    return Math.sqrt(dist2);
   }
   function getDistanceToFeature(lat, lon, geometry) {
     if (!geometry) {
@@ -3973,13 +3985,13 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       const n2 = normalizeName(e.properties.name) === normalizeName(dailyTargetData.streetName);
       let s2 = 0, i2 = "";
       const l2 = computeFeatureCentroid(e), o = dailyTargetGeoJson;
+      let m = l2[0], p = l2[1];
+      r && r.latlng && (m = r.latlng.lng, p = r.latlng.lat);
       if (!n2) {
-        let e2 = l2[0], t2 = l2[1];
-        r && r.latlng && (e2 = r.latlng.lng, t2 = r.latlng.lat);
         const a3 = normalizeName(dailyTargetData.streetName), n3 = allStreetFeatures.find(
-          (e3) => e3.properties && normalizeName(e3.properties.name) === a3
+          (e2) => e2.properties && normalizeName(e2.properties.name) === a3
         );
-        s2 = n3 && n3.geometry ? getDistanceToFeature(t2, e2, n3.geometry) : getDistanceMeters(t2, e2, o[1], o[0]), i2 = getDirectionArrow(l2, o);
+        s2 = n3 && n3.geometry ? getDistanceToFeature(p, m, n3.geometry) : getDistanceMeters(p, m, o[1], o[0]), i2 = getDirectionArrow([m, p], o);
       }
       if (!n2 && t && "function" == typeof t.setStyle) {
         const e2 = getBaseStreetStyle2(t);
