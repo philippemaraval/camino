@@ -285,7 +285,7 @@ function getScoreMetricUIConfig(e = getGameMode()) {
     label: "Score pondéré",
     legend: "Chaque bonne réponse: jusqu'à 10 points selon la rapidité.",
     help:
-      "<strong>Score pondéré</strong><br>Chaque bonne réponse rapporte jusqu'à 10 points selon la rapidité: 1 point en moins par seconde.<br>Au-delà de 10 secondes, aucun point.<br><br>Le score affiché est la somme des points de la session.",
+      "<strong>Score pondéré</strong><br>Chaque bonne réponse rapporte jusqu'à 10 points selon la rapidité: 1 point en moins toutes les 2 secondes.<br>Au-delà de 20 secondes, aucun point.<br><br>Le score affiché est la somme des points de la session.",
     decimals: 1,
   };
 }

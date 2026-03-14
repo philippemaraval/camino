@@ -3045,7 +3045,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     return indexes.slice(0, count).map((index) => items[index]);
   }
   function computeItemPoints(elapsedSeconds) {
-    return Math.max(0, MAX_POINTS_PER_ITEM - elapsedSeconds);
+    return Math.max(0, MAX_POINTS_PER_ITEM - Math.floor(elapsedSeconds / 2));
   }
 
   // src/app.js
@@ -3207,7 +3207,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     return {
       label: "Score pond\xE9r\xE9",
       legend: "Chaque bonne r\xE9ponse: jusqu'\xE0 10 points selon la rapidit\xE9.",
-      help: "<strong>Score pond\xE9r\xE9</strong><br>Chaque bonne r\xE9ponse rapporte jusqu'\xE0 10 points selon la rapidit\xE9: 1 point en moins par seconde.<br>Au-del\xE0 de 10 secondes, aucun point.<br><br>Le score affich\xE9 est la somme des points de la session.",
+      help: "<strong>Score pond\xE9r\xE9</strong><br>Chaque bonne r\xE9ponse rapporte jusqu'\xE0 10 points selon la rapidit\xE9: 1 point en moins toutes les 2 secondes.<br>Au-del\xE0 de 20 secondes, aucun point.<br><br>Le score affich\xE9 est la somme des points de la session.",
       decimals: 1
     };
   }

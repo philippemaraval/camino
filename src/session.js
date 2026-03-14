@@ -14,5 +14,5 @@ export function sampleWithoutReplacement(items, count) {
 }
 
 export function computeItemPoints(elapsedSeconds) {
-  return Math.max(0, MAX_POINTS_PER_ITEM - elapsedSeconds);
+  return Math.max(0, MAX_POINTS_PER_ITEM - Math.floor(elapsedSeconds / 2));
 }
