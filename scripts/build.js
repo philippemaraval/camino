@@ -22,6 +22,7 @@ const FRONTEND_ENTRY = path.join(ROOT, "src", "app.js");
 const DIST_INCLUDE = [
   "_headers",
   "index.html",
+  "regles.html",
   "main.js",
   "main.js.map",
   "main.js.min",

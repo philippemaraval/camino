@@ -2558,8 +2558,15 @@ select:focus:not(:focus-visible) {
   text-overflow: ellipsis;
 }
 
-.sidebar-visitors {
+.sidebar-visitors-row {
   grid-area: visitors;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 13px;
+}
+
+.sidebar-visitors {
   margin: 0;
   font-size: 11px;
   font-weight: 700;
@@ -2567,6 +2574,33 @@ select:focus:not(:focus-visible) {
   color: var(--primary);
   opacity: 1;
   letter-spacing: 0.01em;
+}
+
+.sidebar-rules-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 13px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(176, 184, 196, 0.55);
+  background: rgba(255, 255, 255, 0.3);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  transition:
+    background var(--motion-fast) var(--easing-standard),
+    border-color var(--motion-fast) var(--easing-standard),
+    color var(--motion-fast) var(--easing-standard);
+}
+
+.sidebar-rules-link:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(18, 41, 122, 0.35);
+  color: var(--primary);
 }
 
 @media (max-width: 900px) {
