@@ -106,15 +106,13 @@ async function initDb() {
       )
     `);
 
-    // Seed total visits from current unique visitors once,
-    // so historical count starts from existing production value.
+    // Seed total visits from current unique visitors once.
+    // ON CONFLICT avoids duplicate-key crashes on concurrent starts.
     await client.query(`
       INSERT INTO visitors_counter (id, total_visits)
       SELECT 1, COUNT(*)::BIGINT
       FROM visitors_unique
-      WHERE NOT EXISTS (
-        SELECT 1 FROM visitors_counter WHERE id = 1
-      )
+      ON CONFLICT (id) DO NOTHING
     `);
 
     console.log('Database initialized successfully.');
