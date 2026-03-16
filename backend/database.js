@@ -692,6 +692,22 @@ async function recordVisitHit(visitorHash) {
   return Number(total.rows[0]?.total_visits || 0);
 }
 
+async function getVisitCount() {
+  await pool.query(
+    `INSERT INTO visitors_counter (id, total_visits)
+     SELECT 1, COUNT(*)::BIGINT
+     FROM visitors_unique
+     ON CONFLICT (id) DO NOTHING`
+  );
+
+  const total = await pool.query(
+    `SELECT total_visits
+     FROM visitors_counter
+     WHERE id = 1`
+  );
+  return Number(total.rows[0]?.total_visits || 0);
+}
+
 async function clearAllScores() {
   await pool.query('DELETE FROM scores');
 }
@@ -714,6 +730,7 @@ module.exports = {
   trackStreetAnswer,
   getAnalytics,
   recordVisitHit,
+  getVisitCount,
   clearAllScores,
   updateUserAvatar
 };

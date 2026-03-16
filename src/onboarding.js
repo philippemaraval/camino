@@ -4,6 +4,7 @@ const ONBOARDING_SEEN_KEY = "camino-onboarding-seen";
 const ONBOARDING_LEGACY_KEY = "camino-onboarded";
 const ONBOARDING_COOKIE_MAX_AGE_SECONDS = 31536000;
 const VISITOR_ID_STORAGE_KEY = "camino_visitor_id";
+const VISITOR_COUNT_CACHE_KEY = "camino_visits_cache";
 
 function readPersistentFlag(flagKey) {
   try {
@@ -88,34 +89,94 @@ function updateVisitorCounterLabel(visits) {
   counter.textContent = `Visites : ${new Intl.NumberFormat("fr-FR").format(Math.trunc(visits))}`;
 }
 
+function readCachedVisitCount() {
+  try {
+    const raw = localStorage.getItem(VISITOR_COUNT_CACHE_KEY);
+    const value = Number(raw);
+    if (Number.isFinite(value) && value >= 0) {
+      return Math.trunc(value);
+    }
+  } catch (error) {}
+  return null;
+}
+
+function writeCachedVisitCount(visits) {
+  if (!Number.isFinite(visits) || visits < 0) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(VISITOR_COUNT_CACHE_KEY, String(Math.trunc(visits)));
+  } catch (error) {}
+}
+
+function parseVisitsPayload(payload) {
+  const visits = Number(payload?.visits ?? payload?.uniqueVisitors);
+  if (!Number.isFinite(visits) || visits < 0) {
+    return null;
+  }
+  return visits;
+}
+
+async function fetchVisits(url, options) {
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      return null;
+    }
+    const payload = await response.json();
+    return parseVisitsPayload(payload);
+  } catch (error) {
+    return null;
+  }
+}
+
 export async function loadUniqueVisitorCounter() {
   const counter = document.getElementById("visitor-counter");
   if (!counter) {
     return;
   }
 
+  const cachedVisits = readCachedVisitCount();
+  if (cachedVisits !== null) {
+    updateVisitorCounterLabel(cachedVisits);
+  }
+
   const visitorId = getOrCreateVisitorId();
   if (!visitorId) {
+    const fallbackCount = await fetchVisits(`${API_URL}/api/visitors/count`);
+    if (fallbackCount !== null) {
+      updateVisitorCounterLabel(fallbackCount);
+      writeCachedVisitCount(fallbackCount);
+    }
     return;
   }
 
-  try {
-    const response = await fetch(`${API_URL}/api/visitors/hit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visitorId }),
-    });
+  const postHitVisits = await fetchVisits(`${API_URL}/api/visitors/hit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ visitorId }),
+  });
+  if (postHitVisits !== null) {
+    updateVisitorCounterLabel(postHitVisits);
+    writeCachedVisitCount(postHitVisits);
+    return;
+  }
 
-    if (!response.ok) {
-      return;
-    }
+  const getHitVisits = await fetchVisits(
+    `${API_URL}/api/visitors/hit?visitorId=${encodeURIComponent(visitorId)}`,
+  );
+  if (getHitVisits !== null) {
+    updateVisitorCounterLabel(getHitVisits);
+    writeCachedVisitCount(getHitVisits);
+    return;
+  }
 
-    const payload = await response.json();
-    const visits = Number(payload.visits ?? payload.uniqueVisitors);
-    if (Number.isFinite(visits)) {
-      updateVisitorCounterLabel(visits);
-    }
-  } catch (error) {}
+  const fallbackCount = await fetchVisits(`${API_URL}/api/visitors/count`);
+  if (fallbackCount !== null) {
+    updateVisitorCounterLabel(fallbackCount);
+    writeCachedVisitCount(fallbackCount);
+  }
 }
 
 function setOnboardingVisibility(showBanner) {

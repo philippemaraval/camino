@@ -40,9 +40,22 @@ const allowedOrigins = new Set([
         .filter(Boolean)
 ].filter(Boolean));
 
+const dynamicAllowedOriginPatterns = [
+    /^https:\/\/[a-z0-9-]+\.netlify\.app$/i,
+    /^https:\/\/[a-z0-9-]+\.pages\.dev$/i,
+    /^https:\/\/[a-z0-9-]+\.onrender\.com$/i,
+];
+
+function isAllowedOrigin(origin) {
+    if (!origin || allowedOrigins.has(origin)) {
+        return true;
+    }
+    return dynamicAllowedOriginPatterns.some((pattern) => pattern.test(origin));
+}
+
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.has(origin)) {
+        if (isAllowedOrigin(origin)) {
             callback(null, true);
         } else {
             console.warn('CORS blocked origin:', origin);
@@ -243,10 +256,18 @@ app.get('/api/analytics', async (req, res) => {
     }
 });
 
-app.post('/api/visitors/hit', async (req, res) => {
-    const visitorId = typeof req.body?.visitorId === 'string'
-        ? req.body.visitorId.trim()
-        : '';
+function extractVisitorId(req) {
+    if (typeof req.body?.visitorId === 'string') {
+        return req.body.visitorId.trim();
+    }
+    if (typeof req.query?.visitorId === 'string') {
+        return req.query.visitorId.trim();
+    }
+    return '';
+}
+
+async function handleVisitorHit(req, res) {
+    const visitorId = extractVisitorId(req);
 
     if (!/^[a-zA-Z0-9_-]{16,128}$/.test(visitorId)) {
         return res.status(400).json({ error: 'Invalid visitor id' });
@@ -259,6 +280,19 @@ app.post('/api/visitors/hit', async (req, res) => {
     } catch (err) {
         console.error('Visitor counter error:', err);
         res.status(500).json({ error: 'Failed to update visitor counter' });
+    }
+}
+
+app.post('/api/visitors/hit', handleVisitorHit);
+app.get('/api/visitors/hit', handleVisitorHit);
+
+app.get('/api/visitors/count', async (req, res) => {
+    try {
+        const visits = await db.getVisitCount();
+        res.json({ visits });
+    } catch (err) {
+        console.error('Visitor count read error:', err);
+        res.status(500).json({ error: 'Failed to load visitor counter' });
     }
 });
 
