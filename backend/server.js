@@ -14,6 +14,16 @@ function readEnvIntegerInRange(name, fallback, min, max) {
     return raw;
 }
 
+function readFirstDefinedEnv(names, fallback = '') {
+    for (const name of names) {
+        const value = process.env[name];
+        if (typeof value === 'string' && value.trim()) {
+            return value.trim();
+        }
+    }
+    return fallback;
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -23,10 +33,26 @@ const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 const PUSH_REMINDER_HOUR = readEnvIntegerInRange('PUSH_REMINDER_HOUR', 10, 0, 23);
 const PUSH_REMINDER_MINUTE = readEnvIntegerInRange('PUSH_REMINDER_MINUTE', 0, 0, 59);
 const PUSH_REMINDER_TIMEZONE = process.env.PUSH_REMINDER_TIMEZONE || 'Europe/Paris';
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || '';
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
-const PUSH_ENABLED = Boolean(VAPID_SUBJECT && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
+const VAPID_SUBJECT = readFirstDefinedEnv([
+    'VAPID_SUBJECT',
+    'WEB_PUSH_VAPID_SUBJECT',
+    'WEBPUSH_VAPID_SUBJECT',
+], 'mailto:noreply@camino.app');
+const VAPID_PUBLIC_KEY = readFirstDefinedEnv([
+    'VAPID_PUBLIC_KEY',
+    'WEB_PUSH_VAPID_PUBLIC_KEY',
+    'WEBPUSH_VAPID_PUBLIC_KEY',
+    'NEXT_PUBLIC_VAPID_PUBLIC_KEY',
+    'PUBLIC_VAPID_KEY',
+    'PUSH_PUBLIC_KEY',
+]);
+const VAPID_PRIVATE_KEY = readFirstDefinedEnv([
+    'VAPID_PRIVATE_KEY',
+    'WEB_PUSH_VAPID_PRIVATE_KEY',
+    'WEBPUSH_VAPID_PRIVATE_KEY',
+    'PUSH_PRIVATE_KEY',
+]);
+const PUSH_ENABLED = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 
 if (!JWT_SECRET_KEY) {
     if (IS_PRODUCTION) {
@@ -40,7 +66,7 @@ const EFFECTIVE_JWT_SECRET = JWT_SECRET_KEY || crypto.randomBytes(32).toString('
 if (PUSH_ENABLED) {
     webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 } else {
-    console.warn('Push notifications disabled: missing VAPID_SUBJECT / VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY.');
+    console.warn('Push notifications disabled: missing VAPID public/private key env vars.');
 }
 
 // CORS configuration
