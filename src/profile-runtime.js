@@ -150,6 +150,23 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function getProfileErrorMessage(error) {
+  const raw = typeof error?.message === "string" ? error.message.trim() : "";
+  if (!raw) {
+    return "Erreur inconnue";
+  }
+  return raw.length > 140 ? `${raw.slice(0, 137)}...` : raw;
+}
+
 function weightedAverage(rows, key) {
   let weightTotal = 0;
   let weightedSum = 0;
@@ -481,162 +498,178 @@ export function loadProfileRuntime({
   fetch(`${apiUrl}/api/profile`, {
     headers: { Authorization: `Bearer ${currentUser.token}` },
   })
-    .then((response) => {
+    .then(async (response) => {
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let message = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          if (payload && typeof payload.error === "string" && payload.error.trim()) {
+            message = payload.error.trim();
+          }
+        } catch (error) {
+          // Keep default HTTP message if response body is not JSON.
+        }
+        throw new Error(message);
       }
       return response.json();
     })
     .then((profile) => {
-      if (currentUser) {
-        const nextAvatar = profile.avatar || "👤";
-        const nextUsername = profile.username || currentUser.username;
-        const changed = currentUser.avatar !== nextAvatar || currentUser.username !== nextUsername;
+      try {
+        if (currentUser) {
+          const nextAvatar = profile.avatar || "👤";
+          const nextUsername = profile.username || currentUser.username;
+          const changed = currentUser.avatar !== nextAvatar || currentUser.username !== nextUsername;
 
-        currentUser.avatar = nextAvatar;
-        currentUser.username = nextUsername;
+          currentUser.avatar = nextAvatar;
+          currentUser.username = nextUsername;
 
-        if (changed) {
-          saveCurrentUserToStorage(currentUser);
+          if (changed) {
+            saveCurrentUserToStorage(currentUser);
+          }
+          renderUserSticker();
         }
-        renderUserSticker();
-      }
 
-      const bestScore = parseFloat(profile.overall?.best_score) || 0;
-      const globalRankMeta = getGlobalRankMeta(profile);
-      const globalTitle = globalRankMeta.title;
-      const totalGames = parseInt(profile.overall?.total_games) || 0;
-      const averageScore = parseFloat(profile.overall?.avg_score) || 0;
-      const dailyTotalDays = parseInt(profile.daily?.total_days) || 0;
-      const dailySuccesses = parseInt(profile.daily?.successes) || 0;
-      const dailyAverageAttempts = parseFloat(profile.daily?.avg_attempts) || 0;
-      const memberSince = profile.memberSince
-        ? new Date(profile.memberSince).toLocaleDateString("fr-FR", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        })
-        : "—";
+        const bestScore = parseFloat(profile.overall?.best_score) || 0;
+        const globalRankMeta = getGlobalRankMeta(profile);
+        const globalTitle = globalRankMeta.title;
+        const totalGames = parseInt(profile.overall?.total_games) || 0;
+        const averageScore = parseFloat(profile.overall?.avg_score) || 0;
+        const dailyTotalDays = parseInt(profile.daily?.total_days) || 0;
+        const dailySuccesses = parseInt(profile.daily?.successes) || 0;
+        const dailyAverageAttempts = parseFloat(profile.daily?.avg_attempts) || 0;
+        const memberSince = profile.memberSince
+          ? new Date(profile.memberSince).toLocaleDateString("fr-FR", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })
+          : "—";
 
-      let html = `
-        <div class="profile-header">
-          <div class="profile-avatar">
-            ${profile.avatar || "👤"}
-            <button type="button" class="edit-avatar-badge" id="btn-edit-avatar" title="Changer d'avatar" aria-label="Changer d'avatar">✏️</button>
+        let html = `
+          <div class="profile-header">
+            <div class="profile-avatar">
+              ${profile.avatar || "👤"}
+              <button type="button" class="edit-avatar-badge" id="btn-edit-avatar" title="Changer d'avatar" aria-label="Changer d'avatar">✏️</button>
+            </div>
+            <div class="profile-info">
+              <div class="profile-name">${profile.username}</div>
+              <div class="profile-title">${globalTitle}</div>
+            </div>
           </div>
-          <div class="profile-info">
-            <div class="profile-name">${profile.username}</div>
-            <div class="profile-title">${globalTitle}</div>
-          </div>
-        </div>
 
-        <div class="profile-stats-grid">
-          <div class="profile-stat">
-            <span class="profile-stat-value">${totalGames}</span>
-            <span class="profile-stat-label">Parties</span>
-          </div>
-          <div class="profile-stat">
-            <span class="profile-stat-value">${bestScore.toFixed(1)}</span>
-            <span class="profile-stat-label">Meilleur</span>
-          </div>
-          <div class="profile-stat">
-            <span class="profile-stat-value">${averageScore}</span>
-            <span class="profile-stat-label">Moyenne</span>
-          </div>
-          <div class="profile-stat">
-            <span class="profile-stat-value">${dailySuccesses}/${dailyTotalDays}</span>
-            <span class="profile-stat-label">Daily ✅</span>
-          </div>
-        </div>`;
-      html += buildProfileCompactStatsHTML(profile, zoneLabels);
-
-      if (profile.modes && profile.modes.length > 0) {
-        html += '<details class="profile-section-collapsible">';
-        html += '<summary class="profile-section-title">Détail par mode</summary>';
-        html += '<div class="profile-modes">';
-        profile.modes.forEach((modeEntry) => {
-          const zoneLabel = zoneLabels[modeEntry.mode] || modeEntry.mode;
-          const gameLabel = gameLabels[modeEntry.game_type] || modeEntry.game_type;
-          const highScore = parseFloat(modeEntry.high_score) || 0;
-          const scoreLabel =
-            modeEntry.game_type === "classique"
-              ? highScore.toFixed(1)
-              : String(Math.round(highScore));
-          const title = getPlayerTitle(
-            highScore,
-            modeEntry.mode,
-            modeEntry.game_type,
-            modeEntry.best_items_total || 0,
-            modeEntry.best_items_correct || 0,
-          );
-          html += `
-            <div class="profile-mode-row">
-              <div class="profile-mode-name">${zoneLabel} — ${gameLabel}</div>
-              <div class="profile-mode-details">
-                <span>🏆 ${scoreLabel}</span>
-                <span>📊 Ø${parseFloat(modeEntry.avg_score).toFixed(1)}</span>
-                <span>🎮 ${modeEntry.games_played}</span>
-              </div>
-              <div class="profile-mode-title">${title}</div>
-            </div>`;
-        });
-        html += "</div></details>";
-      }
-
-      if (dailyTotalDays > 0) {
-        html += `
-          <div class="profile-daily-summary">
-            <span>📅 Daily : ${dailyAverageAttempts} essais en moyenne</span>
-            ${profile.daily?.current_streak > 0 ? `<br><span class="profile-daily-current-streak">🔥 Série actuelle : ${profile.daily.current_streak}</span>` : ""}
-            ${profile.daily?.max_streak > 0 ? `<br><span class="profile-daily-best-streak">🏆 Meilleure série : ${profile.daily.max_streak}</span>` : ""}
+          <div class="profile-stats-grid">
+            <div class="profile-stat">
+              <span class="profile-stat-value">${totalGames}</span>
+              <span class="profile-stat-label">Parties</span>
+            </div>
+            <div class="profile-stat">
+              <span class="profile-stat-value">${bestScore.toFixed(1)}</span>
+              <span class="profile-stat-label">Meilleur</span>
+            </div>
+            <div class="profile-stat">
+              <span class="profile-stat-value">${averageScore}</span>
+              <span class="profile-stat-label">Moyenne</span>
+            </div>
+            <div class="profile-stat">
+              <span class="profile-stat-value">${dailySuccesses}/${dailyTotalDays}</span>
+              <span class="profile-stat-label">Daily ✅</span>
+            </div>
           </div>`;
-      }
+        html += buildProfileCompactStatsHTML(profile, zoneLabels);
 
-      html += `
-        <section class="profile-notification-card">
-          <div class="profile-notification-title">Rappel Daily à 10:00</div>
-          <p id="daily-reminder-status" class="profile-notification-status">Chargement…</p>
-          <div class="profile-notification-actions">
-            <button type="button" id="daily-reminder-enable-btn" class="btn-secondary">Activer le rappel</button>
-            <button type="button" id="daily-reminder-disable-btn" class="btn-tertiary hidden">Désactiver</button>
-          </div>
-        </section>`;
+        if (profile.modes && profile.modes.length > 0) {
+          html += '<details class="profile-section-collapsible">';
+          html += '<summary class="profile-section-title">Détail par mode</summary>';
+          html += '<div class="profile-modes">';
+          profile.modes.forEach((modeEntry) => {
+            const zoneLabel = zoneLabels[modeEntry.mode] || modeEntry.mode;
+            const gameLabel = gameLabels[modeEntry.game_type] || modeEntry.game_type;
+            const highScore = parseFloat(modeEntry.high_score) || 0;
+            const scoreLabel =
+              modeEntry.game_type === "classique"
+                ? highScore.toFixed(1)
+                : String(Math.round(highScore));
+            const title = getPlayerTitle(
+              highScore,
+              modeEntry.mode,
+              modeEntry.game_type,
+              modeEntry.best_items_total || 0,
+              modeEntry.best_items_correct || 0,
+            );
+            html += `
+              <div class="profile-mode-row">
+                <div class="profile-mode-name">${zoneLabel} — ${gameLabel}</div>
+                <div class="profile-mode-details">
+                  <span>🏆 ${scoreLabel}</span>
+                  <span>📊 Ø${parseFloat(modeEntry.avg_score).toFixed(1)}</span>
+                  <span>🎮 ${modeEntry.games_played}</span>
+                </div>
+                <div class="profile-mode-title">${title}</div>
+              </div>`;
+          });
+          html += "</div></details>";
+        }
 
-      const badges = computeBadgesRuntime(profile, hasReachedGlobalRank);
-      const unlocked = badges.filter((badge) => badge.unlocked);
-      const locked = badges.filter((badge) => !badge.unlocked);
+        if (dailyTotalDays > 0) {
+          html += `
+            <div class="profile-daily-summary">
+              <span>📅 Daily : ${dailyAverageAttempts} essais en moyenne</span>
+              ${profile.daily?.current_streak > 0 ? `<br><span class="profile-daily-current-streak">🔥 Série actuelle : ${profile.daily.current_streak}</span>` : ""}
+              ${profile.daily?.max_streak > 0 ? `<br><span class="profile-daily-best-streak">🏆 Meilleure série : ${profile.daily.max_streak}</span>` : ""}
+            </div>`;
+        }
 
-      html += `<details class="profile-section-collapsible">`;
-      html += `<summary class="profile-badges-title">Succès (${unlocked.length}/${badges.length})</summary>`;
-      html += '<div class="profile-badges-grid">';
+        html += `
+          <section class="profile-notification-card">
+            <div class="profile-notification-title">Rappel Daily à 10:00</div>
+            <p id="daily-reminder-status" class="profile-notification-status">Chargement…</p>
+            <div class="profile-notification-actions">
+              <button type="button" id="daily-reminder-enable-btn" class="btn-secondary">Activer le rappel</button>
+              <button type="button" id="daily-reminder-disable-btn" class="btn-tertiary hidden">Désactiver</button>
+            </div>
+          </section>`;
 
-      unlocked.forEach((badge) => {
-        html += `<div class="profile-badge unlocked" tabindex="0" title="${badge.name}\n✅ ${badge.desc}" data-tooltip="${badge.name}\n✅ ${badge.desc}" aria-label="${badge.name} débloqué. ${badge.desc}">
-          <span class="badge-emoji">${badge.emoji}</span>
-          <span class="badge-name">${badge.name}</span>
-        </div>`;
-      });
+        const badges = computeBadgesRuntime(profile, hasReachedGlobalRank);
+        const unlocked = badges.filter((badge) => badge.unlocked);
+        const locked = badges.filter((badge) => !badge.unlocked);
 
-      locked.forEach((badge) => {
-        html += `<div class="profile-badge locked" tabindex="0" title="${badge.name}\n🔒 ${badge.desc}" data-tooltip="${badge.name}\n🔒 ${badge.desc}" aria-label="${badge.name} verrouillé. ${badge.desc}">
-          <span class="badge-emoji">🔒</span>
-          <span class="badge-name">${badge.name}</span>
-        </div>`;
-      });
+        html += `<details class="profile-section-collapsible">`;
+        html += `<summary class="profile-badges-title">Succès (${unlocked.length}/${badges.length})</summary>`;
+        html += '<div class="profile-badges-grid">';
 
-      html += "</div></details>";
-      html += `<div class="profile-member-since">Membre depuis le ${memberSince}</div>`;
+        unlocked.forEach((badge) => {
+          html += `<div class="profile-badge unlocked" tabindex="0" title="${badge.name}\n✅ ${badge.desc}" data-tooltip="${badge.name}\n✅ ${badge.desc}" aria-label="${badge.name} débloqué. ${badge.desc}">
+            <span class="badge-emoji">${badge.emoji}</span>
+            <span class="badge-name">${badge.name}</span>
+          </div>`;
+        });
 
-      profileContent.innerHTML = html;
-      initAvatarSelector(profile.avatar || "👤", globalRankMeta.level);
-      bindSingleOpenAccordion(profileContent);
-      if (typeof onProfileRendered === "function") {
-        onProfileRendered();
+        locked.forEach((badge) => {
+          html += `<div class="profile-badge locked" tabindex="0" title="${badge.name}\n🔒 ${badge.desc}" data-tooltip="${badge.name}\n🔒 ${badge.desc}" aria-label="${badge.name} verrouillé. ${badge.desc}">
+            <span class="badge-emoji">🔒</span>
+            <span class="badge-name">${badge.name}</span>
+          </div>`;
+        });
+
+        html += "</div></details>";
+        html += `<div class="profile-member-since">Membre depuis le ${memberSince}</div>`;
+
+        profileContent.innerHTML = html;
+        initAvatarSelector(profile.avatar || "👤", globalRankMeta.level);
+        bindSingleOpenAccordion(profileContent);
+        if (typeof onProfileRendered === "function") {
+          onProfileRendered();
+        }
+      } catch (renderError) {
+        const reason = escapeHtml(getProfileErrorMessage(renderError));
+        console.warn("Profile render error:", renderError?.message || renderError);
+        profileContent.innerHTML = `<p class="profile-unavailable">Profil indisponible: ${reason}</p>`;
       }
     })
     .catch((error) => {
-      console.warn("Profile error:", error.message);
-      profileContent.innerHTML = '<p class="profile-unavailable">Profil indisponible.</p>';
+      const reason = escapeHtml(getProfileErrorMessage(error));
+      console.warn("Profile error:", error?.message || error);
+      profileContent.innerHTML = `<p class="profile-unavailable">Profil indisponible: ${reason}</p>`;
     });
 }
 

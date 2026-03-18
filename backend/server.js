@@ -518,15 +518,56 @@ app.post('/api/scores', authenticateToken, async (req, res) => {
 // Profile Route
 // ----------------------
 
+function getEmptyProfileStats() {
+    return {
+        memberSince: null,
+        overall: { total_games: 0, best_score: 0, avg_score: 0 },
+        bestMode: null,
+        modes: [],
+        weekly_progress: [],
+        quartier_stats: [],
+        difficulty_stats: [],
+        daily: {
+            total_days: 0,
+            successes: 0,
+            avg_attempts: 0,
+            current_streak: 0,
+            max_streak: 0,
+        },
+    };
+}
+
 app.get('/api/profile', authenticateToken, async (req, res) => {
+    const payload = {
+        username: req.user.username,
+        avatar: '👤',
+        ...getEmptyProfileStats(),
+    };
+
     try {
         const user = await db.getUser(req.user.username);
-        const stats = await db.getUserStats(req.user.id);
-        res.json({ username: req.user.username, avatar: user ? (user.avatar || '👤') : '👤', ...stats });
+        if (user?.avatar) {
+            payload.avatar = user.avatar;
+        }
     } catch (err) {
-        console.error('Profile error:', err);
-        res.status(500).json({ error: 'Failed to load profile' });
+        console.warn('Profile user lookup error:', err?.message || err);
     }
+
+    try {
+        const stats = await db.getUserStats(req.user.id);
+        if (stats && typeof stats === 'object') {
+            Object.assign(payload, stats);
+        }
+    } catch (err) {
+        console.error('Profile stats error:', {
+            userId: req.user.id,
+            username: req.user.username,
+            message: err?.message || 'Unknown profile stats error',
+        });
+        payload.profileWarning = 'partial_profile_stats_unavailable';
+    }
+
+    return res.json(payload);
 });
 
 app.post('/api/profile/avatar', authenticateToken, async (req, res) => {
