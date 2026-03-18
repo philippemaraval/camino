@@ -2235,11 +2235,13 @@ button {
 .profile-notification-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .profile-notification-actions .btn-secondary,
-.profile-notification-actions .btn-tertiary {
-  flex: 1 1 auto;
+.profile-notification-actions .btn-tertiary,
+.profile-notification-actions .btn-primary {
+  flex: 1 1 120px;
 }
 
 .profile-member-since {

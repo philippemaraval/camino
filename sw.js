@@ -1,12 +1,15 @@
-const CACHE_NAME = "camino-v4";
+const CACHE_NAME = "camino-v5";
 
-const PRECACHE_URLS = [
+const CORE_PRECACHE_URLS = [
   "/",
   "/index.html",
   "/style.css",
   "/main.js",
   "/data_rules.js",
   "/site.webmanifest",
+];
+
+const OPTIONAL_CDN_PRECACHE_URLS = [
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
   "https://cdn.jsdelivr.net/npm/leaflet-minimap@3.6.1/dist/Control.MiniMap.min.css",
@@ -16,12 +19,34 @@ const PRECACHE_URLS = [
 
 const CDN_HOSTS = new Set(["unpkg.com", "cdn.jsdelivr.net"]);
 
+async function cacheUrlSafely(cache, url) {
+  try {
+    await cache.add(url);
+  } catch (error) {
+    console.warn("[SW] Precache skipped:", url, error?.message || error);
+  }
+}
+
+function normalizeSameOriginPath(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl || "/", self.location.origin);
+    if (parsed.origin !== self.location.origin) {
+      return "/";
+    }
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch (error) {
+    return "/";
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      await Promise.all(CORE_PRECACHE_URLS.map((url) => cacheUrlSafely(cache, url)));
+      await Promise.all(OPTIONAL_CDN_PRECACHE_URLS.map((url) => cacheUrlSafely(cache, url)));
+      await self.skipWaiting();
+    })(),
   );
 });
 
@@ -117,7 +142,7 @@ self.addEventListener("push", (event) => {
 
   const title = payload.title || "Camino";
   const body = payload.body || "Le Daily du jour est disponible.";
-  const targetUrl = payload.url || "/";
+  const targetUrl = normalizeSameOriginPath(payload.url || "/");
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -133,7 +158,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification?.data?.url || "/";
+  const targetUrl = normalizeSameOriginPath(event.notification?.data?.url || "/");
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
@@ -141,8 +166,10 @@ self.addEventListener("notificationclick", (event) => {
         if (!client || !("focus" in client)) continue;
         const sameOrigin = client.url && client.url.startsWith(self.location.origin);
         if (sameOrigin) {
-          client.navigate(targetUrl);
-          return client.focus();
+          return client
+            .navigate(targetUrl)
+            .catch(() => undefined)
+            .then(() => client.focus());
         }
       }
       if (clients.openWindow) {

@@ -412,6 +412,18 @@ async function getPushSubscriptionStatusForUser(userId) {
   return res.rows[0] || null;
 }
 
+async function getPushSubscriptionForUser(userId) {
+  const res = await pool.query(
+    `SELECT endpoint, subscription_json, enabled, updated_at
+     FROM push_subscriptions
+     WHERE user_id = $1 AND enabled = TRUE
+     ORDER BY updated_at DESC
+     LIMIT 1`,
+    [userId]
+  );
+  return res.rows[0] || null;
+}
+
 async function removePushSubscriptionForUser(userId, endpoint) {
   const normalizedEndpoint = String(endpoint || '').trim();
   if (!normalizedEndpoint) {
@@ -852,6 +864,19 @@ async function setAppSetting(key, value) {
   );
 }
 
+async function setAppSettingIfMissing(key, value) {
+  const normalizedKey = String(key || '').trim();
+  if (!normalizedKey) {
+    throw new Error('Invalid app setting key');
+  }
+  await pool.query(
+    `INSERT INTO app_settings (key, value_text, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (key) DO NOTHING`,
+    [normalizedKey, String(value ?? '')]
+  );
+}
+
 async function clearAllScores() {
   await pool.query('DELETE FROM scores');
 }
@@ -872,6 +897,7 @@ module.exports = {
   getDailyLeaderboard,
   upsertPushSubscription,
   getPushSubscriptionStatusForUser,
+  getPushSubscriptionForUser,
   removePushSubscriptionForUser,
   removeAllPushSubscriptionsForUser,
   removePushSubscriptionByEndpoint,
@@ -884,6 +910,7 @@ module.exports = {
   getVisitCount,
   getAppSetting,
   setAppSetting,
+  setAppSettingIfMissing,
   clearAllScores,
   updateUserAvatar
 };

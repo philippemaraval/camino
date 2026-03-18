@@ -59,6 +59,7 @@ const pushRuntime = {
     privateKey: '',
     source: 'none',
 };
+let pushRuntimeSignature = '';
 
 if (!JWT_SECRET_KEY) {
     if (IS_PRODUCTION) {
@@ -69,56 +70,120 @@ if (!JWT_SECRET_KEY) {
 
 const EFFECTIVE_JWT_SECRET = JWT_SECRET_KEY || crypto.randomBytes(32).toString('hex');
 
-async function initializePushRuntime() {
-    try {
-        let subject = ENV_VAPID_SUBJECT;
-        let publicKey = ENV_VAPID_PUBLIC_KEY;
-        let privateKey = ENV_VAPID_PRIVATE_KEY;
-        let source = 'env';
+function buildPushRuntimeSignature(subject, publicKey, privateKey) {
+    return `${subject}::${publicKey}::${privateKey}`;
+}
 
-        if (!(publicKey && privateKey)) {
-            const [storedPublic, storedPrivate, storedSubject] = await Promise.all([
-                db.getAppSetting('vapid_public_key'),
-                db.getAppSetting('vapid_private_key'),
-                db.getAppSetting('vapid_subject'),
-            ]);
+function applyPushRuntimeMaterial({ subject, publicKey, privateKey, source }) {
+    webPush.setVapidDetails(subject, publicKey, privateKey);
+    pushRuntime.enabled = true;
+    pushRuntime.subject = subject;
+    pushRuntime.publicKey = publicKey;
+    pushRuntime.privateKey = privateKey;
+    pushRuntime.source = source;
+    pushRuntimeSignature = buildPushRuntimeSignature(subject, publicKey, privateKey);
+}
 
-            if (storedPublic && storedPrivate) {
-                publicKey = storedPublic;
-                privateKey = storedPrivate;
-                subject = storedSubject || subject;
-                source = 'db';
-            } else {
-                const generated = webPush.generateVAPIDKeys();
-                publicKey = generated.publicKey;
-                privateKey = generated.privateKey;
-                source = 'generated';
+async function resolvePushMaterialFromStorage() {
+    let subject = ENV_VAPID_SUBJECT;
+    let publicKey = ENV_VAPID_PUBLIC_KEY;
+    let privateKey = ENV_VAPID_PRIVATE_KEY;
+    let source = 'env';
 
-                await Promise.all([
-                    db.setAppSetting('vapid_public_key', publicKey),
-                    db.setAppSetting('vapid_private_key', privateKey),
-                    db.setAppSetting('vapid_subject', subject),
-                ]);
-            }
+    if (!(publicKey && privateKey)) {
+        const [storedPublic, storedPrivate, storedSubject] = await Promise.all([
+            db.getAppSetting('vapid_public_key'),
+            db.getAppSetting('vapid_private_key'),
+            db.getAppSetting('vapid_subject'),
+        ]);
+
+        if (!(storedPublic && storedPrivate)) {
+            return null;
         }
 
-        webPush.setVapidDetails(subject, publicKey, privateKey);
+        publicKey = storedPublic;
+        privateKey = storedPrivate;
+        subject = storedSubject || subject;
+        source = 'db';
+    }
 
-        pushRuntime.enabled = true;
-        pushRuntime.subject = subject;
-        pushRuntime.publicKey = publicKey;
-        pushRuntime.privateKey = privateKey;
-        pushRuntime.source = source;
+    return { subject, publicKey, privateKey, source };
+}
 
-        console.log(`Push notifications enabled (source: ${source}).`);
-        if (source === 'generated') {
+async function synchronizePushRuntimeFromStorage() {
+    const material = await resolvePushMaterialFromStorage();
+    if (!material) {
+        return false;
+    }
+
+    const nextSignature = buildPushRuntimeSignature(
+        material.subject,
+        material.publicKey,
+        material.privateKey,
+    );
+    if (pushRuntime.enabled && nextSignature === pushRuntimeSignature) {
+        return true;
+    }
+
+    applyPushRuntimeMaterial(material);
+    console.log(`Push notifications synchronized (source: ${material.source}).`);
+    return true;
+}
+
+async function ensurePushRuntimeReady() {
+    if (pushRuntime.enabled) {
+        try {
+            await synchronizePushRuntimeFromStorage();
+            return true;
+        } catch (error) {
+            console.warn('Push runtime re-sync failed:', error.message);
+            return true;
+        }
+    }
+
+    try {
+        const synced = await synchronizePushRuntimeFromStorage();
+        if (synced) {
+            return true;
+        }
+    } catch (error) {
+        console.warn('Push runtime sync failed:', error.message);
+    }
+
+    return false;
+}
+
+async function initializePushRuntime() {
+    try {
+        const existingMaterial = await resolvePushMaterialFromStorage();
+        if (existingMaterial) {
+            applyPushRuntimeMaterial(existingMaterial);
+            console.log(`Push notifications enabled (source: ${existingMaterial.source}).`);
+            return;
+        }
+
+        const generated = webPush.generateVAPIDKeys();
+        await Promise.all([
+            db.setAppSettingIfMissing('vapid_public_key', generated.publicKey),
+            db.setAppSettingIfMissing('vapid_private_key', generated.privateKey),
+            db.setAppSettingIfMissing('vapid_subject', ENV_VAPID_SUBJECT),
+        ]);
+
+        const synced = await synchronizePushRuntimeFromStorage();
+        if (!synced) {
+            throw new Error('Could not persist/load VAPID keys');
+        }
+
+        if (pushRuntime.source === 'db') {
             console.warn('Push VAPID keys were auto-generated and saved in DB settings.');
         }
     } catch (error) {
         pushRuntime.enabled = false;
+        pushRuntime.subject = ENV_VAPID_SUBJECT;
         pushRuntime.publicKey = '';
         pushRuntime.privateKey = '';
         pushRuntime.source = 'error';
+        pushRuntimeSignature = '';
         console.error('Push notifications init failed:', error.message);
     }
 }
@@ -319,10 +384,12 @@ app.post('/api/login', async (req, res) => {
 // Push Notification Routes
 // ----------------------
 
-app.get('/api/notifications/public-key', (req, res) => {
+app.get('/api/notifications/public-key', async (req, res) => {
+    await ensurePushRuntimeReady();
     res.json({
         enabled: pushRuntime.enabled,
         publicKey: pushRuntime.enabled ? pushRuntime.publicKey : null,
+        source: pushRuntime.source,
         reminder: {
             hour: PUSH_REMINDER_HOUR,
             minute: PUSH_REMINDER_MINUTE,
@@ -333,6 +400,7 @@ app.get('/api/notifications/public-key', (req, res) => {
 
 app.get('/api/notifications/status', authenticateToken, async (req, res) => {
     try {
+        await ensurePushRuntimeReady();
         if (!pushRuntime.enabled) {
             return res.json({
                 enabled: false,
@@ -350,6 +418,7 @@ app.get('/api/notifications/status', authenticateToken, async (req, res) => {
             enabled: true,
             subscribed: Boolean(subscription),
             endpoint: subscription?.endpoint || null,
+            source: pushRuntime.source,
             reminder: {
                 hour: PUSH_REMINDER_HOUR,
                 minute: PUSH_REMINDER_MINUTE,
@@ -363,6 +432,7 @@ app.get('/api/notifications/status', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/notifications/subscribe', authenticateToken, async (req, res) => {
+    await ensurePushRuntimeReady();
     if (!pushRuntime.enabled) {
         return res.status(503).json({ error: 'Push notifications are not configured on server' });
     }
@@ -391,6 +461,7 @@ app.post('/api/notifications/subscribe', authenticateToken, async (req, res) => 
 app.post('/api/notifications/unsubscribe', authenticateToken, async (req, res) => {
     const endpoint = String(req.body?.endpoint || '').trim();
     try {
+        await ensurePushRuntimeReady();
         if (endpoint) {
             await db.removePushSubscriptionForUser(req.user.id, endpoint);
         } else {
@@ -400,6 +471,38 @@ app.post('/api/notifications/unsubscribe', authenticateToken, async (req, res) =
     } catch (err) {
         console.error('Push unsubscribe error:', err);
         return res.status(500).json({ error: 'Failed to remove push subscription' });
+    }
+});
+
+app.post('/api/notifications/test', authenticateToken, async (req, res) => {
+    try {
+        await ensurePushRuntimeReady();
+        if (!pushRuntime.enabled) {
+            return res.status(503).json({ error: 'Push notifications are not configured on server' });
+        }
+
+        const latest = await db.getPushSubscriptionForUser(req.user.id);
+        if (!latest?.subscription_json) {
+            return res.status(404).json({ error: 'No active push subscription found for this user' });
+        }
+
+        const payload = JSON.stringify({
+            title: 'Camino',
+            body: 'Test push OK. Les rappels Daily devraient fonctionner.',
+            url: '/',
+            tag: 'camino-push-test',
+        });
+        await webPush.sendNotification(latest.subscription_json, payload, { TTL: 60 });
+
+        return res.json({ success: true });
+    } catch (err) {
+        const statusCode = Number(err?.statusCode || 0);
+        if (statusCode === 404 || statusCode === 410) {
+            await db.removeAllPushSubscriptionsForUser(req.user.id);
+            return res.status(410).json({ error: 'Push subscription expired. Re-enable reminders.' });
+        }
+        console.error('Push test send error:', err);
+        return res.status(500).json({ error: 'Failed to send test push notification' });
     }
 });
 
@@ -759,42 +862,45 @@ async function sendDailyReminderPushesForDate(dateStr) {
     return { sent, removed, failed };
 }
 
-let lastReminderMinuteKey = '';
+let lastReminderDateKey = '';
+
+function hasReachedReminderTime(nowParts) {
+    return (
+        nowParts.hour > PUSH_REMINDER_HOUR ||
+        (nowParts.hour === PUSH_REMINDER_HOUR && nowParts.minute >= PUSH_REMINDER_MINUTE)
+    );
+}
 
 async function runPushReminderSchedulerTick() {
+    await ensurePushRuntimeReady();
     if (!pushRuntime.enabled) {
         return;
     }
 
     const nowParts = getTimePartsInZone(new Date(), PUSH_REMINDER_TIMEZONE);
-    const isReminderTime =
-        nowParts.hour === PUSH_REMINDER_HOUR &&
-        nowParts.minute === PUSH_REMINDER_MINUTE;
-
-    if (!isReminderTime) {
+    if (!hasReachedReminderTime(nowParts)) {
         return;
     }
 
-    const minuteKey = `${nowParts.dateStr}T${String(nowParts.hour).padStart(2, '0')}:${String(nowParts.minute).padStart(2, '0')}`;
-    if (minuteKey === lastReminderMinuteKey) {
+    if (nowParts.dateStr === lastReminderDateKey) {
         return;
     }
-    lastReminderMinuteKey = minuteKey;
 
     try {
         const result = await sendDailyReminderPushesForDate(nowParts.dateStr);
+        lastReminderDateKey = nowParts.dateStr;
         console.log(
             `[Push Daily ${nowParts.dateStr}] sent=${result.sent} removed=${result.removed} failed=${result.failed}`
         );
     } catch (err) {
+        lastReminderDateKey = '';
         console.error('Daily push scheduler error:', err);
     }
 }
 
 function startPushReminderScheduler() {
     if (!pushRuntime.enabled) {
-        console.warn('Push reminder scheduler disabled: push runtime is not ready.');
-        return;
+        console.warn('Push reminder scheduler starting in degraded mode: push runtime is not ready yet.');
     }
     runPushReminderSchedulerTick().catch((err) => {
         console.error('Initial push scheduler tick failed:', err);
@@ -804,12 +910,43 @@ function startPushReminderScheduler() {
             console.error('Push scheduler tick failed:', err);
         });
     }, 30 * 1000);
-    console.log(`Push reminder scheduler enabled at ${String(PUSH_REMINDER_HOUR).padStart(2, '0')}:${String(PUSH_REMINDER_MINUTE).padStart(2, '0')} (${PUSH_REMINDER_TIMEZONE}).`);
+    console.log(`Push reminder scheduler enabled from ${String(PUSH_REMINDER_HOUR).padStart(2, '0')}:${String(PUSH_REMINDER_MINUTE).padStart(2, '0')} (${PUSH_REMINDER_TIMEZONE}).`);
 }
 
 // ----------------------
 // Admin Routes (Temporary for DB cleanup)
 // ----------------------
+app.post('/api/admin/push/send-daily-now', requireAdminApiKey, async (req, res) => {
+    try {
+        await ensurePushRuntimeReady();
+        if (!pushRuntime.enabled) {
+            return res.status(503).json({ error: 'Push notifications are not configured on server' });
+        }
+
+        const dateInput = String(req.body?.date || '').trim();
+        const fallbackDate = getTimePartsInZone(new Date(), PUSH_REMINDER_TIMEZONE).dateStr;
+        const targetDate = dateInput || fallbackDate;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+            return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+        }
+
+        const result = await sendDailyReminderPushesForDate(targetDate);
+        if (targetDate === fallbackDate) {
+            lastReminderDateKey = targetDate;
+        }
+
+        return res.json({
+            success: true,
+            date: targetDate,
+            result,
+            runtimeSource: pushRuntime.source,
+        });
+    } catch (err) {
+        console.error('Admin push trigger error:', err);
+        return res.status(500).json({ error: 'Failed to trigger push notifications' });
+    }
+});
+
 app.post('/api/admin/clean-leaderboard', requireAdminApiKey, async (req, res) => {
     try {
         await db.clearAllScores();

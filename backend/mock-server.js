@@ -7,6 +7,22 @@ app.use(express.json());
 
 app.post('/api/login', (req, res) => res.json({ token: 'fake-token' }));
 app.get('/api/profile', (req, res) => res.json({ username: 'testuser' }));
+app.get('/api/notifications/public-key', (req, res) =>
+    res.json({
+        enabled: false,
+        publicKey: null,
+        reminder: { hour: 10, minute: 0, timezone: 'Europe/Paris' },
+    }),
+);
+app.get('/api/notifications/status', (req, res) =>
+    res.json({
+        enabled: false,
+        subscribed: false,
+        reminder: { hour: 10, minute: 0, timezone: 'Europe/Paris' },
+    }),
+);
+app.post('/api/notifications/subscribe', (req, res) => res.status(503).json({ error: 'Push disabled on mock server' }));
+app.post('/api/notifications/unsubscribe', (req, res) => res.json({ success: true }));
 
 app.get('/api/leaderboards', (req, res) => {
     res.json({

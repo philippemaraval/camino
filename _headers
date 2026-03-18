@@ -1,3 +1,8 @@
+# Service worker: always fetch latest, never long-cache
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+
 # GeoJSON data files: cache 1 week (data changes via OSM sync + redeploy)
 /data/*
   Cache-Control: public, max-age=604800, immutable

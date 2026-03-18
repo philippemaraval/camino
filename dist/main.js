@@ -991,6 +991,7 @@
           <div class="profile-notification-actions">
             <button type="button" id="daily-reminder-enable-btn" class="btn-secondary">Activer le rappel</button>
             <button type="button" id="daily-reminder-disable-btn" class="btn-tertiary hidden">D\xE9sactiver</button>
+            <button type="button" id="daily-reminder-test-btn" class="btn-primary hidden">Tester maintenant</button>
           </div>
         </section>`;
       const badges = computeBadgesRuntime(profile, hasReachedGlobalRank2);
@@ -3390,7 +3391,8 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     return {
       statusEl: document.getElementById("daily-reminder-status"),
       enableBtn: document.getElementById("daily-reminder-enable-btn"),
-      disableBtn: document.getElementById("daily-reminder-disable-btn")
+      disableBtn: document.getElementById("daily-reminder-disable-btn"),
+      testBtn: document.getElementById("daily-reminder-test-btn")
     };
   }
   function setDailyReminderStatus(message, type = "neutral") {
@@ -3409,16 +3411,52 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   function setDailyReminderButtons({
     canEnable = false,
     canDisable = false,
+    canTest = false,
     loading = false
   } = {}) {
-    const { enableBtn, disableBtn } = getDailyReminderElements();
+    const { enableBtn, disableBtn, testBtn } = getDailyReminderElements();
     if (!enableBtn || !disableBtn) {
       return;
     }
     enableBtn.classList.toggle("hidden", !canEnable);
     disableBtn.classList.toggle("hidden", !canDisable);
+    if (testBtn) {
+      testBtn.classList.toggle("hidden", !canTest);
+      testBtn.disabled = loading;
+    }
     enableBtn.disabled = loading;
     disableBtn.disabled = loading;
+  }
+  function isAuthStatus(status) {
+    return status === 401 || status === 403;
+  }
+  async function buildApiError(response, fallbackMessage) {
+    let message = fallbackMessage;
+    try {
+      const payload = await response.json();
+      if (payload && typeof payload.error === "string" && payload.error.trim()) {
+        message = payload.error.trim();
+      }
+    } catch (error) {
+    }
+    const err = new Error(message);
+    err.status = response.status;
+    return err;
+  }
+  function getReminderErrorMessage(error, fallback) {
+    if (error && typeof error.message === "string" && error.message.trim()) {
+      return error.message.trim();
+    }
+    return fallback;
+  }
+  function handleReminderAuthError() {
+    setDailyReminderStatus("Session expir\xE9e. Reconnectez-vous pour g\xE9rer les rappels.", "error");
+    setDailyReminderButtons({
+      canEnable: false,
+      canDisable: false,
+      canTest: false,
+      loading: false
+    });
   }
   async function ensureServiceWorkerRegistration() {
     if (!("serviceWorker" in navigator)) {
@@ -3444,7 +3482,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     }
     const response = await fetch(`${API_URL}/api/notifications/public-key`);
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      throw await buildApiError(response, `HTTP ${response.status}`);
     }
     const payload = await response.json();
     notificationConfigCache = payload;
@@ -3460,7 +3498,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       }
     });
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      throw await buildApiError(response, `HTTP ${response.status}`);
     }
     return response.json();
   }
@@ -3473,7 +3511,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     setDailyReminderButtons({ loading: true });
     if (!(currentUser && currentUser.token)) {
       setDailyReminderStatus("Connectez-vous pour g\xE9rer le rappel Daily.", "error");
-      setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
+      setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
       return;
     }
     if (requiresInstalledAppForMobilePush()) {
@@ -3481,25 +3519,28 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         "Sur iPhone/iPad, installe Camino via \u201CAjouter \xE0 l\u2019\xE9cran d\u2019accueil\u201D pour activer les notifications.",
         "error"
       );
-      setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
+      setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
       return;
     }
     if (!isPushReminderSupported()) {
       setDailyReminderStatus("Notifications push non disponibles sur ce navigateur.", "error");
-      setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
+      setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
       return;
     }
     let config;
     try {
       config = await getNotificationConfig();
     } catch (error) {
-      setDailyReminderStatus("Impossible de charger la config des notifications.", "error");
-      setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
+      setDailyReminderStatus(
+        `Impossible de charger la config des notifications: ${getReminderErrorMessage(error, "erreur serveur")}.`,
+        "error"
+      );
+      setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
       return;
     }
     if (!(config == null ? void 0 : config.enabled) || !(config == null ? void 0 : config.publicKey)) {
       setDailyReminderStatus("Rappels indisponibles: configuration serveur manquante.", "error");
-      setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
+      setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
       return;
     }
     const scheduleLabel = formatReminderTimeLabel(config.reminder || DEFAULT_REMINDER_CONFIG);
@@ -3511,7 +3552,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     }
     if (!registration) {
       setDailyReminderStatus("Service worker indisponible. Rechargez la page.", "error");
-      setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
+      setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
       return;
     }
     try {
@@ -3522,14 +3563,21 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       const isSubscribed = Boolean((serverStatus == null ? void 0 : serverStatus.subscribed) && browserSubscription);
       if (isSubscribed) {
         setDailyReminderStatus(`Rappel actif tous les jours \xE0 ${scheduleLabel}.`, "success");
-        setDailyReminderButtons({ canEnable: false, canDisable: true, loading: false });
+        setDailyReminderButtons({ canEnable: false, canDisable: true, canTest: true, loading: false });
       } else {
         setDailyReminderStatus(`Rappel inactif. Active-le pour ${scheduleLabel}.`);
-        setDailyReminderButtons({ canEnable: true, canDisable: false, loading: false });
+        setDailyReminderButtons({ canEnable: true, canDisable: false, canTest: false, loading: false });
       }
     } catch (error) {
-      setDailyReminderStatus("Impossible de lire le statut du rappel.", "error");
-      setDailyReminderButtons({ canEnable: true, canDisable: false, loading: false });
+      if (isAuthStatus(error == null ? void 0 : error.status)) {
+        handleReminderAuthError();
+        return;
+      }
+      setDailyReminderStatus(
+        `Impossible de lire le statut du rappel: ${getReminderErrorMessage(error, "erreur serveur")}.`,
+        "error"
+      );
+      setDailyReminderButtons({ canEnable: true, canDisable: false, canTest: false, loading: false });
     }
   }
   async function enableDailyReminder() {
@@ -3542,7 +3590,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         "Installe Camino sur l\u2019\xE9cran d\u2019accueil pour activer les notifications sur iPhone/iPad.",
         "error"
       );
-      setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
+      setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
       showMessage(
         "Sur iPhone/iPad, les notifications push n\xE9cessitent la version install\xE9e (Ajouter \xE0 l\u2019\xE9cran d\u2019accueil).",
         "warning"
@@ -3558,7 +3606,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
       if (permission !== "granted") {
         setDailyReminderStatus("Autorisation de notification refus\xE9e.", "error");
-        setDailyReminderButtons({ canEnable: true, canDisable: false, loading: false });
+        setDailyReminderButtons({ canEnable: true, canDisable: false, canTest: false, loading: false });
         return;
       }
       const registration = await ensureServiceWorkerRegistration();
@@ -3581,13 +3629,18 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         body: JSON.stringify({ subscription })
       });
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        throw await buildApiError(response, `HTTP ${response.status}`);
       }
       const scheduleLabel = formatReminderTimeLabel(config.reminder || DEFAULT_REMINDER_CONFIG);
       showMessage(`Rappel Daily activ\xE9 pour ${scheduleLabel}.`, "success");
     } catch (error) {
       console.warn("Enable daily reminder failed:", error);
-      showMessage("Impossible d'activer le rappel Daily.", "error");
+      if (isAuthStatus(error == null ? void 0 : error.status)) {
+        handleReminderAuthError();
+        showMessage("Session expir\xE9e. Reconnectez-vous puis r\xE9essayez.", "warning");
+      } else {
+        showMessage(`Impossible d'activer le rappel Daily: ${getReminderErrorMessage(error, "erreur serveur")}.`, "error");
+      }
     }
     await refreshDailyReminderControls();
   }
@@ -3608,6 +3661,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         body: JSON.stringify({
           endpoint: (subscription == null ? void 0 : subscription.endpoint) || ""
         })
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw await buildApiError(response, `HTTP ${response.status}`);
+        }
       });
       if (subscription) {
         await subscription.unsubscribe().catch(() => {
@@ -3616,12 +3673,46 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       showMessage("Rappel Daily d\xE9sactiv\xE9.", "info");
     } catch (error) {
       console.warn("Disable daily reminder failed:", error);
-      showMessage("Impossible de d\xE9sactiver le rappel Daily.", "error");
+      if (isAuthStatus(error == null ? void 0 : error.status)) {
+        handleReminderAuthError();
+        showMessage("Session expir\xE9e. Reconnectez-vous puis r\xE9essayez.", "warning");
+      } else {
+        showMessage(`Impossible de d\xE9sactiver le rappel Daily: ${getReminderErrorMessage(error, "erreur serveur")}.`, "error");
+      }
+    }
+    await refreshDailyReminderControls();
+  }
+  async function sendDailyReminderTestNotification() {
+    if (!(currentUser && currentUser.token)) {
+      showMessage("Connectez-vous pour envoyer un test de notification.", "warning");
+      return;
+    }
+    setDailyReminderButtons({ loading: true });
+    try {
+      const response = await fetch(`${API_URL}/api/notifications/test`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentUser.token}`
+        }
+      });
+      if (!response.ok) {
+        throw await buildApiError(response, `HTTP ${response.status}`);
+      }
+      showMessage("Notification test envoy\xE9e. V\xE9rifiez la r\xE9ception sur cet appareil.", "success");
+    } catch (error) {
+      console.warn("Send test notification failed:", error);
+      if (isAuthStatus(error == null ? void 0 : error.status)) {
+        handleReminderAuthError();
+        showMessage("Session expir\xE9e. Reconnectez-vous puis r\xE9essayez.", "warning");
+      } else {
+        showMessage(`Impossible d'envoyer la notification test: ${getReminderErrorMessage(error, "erreur serveur")}.`, "error");
+      }
     }
     await refreshDailyReminderControls();
   }
   function initDailyReminderControls() {
-    const { enableBtn, disableBtn } = getDailyReminderElements();
+    const { enableBtn, disableBtn, testBtn } = getDailyReminderElements();
     if (!enableBtn || !disableBtn) {
       return;
     }
@@ -3635,6 +3726,13 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         console.warn("Disable reminder handler failed:", error);
       });
     };
+    if (testBtn) {
+      testBtn.onclick = () => {
+        sendDailyReminderTestNotification().catch((error) => {
+          console.warn("Test reminder handler failed:", error);
+        });
+      };
+    }
     refreshDailyReminderControls().catch((error) => {
       console.warn("Refresh reminder controls failed:", error);
     });
