@@ -474,38 +474,6 @@ app.post('/api/notifications/unsubscribe', authenticateToken, async (req, res) =
     }
 });
 
-app.post('/api/notifications/test', authenticateToken, async (req, res) => {
-    try {
-        await ensurePushRuntimeReady();
-        if (!pushRuntime.enabled) {
-            return res.status(503).json({ error: 'Push notifications are not configured on server' });
-        }
-
-        const latest = await db.getPushSubscriptionForUser(req.user.id);
-        if (!latest?.subscription_json) {
-            return res.status(404).json({ error: 'No active push subscription found for this user' });
-        }
-
-        const payload = JSON.stringify({
-            title: 'Camino',
-            body: 'Test push OK. Les rappels Daily devraient fonctionner.',
-            url: '/',
-            tag: 'camino-push-test',
-        });
-        await webPush.sendNotification(latest.subscription_json, payload, { TTL: 60 });
-
-        return res.json({ success: true });
-    } catch (err) {
-        const statusCode = Number(err?.statusCode || 0);
-        if (statusCode === 404 || statusCode === 410) {
-            await db.removeAllPushSubscriptionsForUser(req.user.id);
-            return res.status(410).json({ error: 'Push subscription expired. Re-enable reminders.' });
-        }
-        console.error('Push test send error:', err);
-        return res.status(500).json({ error: 'Failed to send test push notification' });
-    }
-});
-
 // ----------------------
 // Score / Leaderboard Routes
 // ----------------------

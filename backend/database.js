@@ -412,18 +412,6 @@ async function getPushSubscriptionStatusForUser(userId) {
   return res.rows[0] || null;
 }
 
-async function getPushSubscriptionForUser(userId) {
-  const res = await pool.query(
-    `SELECT endpoint, subscription_json, enabled, updated_at
-     FROM push_subscriptions
-     WHERE user_id = $1 AND enabled = TRUE
-     ORDER BY updated_at DESC
-     LIMIT 1`,
-    [userId]
-  );
-  return res.rows[0] || null;
-}
-
 async function removePushSubscriptionForUser(userId, endpoint) {
   const normalizedEndpoint = String(endpoint || '').trim();
   if (!normalizedEndpoint) {
@@ -897,7 +885,6 @@ module.exports = {
   getDailyLeaderboard,
   upsertPushSubscription,
   getPushSubscriptionStatusForUser,
-  getPushSubscriptionForUser,
   removePushSubscriptionForUser,
   removeAllPushSubscriptionsForUser,
   removePushSubscriptionByEndpoint,

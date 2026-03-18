@@ -169,7 +169,6 @@ function getDailyReminderElements() {
     statusEl: document.getElementById("daily-reminder-status"),
     enableBtn: document.getElementById("daily-reminder-enable-btn"),
     disableBtn: document.getElementById("daily-reminder-disable-btn"),
-    testBtn: document.getElementById("daily-reminder-test-btn"),
   };
 }
 
@@ -190,19 +189,14 @@ function setDailyReminderStatus(message, type = "neutral") {
 function setDailyReminderButtons({
   canEnable = false,
   canDisable = false,
-  canTest = false,
   loading = false,
 } = {}) {
-  const { enableBtn, disableBtn, testBtn } = getDailyReminderElements();
+  const { enableBtn, disableBtn } = getDailyReminderElements();
   if (!enableBtn || !disableBtn) {
     return;
   }
   enableBtn.classList.toggle("hidden", !canEnable);
   disableBtn.classList.toggle("hidden", !canDisable);
-  if (testBtn) {
-    testBtn.classList.toggle("hidden", !canTest);
-    testBtn.disabled = loading;
-  }
   enableBtn.disabled = loading;
   disableBtn.disabled = loading;
 }
@@ -238,7 +232,6 @@ function handleReminderAuthError() {
   setDailyReminderButtons({
     canEnable: false,
     canDisable: false,
-    canTest: false,
     loading: false,
   });
 }
@@ -310,7 +303,7 @@ async function refreshDailyReminderControls() {
 
   if (!(currentUser && currentUser.token)) {
     setDailyReminderStatus("Connectez-vous pour gérer le rappel Daily.", "error");
-    setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
+    setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
     return;
   }
 
@@ -319,13 +312,13 @@ async function refreshDailyReminderControls() {
       "Sur iPhone/iPad, installe Camino via “Ajouter à l’écran d’accueil” pour activer les notifications.",
       "error",
     );
-    setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
+    setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
     return;
   }
 
   if (!isPushReminderSupported()) {
     setDailyReminderStatus("Notifications push non disponibles sur ce navigateur.", "error");
-    setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
+    setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
     return;
   }
 
@@ -337,13 +330,13 @@ async function refreshDailyReminderControls() {
       `Impossible de charger la config des notifications: ${getReminderErrorMessage(error, "erreur serveur")}.`,
       "error",
     );
-    setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
+    setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
     return;
   }
 
   if (!config?.enabled || !config?.publicKey) {
     setDailyReminderStatus("Rappels indisponibles: configuration serveur manquante.", "error");
-    setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
+    setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
     return;
   }
 
@@ -358,7 +351,7 @@ async function refreshDailyReminderControls() {
 
   if (!registration) {
     setDailyReminderStatus("Service worker indisponible. Rechargez la page.", "error");
-    setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
+    setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
     return;
   }
 
@@ -371,10 +364,10 @@ async function refreshDailyReminderControls() {
     const isSubscribed = Boolean(serverStatus?.subscribed && browserSubscription);
     if (isSubscribed) {
       setDailyReminderStatus(`Rappel actif tous les jours à ${scheduleLabel}.`, "success");
-      setDailyReminderButtons({ canEnable: false, canDisable: true, canTest: true, loading: false });
+      setDailyReminderButtons({ canEnable: false, canDisable: true, loading: false });
     } else {
       setDailyReminderStatus(`Rappel inactif. Active-le pour ${scheduleLabel}.`);
-      setDailyReminderButtons({ canEnable: true, canDisable: false, canTest: false, loading: false });
+      setDailyReminderButtons({ canEnable: true, canDisable: false, loading: false });
     }
   } catch (error) {
     if (isAuthStatus(error?.status)) {
@@ -385,7 +378,7 @@ async function refreshDailyReminderControls() {
       `Impossible de lire le statut du rappel: ${getReminderErrorMessage(error, "erreur serveur")}.`,
       "error",
     );
-    setDailyReminderButtons({ canEnable: true, canDisable: false, canTest: false, loading: false });
+    setDailyReminderButtons({ canEnable: true, canDisable: false, loading: false });
   }
 }
 
@@ -400,7 +393,7 @@ async function enableDailyReminder() {
       "Installe Camino sur l’écran d’accueil pour activer les notifications sur iPhone/iPad.",
       "error",
     );
-    setDailyReminderButtons({ canEnable: false, canDisable: false, canTest: false, loading: false });
+    setDailyReminderButtons({ canEnable: false, canDisable: false, loading: false });
     showMessage(
       "Sur iPhone/iPad, les notifications push nécessitent la version installée (Ajouter à l’écran d’accueil).",
       "warning",
@@ -423,7 +416,7 @@ async function enableDailyReminder() {
 
     if (permission !== "granted") {
       setDailyReminderStatus("Autorisation de notification refusée.", "error");
-      setDailyReminderButtons({ canEnable: true, canDisable: false, canTest: false, loading: false });
+      setDailyReminderButtons({ canEnable: true, canDisable: false, loading: false });
       return;
     }
 
@@ -512,41 +505,8 @@ async function disableDailyReminder() {
   await refreshDailyReminderControls();
 }
 
-async function sendDailyReminderTestNotification() {
-  if (!(currentUser && currentUser.token)) {
-    showMessage("Connectez-vous pour envoyer un test de notification.", "warning");
-    return;
-  }
-
-  setDailyReminderButtons({ loading: true });
-
-  try {
-    const response = await fetch(`${API_URL}/api/notifications/test`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${currentUser.token}`,
-      },
-    });
-    if (!response.ok) {
-      throw await buildApiError(response, `HTTP ${response.status}`);
-    }
-    showMessage("Notification test envoyée. Vérifiez la réception sur cet appareil.", "success");
-  } catch (error) {
-    console.warn("Send test notification failed:", error);
-    if (isAuthStatus(error?.status)) {
-      handleReminderAuthError();
-      showMessage("Session expirée. Reconnectez-vous puis réessayez.", "warning");
-    } else {
-      showMessage(`Impossible d'envoyer la notification test: ${getReminderErrorMessage(error, "erreur serveur")}.`, "error");
-    }
-  }
-
-  await refreshDailyReminderControls();
-}
-
 function initDailyReminderControls() {
-  const { enableBtn, disableBtn, testBtn } = getDailyReminderElements();
+  const { enableBtn, disableBtn } = getDailyReminderElements();
   if (!enableBtn || !disableBtn) {
     return;
   }
@@ -562,14 +522,6 @@ function initDailyReminderControls() {
       console.warn("Disable reminder handler failed:", error);
     });
   };
-
-  if (testBtn) {
-    testBtn.onclick = () => {
-      sendDailyReminderTestNotification().catch((error) => {
-        console.warn("Test reminder handler failed:", error);
-      });
-    };
-  }
 
   refreshDailyReminderControls().catch((error) => {
     console.warn("Refresh reminder controls failed:", error);
