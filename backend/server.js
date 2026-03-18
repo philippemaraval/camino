@@ -262,13 +262,20 @@ db.initDb().then(async () => {
 // ----------------------
 
 function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
 
-    if (!token) return res.sendStatus(401);
+    if (!token) {
+        return res.status(401).json({ error: 'Missing authentication token', code: 'AUTH_TOKEN_MISSING' });
+    }
 
     jwt.verify(token, EFFECTIVE_JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403);
+        if (err) {
+            if (err.name === 'TokenExpiredError') {
+                return res.status(403).json({ error: 'Session expired', code: 'AUTH_TOKEN_EXPIRED' });
+            }
+            return res.status(403).json({ error: 'Invalid authentication token', code: 'AUTH_TOKEN_INVALID' });
+        }
         req.user = user;
         next();
     });

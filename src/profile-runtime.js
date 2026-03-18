@@ -167,6 +167,10 @@ function getProfileErrorMessage(error) {
   return raw.length > 140 ? `${raw.slice(0, 137)}...` : raw;
 }
 
+function isAuthFailureStatus(status) {
+  return status === 401 || status === 403;
+}
+
 function weightedAverage(rows, key) {
   let weightTotal = 0;
   let weightedSum = 0;
@@ -482,6 +486,7 @@ export function loadProfileRuntime({
   hasReachedGlobalRank,
   initAvatarSelector,
   onProfileRendered,
+  onAuthFailure,
 }) {
   if (!currentUser || !currentUser.token) {
     return;
@@ -501,15 +506,22 @@ export function loadProfileRuntime({
     .then(async (response) => {
       if (!response.ok) {
         let message = `HTTP ${response.status}`;
+        let errorCode = "";
         try {
           const payload = await response.json();
           if (payload && typeof payload.error === "string" && payload.error.trim()) {
             message = payload.error.trim();
           }
+          if (payload && typeof payload.code === "string" && payload.code.trim()) {
+            errorCode = payload.code.trim();
+          }
         } catch (error) {
           // Keep default HTTP message if response body is not JSON.
         }
-        throw new Error(message);
+        const httpError = new Error(message);
+        httpError.httpStatus = response.status;
+        httpError.errorCode = errorCode;
+        throw httpError;
       }
       return response.json();
     })
@@ -667,6 +679,14 @@ export function loadProfileRuntime({
       }
     })
     .catch((error) => {
+      if (isAuthFailureStatus(error?.httpStatus)) {
+        if (typeof onAuthFailure === "function") {
+          onAuthFailure(error);
+          return;
+        }
+        profileContent.innerHTML = '<p class="profile-unavailable">Session expirée. Reconnectez-vous.</p>';
+        return;
+      }
       const reason = escapeHtml(getProfileErrorMessage(error));
       console.warn("Profile error:", error?.message || error);
       profileContent.innerHTML = `<p class="profile-unavailable">Profil indisponible: ${reason}</p>`;

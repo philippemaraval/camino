@@ -2946,6 +2946,15 @@ function loadProfile() {
     hasReachedGlobalRank,
     initAvatarSelector,
     onProfileRendered: initDailyReminderControls,
+    onAuthFailure: () => {
+      if (!currentUser) {
+        return;
+      }
+      currentUser = null;
+      clearCurrentUserFromStorage();
+      updateUserUI();
+      showMessage("Session expirée, reconnectez-vous.", "warning");
+    },
   });
 }
 
