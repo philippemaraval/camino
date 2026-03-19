@@ -1163,9 +1163,11 @@ function enforceRegionalMapBounds() {
   const e = L.latLngBounds(MAP_REGION_MAX_BOUNDS);
   map.setMaxBounds(e);
   const t = map.getBoundsZoom(e, !0);
-  Number.isFinite(t) &&
-    (map.setMinZoom(t),
-      map.getZoom() < t && map.setZoom(t));
+  if (Number.isFinite(t)) {
+    const r = Math.max(0, Math.min(19, Math.floor(4 * t) / 4));
+    (map.setMinZoom(r),
+      map.getZoom() < r && map.setZoom(r));
+  }
   map.panInsideBounds(e, { animate: !1 });
 }
 function initMap() {
@@ -1174,6 +1176,11 @@ function initMap() {
       tap: !0,
       tapTolerance: IS_TOUCH_DEVICE ? 25 : 15,
       doubleTapZoom: !0,
+      scrollWheelZoom: !0,
+      zoomSnap: 0.25,
+      zoomDelta: 0.25,
+      wheelDebounceTime: 25,
+      wheelPxPerZoomLevel: 100,
       maxBounds: MAP_REGION_MAX_BOUNDS,
       maxBoundsViscosity: 1,
       renderer: L.canvas({ padding: 0.5 }),
@@ -1200,7 +1207,7 @@ function initMap() {
       collapsedHeight: 24,
     }).addTo(map);
   }
-  (enforceRegionalMapBounds(),
+  (map.whenReady(enforceRegionalMapBounds),
     map.on("resize", enforceRegionalMapBounds));
 }
 function initUI() {

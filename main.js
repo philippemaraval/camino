@@ -4219,7 +4219,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const e = L.latLngBounds(MAP_REGION_MAX_BOUNDS);
     map.setMaxBounds(e);
     const t = map.getBoundsZoom(e, true);
-    Number.isFinite(t) && (map.setMinZoom(t), map.getZoom() < t && map.setZoom(t));
+    if (Number.isFinite(t)) {
+      const r = Math.max(0, Math.min(19, Math.floor(4 * t) / 4));
+      map.setMinZoom(r), map.getZoom() < r && map.setZoom(r);
+    }
     map.panInsideBounds(e, { animate: false });
   }
   function initMap() {
@@ -4227,6 +4230,11 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       tap: true,
       tapTolerance: IS_TOUCH_DEVICE ? 25 : 15,
       doubleTapZoom: true,
+      scrollWheelZoom: true,
+      zoomSnap: 0.25,
+      zoomDelta: 0.25,
+      wheelDebounceTime: 25,
+      wheelPxPerZoomLevel: 100,
       maxBounds: MAP_REGION_MAX_BOUNDS,
       maxBoundsViscosity: 1,
       renderer: L.canvas({ padding: 0.5 })
@@ -4250,7 +4258,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         collapsedHeight: 24
       }).addTo(map);
     }
-    enforceRegionalMapBounds(), map.on("resize", enforceRegionalMapBounds);
+    map.whenReady(enforceRegionalMapBounds), map.on("resize", enforceRegionalMapBounds);
   }
   function initUI() {
     IS_TOUCH_DEVICE && document.body.classList.add("touch-mode"), initMobilePullToRefresh();
