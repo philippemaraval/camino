@@ -157,13 +157,13 @@ body.desktop-map-widgets #map-overlay-widgets {
 .map-widget-slot--street {
   left: 16px;
   bottom: 16px;
-  width: min(430px, calc(100% - 32px));
+  width: min(340px, calc(100% - 32px));
 }
 
 .map-widget-slot--performance {
   right: 16px;
   top: 16px;
-  width: min(332px, calc(100% - 32px));
+  width: min(270px, calc(100% - 32px));
 }
 
 .map-widget-slot > .panel {
@@ -1462,6 +1462,104 @@ button {
 body.desktop-map-widgets #map-street-widget-slot #street-info-panel,
 body.desktop-map-widgets #map-performance-widget-slot .stats-panel {
   margin: 0;
+}
+
+body.desktop-map-widgets #map-street-widget-slot #street-info-panel {
+  max-height: 210px;
+  padding: 10px 10px 9px;
+}
+
+body.desktop-map-widgets #map-street-widget-slot #street-info-panel .panel-title {
+  margin-bottom: 6px;
+}
+
+body.desktop-map-widgets #map-street-widget-slot #street-info {
+  font-size: 12px;
+  line-height: 1.35;
+  max-height: 158px;
+  overflow-y: auto;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .stats-panel {
+  padding: 9px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .panel-title {
+  margin-bottom: 7px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .stats-grid {
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .stats-column {
+  padding: 7px;
+  border-radius: 10px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .stats-subtitle {
+  font-size: 10px;
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .stats-subtitle .material-symbols-rounded {
+  font-size: 12px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .timers-row {
+  gap: 6px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .timer-block {
+  padding: 6px 6px 5px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .timer-label {
+  font-size: 9px;
+  margin-bottom: 1px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .timer-value,
+body.desktop-map-widgets #map-performance-widget-slot .weighted-score {
+  font-size: 13px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .info-block.score-block {
+  margin-bottom: 5px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .score-pill {
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .weighted-score-container {
+  padding: 6px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .weighted-score-header {
+  margin-bottom: 4px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot #weighted-score-label {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .weighted-score-progress {
+  height: 6px;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .weighted-score-meta {
+  margin-top: 5px;
+  justify-content: flex-end;
+}
+
+body.desktop-map-widgets #map-performance-widget-slot .weighted-score-legend,
+body.desktop-map-widgets #map-performance-widget-slot .weighted-score-help-wrapper {
+  display: none;
 }
 
 .user-panel details>summary {
