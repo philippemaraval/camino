@@ -3906,6 +3906,25 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   var hasAnsweredCurrentItem = false;
   var lectureStreetSearchIndex = [];
   var lectureStreetSearchMatches = [];
+  var mapWidgetsState = {
+    initialized: false,
+    originals: {
+      streetParent: null,
+      streetNextSibling: null,
+      performanceParent: null,
+      performanceNextSibling: null
+    },
+    street: {
+      hasContent: false,
+      closedByUser: false,
+      hasEnteredThisSession: false
+    },
+    performance: {
+      collapsed: false,
+      closedByUser: false,
+      hasEnteredThisSession: false
+    }
+  };
   function getSessionScoreValue(e = getGameMode()) {
     return "classique" === e ? weightedScore : correctCount;
   }
@@ -4222,7 +4241,18 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     if (!e || !t) return;
     const r = getZoneMode();
     updateStreetInfoPanelTitle(r);
-    "rues-principales" === r || "main" === r ? e.style.display = "block" : (e.style.display = "none", e.classList.remove("is-visible"), t.textContent = "", t.classList.remove("is-visible"));
+    const a = "rues-principales" === r || "main" === r || "rues-celebres" === r || "famous" === r;
+    if (!a) {
+      mapWidgetsState.street.hasContent = false, mapWidgetsState.street.closedByUser = false, e.style.display = "none", e.classList.remove("is-visible"), t.textContent = "", t.classList.remove("is-visible");
+      const { streetReopenBtn } = getMapWidgetElements();
+      streetReopenBtn && streetReopenBtn.classList.add("hidden");
+      return;
+    }
+    if (shouldUseDesktopMapWidgets()) {
+      mapWidgetsState.street.hasContent && !mapWidgetsState.street.closedByUser ? (e.style.display = "block", t.style.display = "block", e.classList.add("is-visible"), t.classList.add("is-visible")) : (e.style.display = "none", e.classList.remove("is-visible"), t.classList.remove("is-visible"));
+      return;
+    }
+    e.style.display = "block";
   }
   function getStreetInfoPanelTitle(e = getZoneMode()) {
     return "rues-celebres" === e || "famous" === e ? "Infos rues c\xE9l\xE8bres" : "Infos rues principales";
@@ -4323,7 +4353,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     })), initOnboardingBanner(), initInstallPrompt({
       isStandaloneDisplayModeFn: isStandaloneDisplayMode2,
       showMessage
-    }), loadUniqueVisitorCounter(), initHeaderQuickLinks(), initDesktopHeaderCompaction();
+    }), loadUniqueVisitorCounter(), initHeaderQuickLinks(), initDesktopHeaderCompaction(), initMapWidgets(), syncDesktopMapWidgetsLayout();
     function L2(e2) {
       const t2 = document.getElementById("offline-banner");
       t2 && (t2.style.display = e2 ? "block" : "none");
@@ -4693,6 +4723,178 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     window.addEventListener("resize", updateDesktopHeaderCompaction);
     requestAnimationFrame(updateDesktopHeaderCompaction);
   }
+  function isDesktopViewport() {
+    return window.innerWidth > DESKTOP_UI_BREAKPOINT_PX;
+  }
+  function shouldUseDesktopMapWidgets() {
+    return isDesktopViewport() && isSessionRunning && !isLectureMode && !isDailyMode;
+  }
+  function getMapWidgetElements() {
+    return {
+      overlayRoot: document.getElementById("map-overlay-widgets"),
+      streetSlot: document.getElementById("map-street-widget-slot"),
+      performanceSlot: document.getElementById("map-performance-widget-slot"),
+      streetReopenBtn: document.getElementById("map-street-widget-reopen"),
+      performancePillBtn: document.getElementById("map-performance-widget-pill"),
+      streetPanel: document.getElementById("street-info-panel"),
+      performancePanel: document.querySelector(".stats-panel"),
+      streetInfoEl: document.getElementById("street-info"),
+      streetCloseBtn: document.getElementById("street-info-widget-close"),
+      performanceCollapseBtn: document.getElementById("performance-widget-collapse"),
+      performanceCloseBtn: document.getElementById("performance-widget-close")
+    };
+  }
+  function triggerMapWidgetAnimation(el, className) {
+    if (!el) return;
+    el.classList.remove(className), el.offsetWidth, el.classList.add(className), setTimeout(() => {
+      el.classList.remove(className);
+    }, 180);
+  }
+  function getPerformanceWidgetPillModel() {
+    const mode = getGameMode();
+    if ("chrono" === mode) {
+      const totalTimeEl = document.getElementById("total-time");
+      const value = Number.parseFloat(
+        String((totalTimeEl == null ? void 0 : totalTimeEl.textContent) || "0").replace(",", ".")
+      );
+      if (!Number.isFinite(value)) {
+        return { icon: "timer", label: "Chrono", tone: "neutral" };
+      }
+      return {
+        icon: "timer",
+        label: `Chrono ${value.toFixed(1)} s`,
+        tone: value > 30 ? "good" : value > 10 ? "warn" : "danger"
+      };
+    }
+    const answered = Math.max(0, totalAnswered);
+    const ratio = answered > 0 ? correctCount / answered : 0;
+    return {
+      icon: "stars",
+      label: answered > 0 ? `Score ${correctCount}/${answered}` : "Score 0",
+      tone: answered <= 0 ? "neutral" : ratio >= 0.6 ? "good" : ratio >= 0.25 ? "warn" : "danger"
+    };
+  }
+  function updatePerformanceWidgetPill() {
+    const { performancePillBtn } = getMapWidgetElements();
+    if (!performancePillBtn) return;
+    const { icon, label, tone } = getPerformanceWidgetPillModel();
+    performancePillBtn.classList.remove(
+      "map-widget-pill--neutral",
+      "map-widget-pill--good",
+      "map-widget-pill--warn",
+      "map-widget-pill--danger"
+    );
+    performancePillBtn.classList.add(`map-widget-pill--${tone}`);
+    performancePillBtn.innerHTML = `<span class="material-symbols-rounded" aria-hidden="true">${icon}</span>${label}`;
+    performancePillBtn.setAttribute("aria-label", label);
+  }
+  function restoreWidgetToSidebar(widget, parent, nextSibling) {
+    if (!widget || !parent || widget.parentElement === parent) return;
+    nextSibling && parent.contains(nextSibling) ? parent.insertBefore(widget, nextSibling) : parent.appendChild(widget);
+  }
+  function syncDesktopMapWidgetsLayout() {
+    if (!mapWidgetsState.initialized) return;
+    const {
+      overlayRoot,
+      streetSlot,
+      performanceSlot,
+      streetReopenBtn,
+      performancePillBtn,
+      streetPanel,
+      performancePanel,
+      streetInfoEl,
+      streetCloseBtn,
+      performanceCollapseBtn,
+      performanceCloseBtn
+    } = getMapWidgetElements();
+    if (!streetSlot || !performanceSlot || !streetPanel || !performancePanel || !streetInfoEl) {
+      return;
+    }
+    const enabled = shouldUseDesktopMapWidgets();
+    document.body.classList.toggle("desktop-map-widgets", enabled);
+    overlayRoot && overlayRoot.setAttribute("aria-hidden", enabled ? "false" : "true");
+    if (!enabled) {
+      restoreWidgetToSidebar(
+        streetPanel,
+        mapWidgetsState.originals.streetParent,
+        mapWidgetsState.originals.streetNextSibling
+      );
+      restoreWidgetToSidebar(
+        performancePanel,
+        mapWidgetsState.originals.performanceParent,
+        mapWidgetsState.originals.performanceNextSibling
+      );
+      streetCloseBtn && streetCloseBtn.classList.add("hidden");
+      performanceCollapseBtn && performanceCollapseBtn.classList.add("hidden");
+      performanceCloseBtn && performanceCloseBtn.classList.add("hidden");
+      streetReopenBtn && streetReopenBtn.classList.add("hidden");
+      performancePillBtn && performancePillBtn.classList.add("hidden");
+      performancePanel.style.display = "block";
+      updateStreetInfoPanelVisibility();
+      return;
+    }
+    streetSlot.appendChild(streetPanel);
+    performanceSlot.appendChild(performancePanel);
+    streetCloseBtn && streetCloseBtn.classList.remove("hidden");
+    performanceCollapseBtn && performanceCollapseBtn.classList.remove("hidden");
+    performanceCloseBtn && performanceCloseBtn.classList.remove("hidden");
+    updatePerformanceWidgetPill();
+    if (!mapWidgetsState.street.hasContent || mapWidgetsState.street.closedByUser) {
+      streetPanel.style.display = "none", streetPanel.classList.remove("is-visible"), streetInfoEl.classList.remove("is-visible");
+    } else {
+      streetPanel.style.display = "block", streetInfoEl.style.display = "block", streetPanel.classList.add("is-visible"), streetInfoEl.classList.add("is-visible"), mapWidgetsState.street.hasEnteredThisSession || (triggerMapWidgetAnimation(streetPanel, "map-widget-enter"), mapWidgetsState.street.hasEnteredThisSession = true);
+    }
+    streetReopenBtn && streetReopenBtn.classList.toggle(
+      "hidden",
+      !(mapWidgetsState.street.closedByUser && mapWidgetsState.street.hasContent)
+    );
+    if (mapWidgetsState.performance.closedByUser) {
+      performancePanel.style.display = "none", performancePillBtn && performancePillBtn.classList.add("hidden");
+      return;
+    }
+    if (mapWidgetsState.performance.collapsed) {
+      performancePanel.style.display = "none", performancePillBtn && performancePillBtn.classList.remove("hidden");
+      return;
+    }
+    performancePanel.style.display = "block", performancePillBtn && performancePillBtn.classList.add("hidden"), mapWidgetsState.performance.hasEnteredThisSession || (triggerMapWidgetAnimation(performancePanel, "map-widget-enter"), mapWidgetsState.performance.hasEnteredThisSession = true);
+  }
+  function resetMapWidgetsSessionState() {
+    mapWidgetsState.street.hasContent = false, mapWidgetsState.street.closedByUser = false, mapWidgetsState.street.hasEnteredThisSession = false, mapWidgetsState.performance.collapsed = false, mapWidgetsState.performance.closedByUser = false, mapWidgetsState.performance.hasEnteredThisSession = false;
+    const { streetInfoEl } = getMapWidgetElements();
+    streetInfoEl && (streetInfoEl.textContent = "", streetInfoEl.classList.remove("is-visible"));
+  }
+  function initMapWidgets() {
+    if (mapWidgetsState.initialized) return;
+    const {
+      streetPanel,
+      performancePanel,
+      streetCloseBtn,
+      streetReopenBtn,
+      performanceCollapseBtn,
+      performanceCloseBtn,
+      performancePillBtn
+    } = getMapWidgetElements();
+    if (!streetPanel || !performancePanel) return;
+    mapWidgetsState.initialized = true, mapWidgetsState.originals.streetParent = streetPanel.parentElement, mapWidgetsState.originals.streetNextSibling = streetPanel.nextSibling, mapWidgetsState.originals.performanceParent = performancePanel.parentElement, mapWidgetsState.originals.performanceNextSibling = performancePanel.nextSibling;
+    streetCloseBtn && streetCloseBtn.addEventListener("click", () => {
+      mapWidgetsState.street.closedByUser = true, syncDesktopMapWidgetsLayout();
+    });
+    streetReopenBtn && streetReopenBtn.addEventListener("click", () => {
+      mapWidgetsState.street.closedByUser = false, syncDesktopMapWidgetsLayout(), triggerMapWidgetAnimation(streetPanel, "map-widget-enter");
+    });
+    performanceCollapseBtn && performanceCollapseBtn.addEventListener("click", () => {
+      mapWidgetsState.performance.collapsed = !mapWidgetsState.performance.collapsed, mapWidgetsState.performance.closedByUser = false, syncDesktopMapWidgetsLayout();
+    });
+    performanceCloseBtn && performanceCloseBtn.addEventListener("click", () => {
+      mapWidgetsState.performance.closedByUser = true, mapWidgetsState.performance.collapsed = false, syncDesktopMapWidgetsLayout();
+    });
+    performancePillBtn && performancePillBtn.addEventListener("click", () => {
+      mapWidgetsState.performance.collapsed = false, mapWidgetsState.performance.closedByUser = false, syncDesktopMapWidgetsLayout();
+    });
+    window.addEventListener("resize", () => {
+      updatePerformanceWidgetPill(), syncDesktopMapWidgetsLayout();
+    });
+  }
   function scrollSidebarToTargetPanel() {
     if (window.innerWidth >= 900) return;
     const e = document.getElementById("sidebar"), t = document.querySelector(".target-panel");
@@ -4729,6 +4931,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   }
   function startNewSession() {
     document.body.classList.remove("session-ended");
+    resetMapWidgetsSessionState();
     const e = document.getElementById("quartier-select"), t = getZoneMode(), r = getGameMode(), a = document.getElementById("street-info");
     a && (a.textContent = "", a.style.display = "none"), clearHighlight(), activeSessionId = generateSessionId(), correctCount = 0, totalAnswered = 0, summaryData = [], weightedScore = 0, errorsCount = 0, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateScoreUI(), updateTimeUI(0, 0), updateScoreMetricUI(), updateWeightedScoreUI(), updateSessionProgressBar();
     const n = document.getElementById("summary");
@@ -4892,6 +5095,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         }
       }, 200))) : (r.style.display = "none", r.__didAutoFocus = false);
     }
+    syncDesktopMapWidgetsLayout();
     updateDailyResultPanel();
   }
   function handleStreetClick(e, t, r) {
@@ -5009,7 +5213,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       name: currentTarget.properties.name,
       correct: i,
       time: s.toFixed(1)
-    }), trackAnswer(currentTarget.properties.name, getZoneMode(), i, s), updateWeightedScoreUI(), updateScoreUI(), showStreetInfo(l), !i && "marathon" === n && errorsCount >= MAX_ERRORS_MARATHON ? endSession() : (currentIndex += 1, setNewTarget());
+    }), trackAnswer(currentTarget.properties.name, getZoneMode(), i, s), updateWeightedScoreUI(), updateScoreUI(), i && showStreetInfo(l), !i && "marathon" === n && errorsCount >= MAX_ERRORS_MARATHON ? endSession() : (currentIndex += 1, setNewTarget());
   }
   function handleMonumentClick(e, t) {
     if ("monuments" !== getZoneMode()) return;
@@ -5056,8 +5260,9 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     updateStreetInfoPanelTitle(a);
     const isMain = "rues-principales" === a || "main" === a;
     const isFamous = "rues-celebres" === a || "famous" === a;
+    const { streetReopenBtn } = getMapWidgetElements();
     if (!isMain && !isFamous)
-      return t.style.display = "none", t.classList.remove("is-visible"), r.textContent = "", void r.classList.remove("is-visible");
+      return mapWidgetsState.street.hasContent = false, t.style.display = "none", t.classList.remove("is-visible"), r.textContent = "", r.classList.remove("is-visible"), void (streetReopenBtn && streetReopenBtn.classList.add("hidden"));
     const n = e.properties.name || "", s = normalizeName(n);
     let i;
     if (isMain) {
@@ -5072,8 +5277,17 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       }
     }
     if (!i)
-      return t.style.display = "none", t.classList.remove("is-visible"), r.textContent = "", void r.classList.remove("is-visible");
-    t.style.display = "block", r.style.display = "block", r.classList.remove("is-visible"), r.offsetWidth, r.innerHTML = `<strong>${n}</strong><br>${i}`, t.classList.add("is-visible"), r.classList.add("is-visible");
+      return mapWidgetsState.street.hasContent = false, t.style.display = "none", t.classList.remove("is-visible"), r.textContent = "", r.classList.remove("is-visible"), void (streetReopenBtn && streetReopenBtn.classList.add("hidden"));
+    mapWidgetsState.street.hasContent = true, r.innerHTML = `<strong>${n}</strong><br>${i}`, r.style.display = "block";
+    if (shouldUseDesktopMapWidgets()) {
+      if (mapWidgetsState.street.closedByUser) {
+        t.style.display = "none", t.classList.remove("is-visible"), r.classList.remove("is-visible"), streetReopenBtn && streetReopenBtn.classList.remove("hidden");
+        return;
+      }
+      t.style.display = "block", t.classList.add("is-visible"), r.classList.add("is-visible"), streetReopenBtn && streetReopenBtn.classList.add("hidden"), mapWidgetsState.street.hasEnteredThisSession ? triggerMapWidgetAnimation(t, "map-widget-update") : (triggerMapWidgetAnimation(t, "map-widget-enter"), mapWidgetsState.street.hasEnteredThisSession = true), syncDesktopMapWidgetsLayout();
+      return;
+    }
+    t.style.display = "block", r.classList.remove("is-visible"), r.offsetWidth, t.classList.add("is-visible"), r.classList.add("is-visible"), streetReopenBtn && streetReopenBtn.classList.add("hidden");
   }
   function trackAnswer(e, t, r, a) {
     e && fetch(API_URL + "/api/analytics/track", {
@@ -5305,13 +5519,14 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const e = document.getElementById("score"), t = document.getElementById("score-pill");
     if (!e) return;
     if (0 === totalAnswered)
-      return e.textContent = "0 / 0 (0 %)", void (t && (t.className = "score-pill score-pill--neutral"));
+      return e.textContent = "0 / 0 (0 %)", updatePerformanceWidgetPill(), void (t && (t.className = "score-pill score-pill--neutral"));
     const r = Math.round(correctCount / totalAnswered * 100);
     e.textContent = `${correctCount} / ${totalAnswered} (${r} %)`, t && (t.className = r > 50 ? "score-pill score-pill--good" : r > 0 ? "score-pill score-pill--warn" : "score-pill score-pill--neutral");
+    updatePerformanceWidgetPill();
   }
   function updateTimeUI(e, t, r) {
     const a = document.getElementById("total-time"), n = document.getElementById("street-time");
-    a && (null != r ? (a.textContent = r.toFixed(1) + " s", r > 30 ? (a.style.color = UI_THEME.timerSafe, a.classList.remove("chrono-blink")) : r > 10 ? (a.style.color = UI_THEME.timerWarn, a.classList.remove("chrono-blink")) : (a.style.color = UI_THEME.timerDanger, r <= 5 && a.classList.add("chrono-blink"))) : (a.textContent = e.toFixed(1) + " s", a.style.color = "", a.classList.remove("chrono-blink"))), n && (n.textContent = t.toFixed(1) + " s");
+    a && (null != r ? (a.textContent = r.toFixed(1) + " s", r > 30 ? (a.style.color = UI_THEME.timerSafe, a.classList.remove("chrono-blink")) : r > 10 ? (a.style.color = UI_THEME.timerWarn, a.classList.remove("chrono-blink")) : (a.style.color = UI_THEME.timerDanger, r <= 5 && a.classList.add("chrono-blink"))) : (a.textContent = e.toFixed(1) + " s", a.style.color = "", a.classList.remove("chrono-blink"))), n && (n.textContent = t.toFixed(1) + " s"), updatePerformanceWidgetPill();
   }
   function updateWeightedScoreUI() {
     const e = document.getElementById("weighted-score");
@@ -5452,6 +5667,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   var dailyGuessHistory = [];
   function startDailySession(e) {
     document.body.classList.remove("session-ended", "daily-game-over");
+    resetMapWidgetsSessionState();
     dailyTargetData = e, dailyTargetGeoJson = JSON.parse(e.targetGeoJson);
     saveDailyMetaToStorage();
     const t = e.userStatus || {};

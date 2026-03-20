@@ -265,13 +265,31 @@
 
         <!-- Panneau infos rue -->
         <section id="street-info-panel" class="panel info-panel">
-          <div id="street-info-title" class="panel-title">Infos rues principales</div>
+          <div class="panel-title panel-title--with-controls">
+            <span id="street-info-title">Infos rues principales</span>
+            <button id="street-info-widget-close" class="map-widget-control hidden" type="button"
+              aria-label="Fermer les infos rues">
+              <span class="material-symbols-rounded" aria-hidden="true">close</span>
+            </button>
+          </div>
           <div id="street-info" class="street-info"></div>
         </section>
 
         <!-- Panneau performance : chronos + score -->
         <section class="panel stats-panel">
-          <div class="panel-title">Performance</div>
+          <div class="panel-title panel-title--with-controls">
+            <span>Performance</span>
+            <span class="map-widget-controls">
+              <button id="performance-widget-collapse" class="map-widget-control hidden" type="button"
+                aria-label="Réduire le widget performance">
+                <span class="material-symbols-rounded" aria-hidden="true">remove</span>
+              </button>
+              <button id="performance-widget-close" class="map-widget-control hidden" type="button"
+                aria-label="Fermer le widget performance">
+                <span class="material-symbols-rounded" aria-hidden="true">close</span>
+              </button>
+            </span>
+          </div>
 
           <div class="stats-grid">
             <div class="stats-column stats-column--timers">
@@ -398,7 +416,20 @@
         </footer>
       </div>
     </div>
-    <div id="map"></div>
+    <div id="map-shell">
+      <div id="map"></div>
+      <div id="map-overlay-widgets" aria-hidden="true">
+        <div id="map-street-widget-slot" class="map-widget-slot map-widget-slot--street"></div>
+        <button id="map-street-widget-reopen" class="map-widget-pill map-widget-pill--street hidden" type="button">
+          <span class="material-symbols-rounded" aria-hidden="true">info</span>
+          Infos rues
+        </button>
+
+        <div id="map-performance-widget-slot" class="map-widget-slot map-widget-slot--performance"></div>
+        <button id="map-performance-widget-pill" class="map-widget-pill map-widget-pill--performance hidden"
+          type="button" aria-label="Afficher la performance"></button>
+      </div>
+    </div>
   </div>
 
   <button id="install-sticky-btn" class="install-sticky-btn hidden" type="button">
