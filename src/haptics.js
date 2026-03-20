@@ -11,13 +11,7 @@ export function updateHapticsUI() {
     return;
   }
 
-  const enabled = isHapticsEnabled();
-  const icon = button.querySelector(".material-symbols-rounded");
-  icon && (icon.textContent = enabled ? "vibration" : "smartphone");
-  button.setAttribute(
-    "aria-label",
-    enabled ? "Désactiver les vibrations" : "Activer les vibrations",
-  );
+  button.textContent = isHapticsEnabled() ? "📳" : "📴";
 }
 
 export function triggerHaptic(type = "click") {

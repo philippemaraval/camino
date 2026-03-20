@@ -75,9 +75,7 @@ export function syncSoundToggleUI() {
     return;
   }
 
-  const icon = button.querySelector(".material-symbols-rounded");
-  icon && (icon.textContent = soundEnabled ? "volume_up" : "volume_off");
-  button.setAttribute("aria-label", soundEnabled ? "Désactiver le son" : "Activer le son");
+  button.textContent = soundEnabled ? "🔊" : "🔇";
 }
 
 export function toggleSound() {

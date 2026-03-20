@@ -2003,13 +2003,7 @@
     if (!button) {
       return;
     }
-    const enabled = isHapticsEnabled();
-    const icon = button.querySelector(".material-symbols-rounded");
-    icon && (icon.textContent = enabled ? "vibration" : "smartphone");
-    button.setAttribute(
-      "aria-label",
-      enabled ? "D\xE9sactiver les vibrations" : "Activer les vibrations"
-    );
+    button.textContent = isHapticsEnabled() ? "\u{1F4F3}" : "\u{1F4F4}";
   }
   function triggerHaptic(type = "click") {
     if (!isHapticsEnabled() || !navigator.vibrate) {
@@ -2097,9 +2091,7 @@
     if (!button) {
       return;
     }
-    const icon = button.querySelector(".material-symbols-rounded");
-    icon && (icon.textContent = soundEnabled ? "volume_up" : "volume_off");
-    button.setAttribute("aria-label", soundEnabled ? "D\xE9sactiver le son" : "Activer le son");
+    button.textContent = soundEnabled ? "\u{1F50A}" : "\u{1F507}";
   }
   function toggleSound() {
     soundEnabled = !soundEnabled;
@@ -2865,7 +2857,7 @@ Essaie de faire mieux sur ${host}`;
           console.error("Error with Hint 1:", error);
         }
         if (guessCount >= 4 && quartierName) {
-          html += `<div class="daily-hint">Quartier : <strong>${quartierName}</strong></div>`;
+          html += `<div class="daily-hint">\u{1F3D8}\uFE0F Quartier : <strong>${quartierName}</strong></div>`;
         }
         if (guessCount >= 6 && dailyTargetData2.streetName) {
           try {
@@ -2876,7 +2868,7 @@ Essaie de faire mieux sur ${host}`;
             );
             if (lengthMeters > 0) {
               const lengthLabel = lengthMeters >= 1e3 ? `${(lengthMeters / 1e3).toFixed(1)} km` : `${Math.round(lengthMeters)} m`;
-              html += `<div class="daily-hint">Longueur : <strong>~ ${lengthLabel}</strong></div>`;
+              html += `<div class="daily-hint">\u{1F4CF} Longueur : <strong>~ ${lengthLabel}</strong></div>`;
             }
           } catch (error) {
             console.error("Error with Hint 3:", error);
@@ -2907,9 +2899,9 @@ Essaie de faire mieux sur ${host}`;
       const targetPanelTitle = document.getElementById("target-panel-title");
       if (targetPanelTitle) {
         if (userStatus.success) {
-          targetPanelTitle.textContent = "D\xE9fi r\xE9ussi !";
+          targetPanelTitle.textContent = "\u{1F389} D\xE9fi r\xE9ussi !";
         } else {
-          targetPanelTitle.textContent = remaining <= 0 ? "D\xE9fi \xE9chou\xE9" : `D\xE9fi quotidien \u2014 ${remaining} essai${remaining > 1 ? "s" : ""} restant${remaining > 1 ? "s" : ""}`;
+          targetPanelTitle.textContent = remaining <= 0 ? "\u274C D\xE9fi \xE9chou\xE9" : `\u{1F3AF} D\xE9fi quotidien \u2014 ${remaining} essai${remaining > 1 ? "s" : ""} restant${remaining > 1 ? "s" : ""}`;
         }
       }
     }
@@ -2917,7 +2909,7 @@ Essaie de faire mieux sur ${host}`;
     if (triesCounter) {
       if (isDailyMode2) {
         triesCounter.style.display = "flex";
-        triesCounter.textContent = `${attempts} / 7 essais`;
+        triesCounter.innerHTML = `<span>\u{1F3AF}</span> ${attempts} / 7 essais`;
       } else {
         triesCounter.style.display = "none";
       }
@@ -3281,7 +3273,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     let html = "";
     if (isSuccess) {
       const attempts = result.attempts;
-      html += `<div class="daily-result daily-result--success">Bravo, vous avez trouv\xE9 la rue en ${attempts} essai${attempts > 1 ? "s" : ""} !</div>`;
+      html += `<div class="daily-result daily-result--success">\u{1F389} Bravo, vous avez trouv\xE9 la rue en ${attempts} essai${attempts > 1 ? "s" : ""} !</div>`;
     } else {
       const minDistance = Math.min(...guesses.map((guess) => guess.distance));
       const minDistanceLabel = minDistance >= 1e3 ? `${(minDistance / 1e3).toFixed(1)} km` : `${Math.round(minDistance)} m`;
@@ -3289,8 +3281,8 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       html += `<div class="daily-result daily-result--fail">Votre meilleur score est ${minDistanceLabel} en sept essais.<br>La rue cible \xE9tait \xAB ${targetStreetName} \xBB.</div>`;
     }
     html += '<div class="daily-share-buttons">';
-    html += '<button id="daily-share-text" class="btn-secondary daily-share-btn">Copier le texte</button>';
-    html += `<button id="daily-share-image" class="btn-primary daily-share-btn">Partager l'image</button>`;
+    html += '<button id="daily-share-text" class="btn-secondary daily-share-btn">\u{1F4CB} Copier le texte</button>';
+    html += `<button id="daily-share-image" class="btn-primary daily-share-btn">\u{1F4F8} Partager l'image</button>`;
     html += "</div>";
     html += `<p class="daily-share-hint">L'image est plus impactante sur les r\xE9seaux !</p>`;
     content.innerHTML = html;
@@ -3418,14 +3410,6 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     [43.425, 5.64]
     // NE: zone marseillaise jusqu'à La Ciotat / Les Pennes-Mirabeau
   ];
-  var DESKTOP_UI_BREAKPOINT_PX = 900;
-  var HEADER_COMPACT_SCROLL_THRESHOLD_PX = 16;
-  var MESSAGE_ICON_BY_TYPE = {
-    success: "check_circle",
-    error: "error",
-    warning: "warning",
-    info: "info"
-  };
   var swRegistrationPromise = null;
   var notificationConfigCache = null;
   async function loadStreetInfos() {
@@ -4323,7 +4307,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     })), initOnboardingBanner(), initInstallPrompt({
       isStandaloneDisplayModeFn: isStandaloneDisplayMode2,
       showMessage
-    }), loadUniqueVisitorCounter(), initHeaderQuickLinks(), initDesktopHeaderCompaction();
+    }), loadUniqueVisitorCounter();
     function L2(e2) {
       const t2 = document.getElementById("offline-banner");
       t2 && (t2.style.display = e2 ? "block" : "none");
@@ -4410,13 +4394,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const C = document.getElementById("toggle-password");
     C && m && C.addEventListener("click", () => {
       const e2 = "password" === m.type;
-      m.type = e2 ? "text" : "password";
-      const t2 = C.querySelector(".material-symbols-rounded");
-      t2 && (t2.textContent = e2 ? "visibility_off" : "visibility");
-      C.setAttribute(
-        "aria-label",
-        e2 ? "Masquer le mot de passe" : "Afficher le mot de passe"
-      );
+      m.type = e2 ? "text" : "password", C.textContent = e2 ? "\u{1F648}" : "\u{1F441}";
     }), o && o.addEventListener("click", async () => {
       E("", "");
       const e2 = ((c == null ? void 0 : c.value) || "").trim(), t2 = (m == null ? void 0 : m.value) || "";
@@ -4491,17 +4469,11 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       requestAnimationFrame(e);
     });
   }
-  function stripLeadingEmojiDecorators(message) {
-    return String(message || "").replace(/^\s*[\p{Extended_Pictographic}\uFE0F\u200D]+\s*/u, "").trimStart();
-  }
   function showMessage(e, t) {
     const r = document.getElementById("message");
-    if (!r) return;
-    const a = "success" === t || "error" === t || "warning" === t ? t : "info";
-    const n = stripLeadingEmojiDecorators(e);
-    r.className = "message", r.classList.add(`message--${a}`), r.dataset.icon = MESSAGE_ICON_BY_TYPE[a] || MESSAGE_ICON_BY_TYPE.info, r.textContent = n || String(e || ""), r.classList.add("message--visible"), null !== messageTimeoutId && clearTimeout(messageTimeoutId), messageTimeoutId = setTimeout(() => {
+    r && (r.className = "message", "success" === t ? r.classList.add("message--success") : "error" === t ? r.classList.add("message--error") : r.classList.add("message--info"), r.textContent = e, r.classList.add("message--visible"), null !== messageTimeoutId && clearTimeout(messageTimeoutId), messageTimeoutId = setTimeout(() => {
       r.classList.remove("message--visible"), messageTimeoutId = null;
-    }, 3e3);
+    }, 3e3));
   }
   function clearSessionShareSlot() {
     const e = document.getElementById("session-share-slot");
@@ -4645,54 +4617,6 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       }
     });
   }
-  function scrollSidebarToElement(selector, { openDetails = false } = {}) {
-    const sidebar = document.getElementById("sidebar");
-    const target = document.querySelector(selector);
-    if (!sidebar || !target) return;
-    const sidebarRect = sidebar.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    const nextTop = sidebar.scrollTop + targetRect.top - sidebarRect.top - 84;
-    sidebar.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
-    if (openDetails) {
-      const details = target.querySelector("details");
-      details && !details.open && (details.open = true);
-    }
-  }
-  function initHeaderQuickLinks() {
-    const links = document.querySelectorAll(".header-nav-link[data-nav-target]");
-    links.forEach((link) => {
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        const selector = link.getAttribute("data-nav-target");
-        if (!selector) return;
-        scrollSidebarToElement(selector, {
-          openDetails: selector === ".user-panel"
-        });
-      });
-    });
-  }
-  function updateDesktopHeaderCompaction() {
-    const header = document.querySelector(".header-panel");
-    const sidebar = document.getElementById("sidebar");
-    if (!header || !sidebar) return;
-    if (window.innerWidth <= DESKTOP_UI_BREAKPOINT_PX) {
-      header.classList.remove("header-panel--compact");
-      return;
-    }
-    header.classList.toggle(
-      "header-panel--compact",
-      sidebar.scrollTop > HEADER_COMPACT_SCROLL_THRESHOLD_PX
-    );
-  }
-  function initDesktopHeaderCompaction() {
-    const sidebar = document.getElementById("sidebar");
-    if (!sidebar) return;
-    sidebar.addEventListener("scroll", updateDesktopHeaderCompaction, {
-      passive: true
-    });
-    window.addEventListener("resize", updateDesktopHeaderCompaction);
-    requestAnimationFrame(updateDesktopHeaderCompaction);
-  }
   function scrollSidebarToTargetPanel() {
     if (window.innerWidth >= 900) return;
     const e = document.getElementById("sidebar"), t = document.querySelector(".target-panel");
@@ -4832,22 +4756,8 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   }
   function updateStartStopButton() {
     const e = document.getElementById("restart-btn"), t = document.getElementById("skip-btn");
-    if (!e) return;
-    if ("lecture" === getGameMode()) {
-      e.style.display = "none", t && (t.style.display = "none");
-      return;
-    }
-    e.style.display = "";
-    e.classList.remove("btn-primary", "btn-stop", "btn-secondary", "btn-neutral");
-    if (isDailyMode) {
-      if (window._dailyGameOver) {
-        e.textContent = "Retour au menu", e.classList.add("btn-neutral"), t && (t.style.display = "none");
-        return;
-      }
-      e.textContent = "Quitter le d\xE9fi", e.classList.add("btn-stop"), t && (t.style.display = "none");
-      return;
-    }
-    isSessionRunning ? (e.textContent = "Arr\xEAter la session", e.classList.add("btn-stop"), t && (t.style.display = "block")) : (e.textContent = "Commencer la session", e.classList.add("btn-primary"), t && (t.style.display = "none"));
+    if (e)
+      return "lecture" === getGameMode() ? (e.style.display = "none", void (t && (t.style.display = "none"))) : isDailyMode ? (e.style.display = "", void (window._dailyGameOver ? (e.textContent = "Retour au menu", e.classList.remove("btn-stop"), e.classList.remove("btn-primary"), e.classList.add("btn-secondary"), t && (t.style.display = "none")) : (e.textContent = "Quitter le d\xE9fi", e.classList.remove("btn-primary"), e.classList.remove("btn-secondary"), e.classList.add("btn-stop"), t && (t.style.display = "none")))) : (e.style.display = "", void (isSessionRunning ? (e.textContent = "Arr\xEAter la session", e.classList.remove("btn-primary"), e.classList.remove("btn-secondary"), e.classList.add("btn-stop"), t && (t.style.display = "block")) : (e.textContent = "Commencer la session", e.classList.remove("btn-stop"), e.classList.remove("btn-secondary"), e.classList.add("btn-primary"), t && (t.style.display = "none"))));
   }
   function stopSessionManually() {
     (isSessionRunning || isDailyMode) && ("function" == typeof handleDailyStop && handleDailyStop() || endSession());
@@ -4943,19 +4853,19 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       const u = dailyGuessHistory.length, d = 7 - u;
       if (n2) {
         window._dailyGameOver = true, document.body.classList.add("daily-game-over"), typeof confetti === "function" && confetti({ particleCount: 150, zIndex: 1e4, spread: 80, origin: { y: 0.6 } }), showMessage(
-          `Bravo ! Trouv\xE9 en ${u} essai${u > 1 ? "s" : ""} !`,
+          `\u{1F389} BRAVO ! Trouv\xE9 en ${u} essai${u > 1 ? "s" : ""} !`,
           "success"
         ), triggerHaptic("success"), renderDailyGuessHistory({ success: true, attempts: u });
-        setTargetPanelTitleText("D\xE9fi r\xE9ussi !"), updateTargetItemCounter(), revealDailyTargetStreet(true);
+        setTargetPanelTitleText("\u{1F389} D\xE9fi r\xE9ussi !"), updateTargetItemCounter(), revealDailyTargetStreet(true);
       } else if (d <= 0) {
         window._dailyGameOver = true, document.body.classList.add("daily-game-over"), showMessage(
-          `Dommage ! C'\xE9tait \xAB ${dailyTargetData.streetName} \xBB. Fin du d\xE9fi.`,
+          `\u274C Dommage ! C'\xE9tait \xAB ${dailyTargetData.streetName} \xBB. Fin du d\xE9fi.`,
           "error"
         ), triggerHaptic("error"), renderDailyGuessHistory({ success: false });
-        setTargetPanelTitleText("D\xE9fi \xE9chou\xE9"), updateTargetItemCounter(), revealDailyTargetStreet(false);
+        setTargetPanelTitleText("\u274C D\xE9fi \xE9chou\xE9"), updateTargetItemCounter(), revealDailyTargetStreet(false);
       } else
         renderDailyGuessHistory(), triggerHaptic("error"), showMessage(
-          `Rat\xE9 ! Distance : ${s2 >= 1e3 ? `${(s2 / 1e3).toFixed(1)} km` : `${Math.round(s2)} m`}. Plus que ${d} essai${d > 1 ? "s" : ""}.`,
+          `\u274C Rat\xE9 ! Distance : ${s2 >= 1e3 ? `${(s2 / 1e3).toFixed(1)} km` : `${Math.round(s2)} m`}. Plus que ${d} essai${d > 1 ? "s" : ""}.`,
           "warning"
         );
       return updateDailyUI(), updateStartStopButton(), updateLayoutSessionState(), void fetch(API_URL + "/api/daily/guess", {
@@ -5247,13 +5157,13 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const sessionShareButtons = document.createElement("div");
     sessionShareButtons.className = "daily-share-buttons session-share-buttons";
     const copyShareBtn = document.createElement("button");
-    copyShareBtn.type = "button", copyShareBtn.className = "btn-secondary daily-share-btn", copyShareBtn.textContent = "Copier le partage", copyShareBtn.addEventListener("click", async () => {
+    copyShareBtn.type = "button", copyShareBtn.className = "btn-secondary daily-share-btn", copyShareBtn.textContent = "\u{1F4CB} Copier le partage", copyShareBtn.addEventListener("click", async () => {
       copyShareBtn.disabled = true;
       const e2 = await copySessionShareText(sessionShareText);
       copyShareBtn.disabled = false, showMessage(e2 ? "R\xE9sultat copi\xE9 !" : "Impossible de copier le r\xE9sultat.", e2 ? "success" : "error");
     });
     const nativeShareBtn = document.createElement("button");
-    nativeShareBtn.type = "button", nativeShareBtn.className = "btn-primary daily-share-btn", nativeShareBtn.textContent = "Partager";
+    nativeShareBtn.type = "button", nativeShareBtn.className = "btn-primary daily-share-btn", nativeShareBtn.textContent = "\u{1F4E4} Partager";
     if (navigator.share)
       nativeShareBtn.addEventListener("click", async () => {
         nativeShareBtn.disabled = true;
@@ -5463,15 +5373,15 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     s && (s.value = "ville", i && (i.innerHTML = '<span class="custom-select-label">Ville enti\xE8re</span><span class="difficulty-pill difficulty-pill--hard">Difficile</span>'));
     const l = document.getElementById("target-street");
     l && (l.textContent = e.streetName, requestAnimationFrame(fitTargetStreetText));
-    const o = Math.max(0, 7 - (t.attempts_count || 0)), u = r ? t.success ? "D\xE9fi r\xE9ussi !" : "D\xE9fi \xE9chou\xE9" : `D\xE9fi quotidien \u2014 ${o} essai${o > 1 ? "s" : ""} restant${o > 1 ? "s" : ""}`;
+    const o = Math.max(0, 7 - (t.attempts_count || 0)), u = r ? t.success ? "\u{1F389} D\xE9fi r\xE9ussi !" : "\u274C D\xE9fi \xE9chou\xE9" : `\u{1F3AF} D\xE9fi quotidien \u2014 ${o} essai${o > 1 ? "s" : ""} restant${o > 1 ? "s" : ""}`;
     setTargetPanelTitleText(u), updateTargetItemCounter(), isSessionRunning = true, refreshLectureStreetSearchForCurrentMode(), updateLayoutSessionState();
     const d = document.getElementById("skip-btn"), c = document.getElementById("pause-btn");
     d && (d.style.display = "none"), c && (c.style.display = "none");
     updateStartStopButton(), s && s.dispatchEvent(new Event("change")), r ? (dailyGuessHistory.length > 0 && renderDailyGuessHistory(a), e.targetGeometry && (dailyTargetData.targetGeometry = e.targetGeometry, highlightDailyTarget(e.targetGeometry, t.success)), t.success ? showMessage(
-      `D\xE9j\xE0 r\xE9ussi aujourd'hui en ${t.attempts_count} essai${t.attempts_count > 1 ? "s" : ""} !`,
+      `\u{1F389} D\xE9j\xE0 r\xE9ussi aujourd'hui en ${t.attempts_count} essai${t.attempts_count > 1 ? "s" : ""} !`,
       "success"
     ) : showMessage(
-      `Plus d'essais pour aujourd'hui. La rue \xE9tait \xAB ${e.streetName} \xBB.`,
+      `\u274C Plus d'essais pour aujourd'hui. La rue \xE9tait \xAB ${e.streetName} \xBB.`,
       "error"
     )) : showMessage(`Trouvez : ${e.streetName} (${o} essais restants)`, "info"), updateDailyUI();
   }

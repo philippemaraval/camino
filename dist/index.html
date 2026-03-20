@@ -12,9 +12,6 @@
   <link
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700&family=Montserrat:wght@600;800&family=Nunito:wght@400;600&display=swap"
     rel="stylesheet">
-  <link
-    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,1,0"
-    rel="stylesheet">
 
   <!-- Favicons pour toutes les plateformes -->
   <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
@@ -39,8 +36,7 @@
       <div id="sidebar-content">
         <!-- Offline / network error banner -->
         <div id="offline-banner" class="offline-banner hidden">
-          <span class="material-symbols-rounded offline-banner-icon" aria-hidden="true">warning</span>
-          <span>Mode hors-ligne — les scores ne seront pas sauvegardés</span>
+          ⚠️ Mode hors-ligne — les scores ne seront pas sauvegardés
         </div>
         <!-- Bandeau titre -->
         <header class="panel header-panel">
@@ -58,18 +54,9 @@
             <!-- rempli par le JS -->
           </div>
           <button id="sound-toggle" class="sound-toggle"
-            title="Activer/désactiver le son">
-            <span class="material-symbols-rounded" aria-hidden="true">volume_up</span>
-          </button>
+            title="Activer/désactiver le son">🔊</button>
           <button id="haptics-toggle" class="haptics-toggle"
-            title="Activer/désactiver les vibrations">
-            <span class="material-symbols-rounded" aria-hidden="true">vibration</span>
-          </button>
-          <nav class="header-nav" aria-label="Navigation rapide">
-            <button type="button" class="header-nav-link" data-nav-target=".user-panel">Profil</button>
-            <button type="button" class="header-nav-link" data-nav-target=".leaderboard-panel">Classement</button>
-            <a class="header-nav-link" href="/regles.html">Règles</a>
-          </nav>
+            title="Activer/désactiver les vibrations">📳</button>
         </header>
 
         <!-- Panneau profil / auth repliable -->
@@ -88,9 +75,7 @@
               <div class="password-wrapper">
                 <input id="auth-password" type="password" placeholder="Mot de passe">
                 <button type="button" id="toggle-password" class="password-toggle"
-                  aria-label="Afficher le mot de passe">
-                  <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
-                </button>
+                  aria-label="Afficher le mot de passe">👁</button>
               </div>
               <div id="auth-feedback" class="auth-feedback"></div>
               <div class="auth-buttons">
@@ -108,9 +93,7 @@
                   <div class="avatar-modal-header">
                     <h4>Choisir un Avatar</h4>
                     <button class="avatar-modal-close" id="avatar-modal-close" type="button"
-                      aria-label="Fermer la sélection d'avatar">
-                      <span class="material-symbols-rounded" aria-hidden="true">close</span>
-                    </button>
+                      aria-label="Fermer la sélection d'avatar">✕</button>
                   </div>
                   <div id="avatar-grid" class="avatar-grid"></div>
                 </div>
@@ -124,16 +107,14 @@
         <!-- Onboarding banner (first visit) -->
         <div id="onboarding-banner" class="onboarding-banner hidden">
           <div class="onboarding-content">
-            <span class="material-symbols-rounded onboarding-emoji" aria-hidden="true">map</span>
+            <span class="onboarding-emoji">🗺️</span>
             <div>
               <strong>Bienvenue sur Camino !</strong><br>
               Choisissez votre zone, sélectionnez un mode de jeu, puis lancez <strong>Commencer la session</strong>.
               Objectif : trouver un maximum de rues, vite et juste.
             </div>
           </div>
-          <button id="onboarding-close" class="onboarding-close" title="Fermer">
-            <span class="material-symbols-rounded" aria-hidden="true">close</span>
-          </button>
+          <button id="onboarding-close" class="onboarding-close" title="Fermer">✕</button>
         </div>
 
         <!-- Incitation installation PWA (mobile web uniquement) -->
@@ -156,10 +137,8 @@
         <section class="panel panel-params">
           <div class="panel-title-row">
             <div class="panel-title panel-title--compact">Paramètres</div>
-            <button id="daily-mode-btn" class="btn-emphasis btn-emphasis--compact hidden">
-              <span class="material-symbols-rounded" aria-hidden="true">emoji_events</span>
-              <span>Daily</span>
-            </button>
+            <button id="daily-mode-btn" class="btn-emphasis btn-emphasis--compact hidden">🏆
+              Daily</button>
           </div>
 
           <div class="info-block" id="mode-select-block">
@@ -275,8 +254,7 @@
 
           <div class="stats-grid">
             <div class="stats-column stats-column--timers">
-              <div class="stats-subtitle"><span class="material-symbols-rounded"
-                  aria-hidden="true">timer</span>Chronos</div>
+              <div class="stats-subtitle">⏱ Chronos</div>
               <div class="mobile-timer-label">Chrono</div>
               <div class="timers-row">
                 <div class="timer-block">
@@ -291,8 +269,7 @@
             </div>
 
             <div class="stats-column stats-column--score">
-              <div class="stats-subtitle"><span class="material-symbols-rounded"
-                  aria-hidden="true">stars</span>Score</div>
+              <div class="stats-subtitle">★ Score</div>
 
               <div class="info-block score-block">
                 <div class="info-label"></div>

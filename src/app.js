@@ -107,14 +107,6 @@ const MAP_REGION_MAX_BOUNDS = [
   [43.12, 5.22], // SW élargi: plus de marge à l'ouest et au sud
   [43.425, 5.64], // NE: zone marseillaise jusqu'à La Ciotat / Les Pennes-Mirabeau
 ];
-const DESKTOP_UI_BREAKPOINT_PX = 900;
-const HEADER_COMPACT_SCROLL_THRESHOLD_PX = 16;
-const MESSAGE_ICON_BY_TYPE = {
-  success: "check_circle",
-  error: "error",
-  warning: "warning",
-  info: "info",
-};
 let swRegistrationPromise = null;
 let notificationConfigCache = null;
 
@@ -1336,9 +1328,7 @@ function initUI() {
       isStandaloneDisplayModeFn: isStandaloneDisplayMode,
       showMessage,
     }),
-    loadUniqueVisitorCounter(),
-    initHeaderQuickLinks(),
-    initDesktopHeaderCompaction());
+    loadUniqueVisitorCounter());
   function L(e) {
     const t = document.getElementById("offline-banner");
     t && (t.style.display = e ? "block" : "none");
@@ -1492,13 +1482,7 @@ function initUI() {
     m &&
     C.addEventListener("click", () => {
       const e = "password" === m.type;
-      (m.type = e ? "text" : "password");
-      const t = C.querySelector(".material-symbols-rounded");
-      t && (t.textContent = e ? "visibility_off" : "visibility");
-      C.setAttribute(
-        "aria-label",
-        e ? "Masquer le mot de passe" : "Afficher le mot de passe",
-      );
+      ((m.type = e ? "text" : "password"), (C.textContent = e ? "🙈" : "👁"));
     }),
     o &&
     o.addEventListener("click", async () => {
@@ -1632,26 +1616,21 @@ function startTimersLoop() {
     requestAnimationFrame(e);
   });
 }
-function stripLeadingEmojiDecorators(message) {
-  return String(message || "")
-    .replace(/^\s*[\p{Extended_Pictographic}\uFE0F\u200D]+\s*/u, "")
-    .trimStart();
-}
 function showMessage(e, t) {
   const r = document.getElementById("message");
-  if (!r) return;
-  const a =
-    "success" === t || "error" === t || "warning" === t ? t : "info";
-  const n = stripLeadingEmojiDecorators(e);
-  ((r.className = "message"),
-    r.classList.add(`message--${a}`),
-    (r.dataset.icon = MESSAGE_ICON_BY_TYPE[a] || MESSAGE_ICON_BY_TYPE.info),
-    (r.textContent = n || String(e || "")),
-    r.classList.add("message--visible"),
-    null !== messageTimeoutId && clearTimeout(messageTimeoutId),
-    (messageTimeoutId = setTimeout(() => {
-      (r.classList.remove("message--visible"), (messageTimeoutId = null));
-    }, 3e3)));
+  r &&
+    ((r.className = "message"),
+      "success" === t
+        ? r.classList.add("message--success")
+        : "error" === t
+          ? r.classList.add("message--error")
+          : r.classList.add("message--info"),
+      (r.textContent = e),
+      r.classList.add("message--visible"),
+      null !== messageTimeoutId && clearTimeout(messageTimeoutId),
+      (messageTimeoutId = setTimeout(() => {
+        (r.classList.remove("message--visible"), (messageTimeoutId = null));
+      }, 3e3)));
 }
 function clearSessionShareSlot() {
   const e = document.getElementById("session-share-slot");
@@ -1817,54 +1796,6 @@ function populateQuartiers() {
       nativeSelect && nativeSelect.dispatchEvent(new Event("change"));
     },
   });
-}
-function scrollSidebarToElement(selector, { openDetails = !1 } = {}) {
-  const sidebar = document.getElementById("sidebar");
-  const target = document.querySelector(selector);
-  if (!sidebar || !target) return;
-  const sidebarRect = sidebar.getBoundingClientRect();
-  const targetRect = target.getBoundingClientRect();
-  const nextTop = sidebar.scrollTop + targetRect.top - sidebarRect.top - 84;
-  sidebar.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
-  if (openDetails) {
-    const details = target.querySelector("details");
-    details && !details.open && (details.open = !0);
-  }
-}
-function initHeaderQuickLinks() {
-  const links = document.querySelectorAll(".header-nav-link[data-nav-target]");
-  links.forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      const selector = link.getAttribute("data-nav-target");
-      if (!selector) return;
-      scrollSidebarToElement(selector, {
-        openDetails: selector === ".user-panel",
-      });
-    });
-  });
-}
-function updateDesktopHeaderCompaction() {
-  const header = document.querySelector(".header-panel");
-  const sidebar = document.getElementById("sidebar");
-  if (!header || !sidebar) return;
-  if (window.innerWidth <= DESKTOP_UI_BREAKPOINT_PX) {
-    header.classList.remove("header-panel--compact");
-    return;
-  }
-  header.classList.toggle(
-    "header-panel--compact",
-    sidebar.scrollTop > HEADER_COMPACT_SCROLL_THRESHOLD_PX,
-  );
-}
-function initDesktopHeaderCompaction() {
-  const sidebar = document.getElementById("sidebar");
-  if (!sidebar) return;
-  sidebar.addEventListener("scroll", updateDesktopHeaderCompaction, {
-    passive: !0,
-  });
-  window.addEventListener("resize", updateDesktopHeaderCompaction);
-  requestAnimationFrame(updateDesktopHeaderCompaction);
 }
 function scrollSidebarToTargetPanel() {
   if (window.innerWidth >= 900) return;
@@ -2176,32 +2107,34 @@ function triggerTargetPulse() {
 function updateStartStopButton() {
   const e = document.getElementById("restart-btn"),
     t = document.getElementById("skip-btn");
-  if (!e) return;
-  if ("lecture" === getGameMode()) {
-    ((e.style.display = "none"), t && (t.style.display = "none"));
-    return;
-  }
-  e.style.display = "";
-  e.classList.remove("btn-primary", "btn-stop", "btn-secondary", "btn-neutral");
-  if (isDailyMode) {
-    if (window._dailyGameOver) {
-      ((e.textContent = "Retour au menu"),
-        e.classList.add("btn-neutral"),
-        t && (t.style.display = "none"));
-      return;
-    }
-    ((e.textContent = "Quitter le défi"),
-      e.classList.add("btn-stop"),
-      t && (t.style.display = "none"));
-    return;
-  }
-  isSessionRunning
-    ? ((e.textContent = "Arrêter la session"),
-      e.classList.add("btn-stop"),
-      t && (t.style.display = "block"))
-    : ((e.textContent = "Commencer la session"),
-      e.classList.add("btn-primary"),
-      t && (t.style.display = "none"));
+  if (e)
+    return "lecture" === getGameMode()
+      ? ((e.style.display = "none"), void (t && (t.style.display = "none")))
+      : isDailyMode
+        ? ((e.style.display = ""),
+          void (window._dailyGameOver
+            ? ((e.textContent = "Retour au menu"),
+              e.classList.remove("btn-stop"),
+              e.classList.remove("btn-primary"),
+              e.classList.add("btn-secondary"),
+              t && (t.style.display = "none"))
+            : ((e.textContent = "Quitter le défi"),
+              e.classList.remove("btn-primary"),
+              e.classList.remove("btn-secondary"),
+              e.classList.add("btn-stop"),
+              t && (t.style.display = "none"))))
+      : ((e.style.display = ""),
+        void (isSessionRunning
+          ? ((e.textContent = "Arrêter la session"),
+            e.classList.remove("btn-primary"),
+            e.classList.remove("btn-secondary"),
+            e.classList.add("btn-stop"),
+            t && (t.style.display = "block"))
+          : ((e.textContent = "Commencer la session"),
+            e.classList.remove("btn-stop"),
+            e.classList.remove("btn-secondary"),
+            e.classList.add("btn-primary"),
+            t && (t.style.display = "none"))));
 }
 function stopSessionManually() {
   (isSessionRunning || isDailyMode) &&
@@ -2356,31 +2289,31 @@ function handleStreetClick(e, t, r) {
         document.body.classList.add("daily-game-over"),
         typeof confetti === "function" && confetti({ particleCount: 150, zIndex: 10000, spread: 80, origin: { y: 0.6 } }),
         showMessage(
-          `Bravo ! Trouvé en ${u} essai${u > 1 ? "s" : ""} !`,
+          `🎉 BRAVO ! Trouvé en ${u} essai${u > 1 ? "s" : ""} !`,
           "success",
         ),
         triggerHaptic('success'),
         renderDailyGuessHistory({ success: !0, attempts: u }));
-      (setTargetPanelTitleText("Défi réussi !"),
+      (setTargetPanelTitleText("🎉 Défi réussi !"),
         updateTargetItemCounter(),
         revealDailyTargetStreet(!0));
     } else if (d <= 0) {
       ((window._dailyGameOver = !0),
         document.body.classList.add("daily-game-over"),
         showMessage(
-          `Dommage ! C'était « ${dailyTargetData.streetName} ». Fin du défi.`,
+          `❌ Dommage ! C'était « ${dailyTargetData.streetName} ». Fin du défi.`,
           "error",
         ),
         triggerHaptic('error'),
         renderDailyGuessHistory({ success: !1 }));
-      (setTargetPanelTitleText("Défi échoué"),
+      (setTargetPanelTitleText("❌ Défi échoué"),
         updateTargetItemCounter(),
         revealDailyTargetStreet(!1));
     } else
       (renderDailyGuessHistory(),
         triggerHaptic('error'),
         showMessage(
-          `Raté ! Distance : ${s >= 1e3 ? `${(s / 1e3).toFixed(1)} km` : `${Math.round(s)} m`}. Plus que ${d} essai${d > 1 ? "s" : ""}.`,
+          `❌ Raté ! Distance : ${s >= 1e3 ? `${(s / 1e3).toFixed(1)} km` : `${Math.round(s)} m`}. Plus que ${d} essai${d > 1 ? "s" : ""}.`,
           "warning",
         ));
     return (
@@ -2862,7 +2795,7 @@ function endSession() {
   const copyShareBtn = document.createElement("button");
   ((copyShareBtn.type = "button"),
     (copyShareBtn.className = "btn-secondary daily-share-btn"),
-    (copyShareBtn.textContent = "Copier le partage"),
+    (copyShareBtn.textContent = "📋 Copier le partage"),
     copyShareBtn.addEventListener("click", async () => {
       (copyShareBtn.disabled = !0);
       const e = await copySessionShareText(sessionShareText);
@@ -2872,7 +2805,7 @@ function endSession() {
   const nativeShareBtn = document.createElement("button");
   ((nativeShareBtn.type = "button"),
     (nativeShareBtn.className = "btn-primary daily-share-btn"),
-    (nativeShareBtn.textContent = "Partager"));
+    (nativeShareBtn.textContent = "📤 Partager"));
   if (navigator.share)
     nativeShareBtn.addEventListener("click", async () => {
       (nativeShareBtn.disabled = !0);
@@ -3202,9 +3135,9 @@ function startDailySession(e) {
   const o = Math.max(0, 7 - (t.attempts_count || 0)),
     u = r
       ? t.success
-        ? "Défi réussi !"
-        : "Défi échoué"
-      : `Défi quotidien — ${o} essai${o > 1 ? "s" : ""} restant${o > 1 ? "s" : ""}`;
+        ? "🎉 Défi réussi !"
+        : "❌ Défi échoué"
+      : `🎯 Défi quotidien — ${o} essai${o > 1 ? "s" : ""} restant${o > 1 ? "s" : ""}`;
   (setTargetPanelTitleText(u),
     updateTargetItemCounter(),
     (isSessionRunning = !0),
@@ -3222,11 +3155,11 @@ function startDailySession(e) {
           highlightDailyTarget(e.targetGeometry, t.success)),
         t.success
           ? showMessage(
-            `Déjà réussi aujourd'hui en ${t.attempts_count} essai${t.attempts_count > 1 ? "s" : ""} !`,
+            `🎉 Déjà réussi aujourd'hui en ${t.attempts_count} essai${t.attempts_count > 1 ? "s" : ""} !`,
             "success",
           )
           : showMessage(
-            `Plus d'essais pour aujourd'hui. La rue était « ${e.streetName} ».`,
+            `❌ Plus d'essais pour aujourd'hui. La rue était « ${e.streetName} ».`,
             "error",
           ))
       : showMessage(`Trouvez : ${e.streetName} (${o} essais restants)`, "info"),

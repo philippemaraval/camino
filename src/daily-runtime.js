@@ -224,7 +224,7 @@ export function renderDailyGuessHistoryRuntime({
       }
 
       if (guessCount >= 4 && quartierName) {
-        html += `<div class="daily-hint">Quartier : <strong>${quartierName}</strong></div>`;
+        html += `<div class="daily-hint">🏘️ Quartier : <strong>${quartierName}</strong></div>`;
       }
 
       if (guessCount >= 6 && dailyTargetData.streetName) {
@@ -239,7 +239,7 @@ export function renderDailyGuessHistoryRuntime({
               lengthMeters >= 1000
                 ? `${(lengthMeters / 1000).toFixed(1)} km`
                 : `${Math.round(lengthMeters)} m`;
-            html += `<div class="daily-hint">Longueur : <strong>~ ${lengthLabel}</strong></div>`;
+            html += `<div class="daily-hint">📏 Longueur : <strong>~ ${lengthLabel}</strong></div>`;
           }
         } catch (error) {
           console.error("Error with Hint 3:", error);
@@ -275,12 +275,12 @@ export function updateDailyUIRuntime({
     const targetPanelTitle = document.getElementById("target-panel-title");
     if (targetPanelTitle) {
       if (userStatus.success) {
-        targetPanelTitle.textContent = "Défi réussi !";
+        targetPanelTitle.textContent = "🎉 Défi réussi !";
       } else {
         targetPanelTitle.textContent =
           remaining <= 0
-            ? "Défi échoué"
-            : `Défi quotidien — ${remaining} essai${remaining > 1 ? "s" : ""} restant${remaining > 1 ? "s" : ""}`;
+            ? "❌ Défi échoué"
+            : `🎯 Défi quotidien — ${remaining} essai${remaining > 1 ? "s" : ""} restant${remaining > 1 ? "s" : ""}`;
       }
     }
   }
@@ -289,7 +289,7 @@ export function updateDailyUIRuntime({
   if (triesCounter) {
     if (isDailyMode) {
       triesCounter.style.display = "flex";
-      triesCounter.textContent = `${attempts} / 7 essais`;
+      triesCounter.innerHTML = `<span>🎯</span> ${attempts} / 7 essais`;
     } else {
       triesCounter.style.display = "none";
     }
@@ -720,7 +720,7 @@ export function updateDailyResultPanelRuntime({
   let html = "";
   if (isSuccess) {
     const attempts = result.attempts;
-    html += `<div class="daily-result daily-result--success">Bravo, vous avez trouvé la rue en ${attempts} essai${attempts > 1 ? "s" : ""} !</div>`;
+    html += `<div class="daily-result daily-result--success">🎉 Bravo, vous avez trouvé la rue en ${attempts} essai${attempts > 1 ? "s" : ""} !</div>`;
   } else {
     const minDistance = Math.min(...guesses.map((guess) => guess.distance));
     const minDistanceLabel =
@@ -732,8 +732,8 @@ export function updateDailyResultPanelRuntime({
   }
 
   html += '<div class="daily-share-buttons">';
-  html += '<button id="daily-share-text" class="btn-secondary daily-share-btn">Copier le texte</button>';
-  html += '<button id="daily-share-image" class="btn-primary daily-share-btn">Partager l\'image</button>';
+  html += '<button id="daily-share-text" class="btn-secondary daily-share-btn">📋 Copier le texte</button>';
+  html += '<button id="daily-share-image" class="btn-primary daily-share-btn">📸 Partager l\'image</button>';
   html += "</div>";
   html += '<p class="daily-share-hint">L\'image est plus impactante sur les réseaux !</p>';
 
