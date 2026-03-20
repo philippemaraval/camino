@@ -487,7 +487,6 @@ export function loadProfileRuntime({
   initAvatarSelector,
   onProfileRendered,
   onAuthFailure,
-  variant = "full",
 }) {
   if (!currentUser || !currentUser.token) {
     return;
@@ -550,8 +549,6 @@ export function loadProfileRuntime({
         const dailyTotalDays = parseInt(profile.daily?.total_days) || 0;
         const dailySuccesses = parseInt(profile.daily?.successes) || 0;
         const dailyAverageAttempts = parseFloat(profile.daily?.avg_attempts) || 0;
-        const currentStreak = parseInt(profile.daily?.current_streak) || 0;
-        const maxStreak = parseInt(profile.daily?.max_streak) || 0;
         const memberSince = profile.memberSince
           ? new Date(profile.memberSince).toLocaleDateString("fr-FR", {
             day: "numeric",
@@ -559,46 +556,6 @@ export function loadProfileRuntime({
             year: "numeric",
           })
           : "—";
-
-        if (variant === "compact") {
-          let compactHtml = `
-            <div class="profile-compact-summary">
-              <div class="profile-compact-avatar">${profile.avatar || "👤"}</div>
-              <div class="profile-compact-main">
-                <div class="profile-compact-name">${profile.username}</div>
-                <div class="profile-compact-rank">${globalTitle}</div>
-              </div>
-            </div>
-            <div class="profile-compact-meta">
-              <div class="profile-compact-meta-item">
-                <span class="profile-compact-meta-label">Daily</span>
-                <strong class="profile-compact-meta-value">${dailySuccesses}/${dailyTotalDays}</strong>
-              </div>
-              <div class="profile-compact-meta-item">
-                <span class="profile-compact-meta-label">Série</span>
-                <strong class="profile-compact-meta-value">${currentStreak}</strong>
-              </div>
-              <div class="profile-compact-meta-item">
-                <span class="profile-compact-meta-label">Max</span>
-                <strong class="profile-compact-meta-value">${maxStreak}</strong>
-              </div>
-            </div>
-            <section class="profile-notification-card profile-notification-card--compact">
-              <div class="profile-notification-title">Rappel Daily</div>
-              <p id="daily-reminder-status" class="profile-notification-status">Chargement…</p>
-              <div class="profile-notification-actions">
-                <button type="button" id="daily-reminder-enable-btn" class="btn-secondary">Activer le rappel</button>
-                <button type="button" id="daily-reminder-disable-btn" class="btn-tertiary hidden">Désactiver</button>
-              </div>
-            </section>
-            <a class="profile-open-full-link" href="/profil.html">Ouvrir le profil complet</a>`;
-
-          profileContent.innerHTML = compactHtml;
-          if (typeof onProfileRendered === "function") {
-            onProfileRendered();
-          }
-          return;
-        }
 
         let html = `
           <div class="profile-header">

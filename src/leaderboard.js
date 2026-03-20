@@ -397,106 +397,112 @@ export function loadAllLeaderboards() {
   }
 
   leaderboardRoot.innerHTML =
-    '<div class="skeleton skeleton-line skeleton-line--60"></div><div class="skeleton skeleton-line skeleton-line--80"></div><div class="skeleton skeleton-line skeleton-line--80"></div>';
+    '<div class="skeleton skeleton-line skeleton-line--50"></div><div class="skeleton skeleton-block"></div><div class="skeleton skeleton-block"></div>';
 
-  fetch(`${API_URL}/api/leaderboards`)
-    .then((response) => {
+  Promise.all([
+    fetch(`${API_URL}/api/leaderboards`).then((response) => {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
       return response.json();
-    })
-    .then((boards) => {
-      const entries = Object.entries(boards || {}).filter(
-        ([, rows]) => Array.isArray(rows) && rows.length > 0,
-      );
+    }),
+    fetch(`${API_URL}/api/leaderboards?period=month`).then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
+    }),
+    fetch(`${API_URL}/api/daily/leaderboard`)
+      .then((response) => (response.ok ? response.json() : []))
+      .catch(() => []),
+  ])
+    .then(([allBoards, monthlyBoards, dailyRows]) => {
+      const hasAllTimeRows = hasLeaderboardRows(allBoards);
+      const hasMonthlyRows = hasLeaderboardRows(monthlyBoards);
+      const hasDailyRows = !!(dailyRows && dailyRows.length > 0);
 
-      if (entries.length === 0) {
+      if (!hasAllTimeRows && !hasMonthlyRows && !hasDailyRows) {
         leaderboardRoot.innerHTML = "<p>Aucun score enregistré.</p>";
         return;
       }
 
-      const preferredKeys = [
-        "ville|classique|",
-        "rues-principales|classique|",
-        "quartier|classique|",
-        "rues-celebres|classique|",
-        "monuments|classique|",
-      ];
-      const selectedEntry =
-        preferredKeys
-          .map((key) => entries.find(([entryKey]) => entryKey === key))
-          .find(Boolean) || entries[0];
+      leaderboardRoot.innerHTML = "";
 
-      const [selectedKey, selectedRows] = selectedEntry;
-      const [zoneMode, gameType, quartierNameRaw] = selectedKey.split("|");
-      const quartierName =
-        quartierNameRaw && quartierNameRaw !== "null" ? quartierNameRaw : null;
+      if (hasDailyRows) {
+        const dailyDetails = document.createElement("details");
+        dailyDetails.className = "leaderboard-zone-details";
+        dailyDetails.open = true;
 
-      const topRows = selectedRows.slice(0, 3);
-      const currentUser = (() => {
-        try {
-          return JSON.parse(window.localStorage.getItem("camino_user") || "null");
-        } catch (error) {
-          return null;
-        }
-      })();
-      const currentUsername = String(currentUser?.username || "").trim().toLowerCase();
-      const userIndex = currentUsername
-        ? selectedRows.findIndex(
-          (row) =>
-            String(row?.username || "")
-              .trim()
-              .toLowerCase() === currentUsername,
-        )
-        : -1;
-      const userRow = userIndex >= 0 ? selectedRows[userIndex] : null;
+        const dailySummary = document.createElement("summary");
+        const todayStr = new Intl.DateTimeFormat("fr-FR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit",
+        }).format(new Date());
+        dailySummary.innerHTML = `<span class="leaderboard-zone-title">Daily du ${todayStr}</span>`;
+        dailyDetails.appendChild(dailySummary);
 
-      const scoreLabelForRow = (row) =>
-        gameType === "classique"
-          ? typeof row?.high_score === "number"
-            ? row.high_score.toFixed(1)
-            : "0.0"
-          : String(row?.items_correct || 0);
+        const dailyContent = document.createElement("div");
+        dailyContent.className = "leaderboard-zone-content";
 
-      const boardLabel = `${ZONE_LABELS[zoneMode] || zoneMode} • ${GAME_LABELS[gameType] || gameType}${quartierName ? ` • ${quartierName}` : ""}`;
+        const table = document.createElement("table");
+        table.className = "leaderboard-table";
+        table.innerHTML = "<thead><tr><th>#</th><th>Joueur</th><th>Essais</th></tr></thead>";
 
-      let html = `<div class="leaderboard-preview-head">${boardLabel}</div>`;
-      html += '<div class="leaderboard-preview-top3">';
-      topRows.forEach((row, index) => {
-        const rank = index + 1;
-        const title = getPlayerTitle(
-          row.high_score || 0,
-          zoneMode,
-          gameType,
-          row.items_total || 0,
-          row.items_correct || 0,
-        );
-        html += `
-          <article class="leaderboard-preview-card">
-            <div class="leaderboard-preview-rank">#${rank}</div>
-            <div class="leaderboard-preview-player">
-              <span class="leaderboard-preview-avatar">${row.avatar || "👤"}</span>
-              <div>
-                <div class="leaderboard-preview-name">${row.username || "Anonyme"}</div>
-                <div class="leaderboard-preview-title">${title}</div>
-              </div>
-            </div>
-            <div class="leaderboard-preview-score">${scoreLabelForRow(row)}</div>
-          </article>`;
-      });
-      html += "</div>";
+        const tbody = document.createElement("tbody");
+        dailyRows.forEach((row, index) => {
+          const tr = document.createElement("tr");
+          const rank = (index === 0 ? "🥇 " : index === 1 ? "🥈 " : index === 2 ? "🥉 " : "") || `${index + 1}`;
+          const playerAvatar = row.avatar || "👤";
+          tr.innerHTML = `<td>${rank}</td><td><span class="leaderboard-avatar">${playerAvatar}</span>${row.username || "Anonyme"}</td><td>${row.attempts_count}/7</td>`;
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
 
-      if (currentUsername) {
-        if (userRow) {
-          const suffix = userIndex < 3 ? " (dans le top 3)" : "";
-          html += `<div class="leaderboard-preview-you">Vous : <strong>#${userIndex + 1}</strong>${suffix}</div>`;
-        } else {
-          html += '<div class="leaderboard-preview-you">Vous : non classé sur ce mode</div>';
-        }
+        const modeContainer = document.createElement("div");
+        modeContainer.className = "leaderboard-mode-container";
+        const modeTitle = document.createElement("h4");
+        modeTitle.className = "leaderboard-mode-title";
+        modeTitle.textContent = "Défi du Jour";
+        modeContainer.appendChild(modeTitle);
+
+        const section = document.createElement("div");
+        section.className = "leaderboard-section";
+        section.appendChild(table);
+        modeContainer.appendChild(section);
+
+        dailyContent.appendChild(modeContainer);
+        dailyDetails.appendChild(dailyContent);
+        leaderboardRoot.appendChild(dailyDetails);
       }
 
-      leaderboardRoot.innerHTML = html;
+      if (hasAllTimeRows) {
+        appendZoneLeaderboards(leaderboardRoot, allBoards);
+      }
+
+      const monthlyDetails = document.createElement("details");
+      monthlyDetails.className = "leaderboard-zone-details";
+      monthlyDetails.open = true;
+      const monthlySummary = document.createElement("summary");
+      monthlySummary.innerHTML = `<span class="leaderboard-zone-title">Classement mensuel — ${getCurrentMonthlyLeaderboardLabel()}</span>`;
+      monthlyDetails.appendChild(monthlySummary);
+
+      const monthlyContent = document.createElement("div");
+      monthlyContent.className = "leaderboard-zone-content";
+      if (hasMonthlyRows) {
+        appendZoneLeaderboards(monthlyContent, monthlyBoards);
+      } else {
+        monthlyContent.innerHTML = "<p>Aucun score ce mois-ci.</p>";
+      }
+      monthlyDetails.appendChild(monthlyContent);
+      leaderboardRoot.appendChild(monthlyDetails);
+
+      if (!hasDailyRows) {
+        const firstDetails = leaderboardRoot.querySelector("details");
+        if (firstDetails) {
+          firstDetails.open = true;
+        }
+      }
     })
     .catch((error) => {
       console.warn("Leaderboard indisponible :", error.message);

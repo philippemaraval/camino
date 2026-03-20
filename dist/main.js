@@ -6,6 +6,7 @@
   var MAX_TIME_SECONDS = 500;
   var CHRONO_DURATION = 60;
   var MAX_POINTS_PER_ITEM = 10;
+  var LEADERBOARD_VISIBLE_ROWS = 3;
   var MAX_LECTURE_SEARCH_RESULTS = 8;
   var DAILY_GUESSES_STORAGE_PREFIX = "camino_daily_guesses_";
   var DAILY_META_STORAGE_PREFIX = "camino_daily_meta_";
@@ -67,6 +68,8 @@
     chrono: "Chrono",
     lecture: "Lecture"
   };
+  var ZONE_ORDER = ["rues-celebres", "rues-principales", "quartier", "ville", "monuments"];
+  var GAME_ORDER = ["classique", "marathon", "chrono", "lecture"];
   function buildQuartierMarathonThresholds(maxItems) {
     const total = Math.max(1, parseInt(maxItems, 10) || 55);
     const minot = Math.min(total, Math.max(1, Math.ceil(0.1 * total)));
@@ -188,85 +191,238 @@
     const scoreValue = getTitleScoreValue(score, itemsCorrect, gameType);
     return scoreValue >= thresholds.MV ? TITLE_NAMES[0] : scoreValue >= thresholds.V ? TITLE_NAMES[1] : scoreValue >= thresholds.H ? TITLE_NAMES[2] : scoreValue >= thresholds.M ? TITLE_NAMES[3] : TITLE_NAMES[4];
   }
+  function hasLeaderboardRows(boards) {
+    return Object.values(boards || {}).some((rows) => Array.isArray(rows) && rows.length > 0);
+  }
+  function appendZoneLeaderboards(rootElement, boards) {
+    const boardKeys = Object.keys(boards || {});
+    const groupedByZone = {};
+    boardKeys.forEach((key) => {
+      const [zoneMode, gameType, quartierNameOrNull] = key.split("|");
+      const rows = boards[key];
+      if (!rows || rows.length === 0) {
+        return;
+      }
+      if (!groupedByZone[zoneMode]) {
+        groupedByZone[zoneMode] = {};
+      }
+      if (!groupedByZone[zoneMode][gameType]) {
+        groupedByZone[zoneMode][gameType] = [];
+      }
+      groupedByZone[zoneMode][gameType].push({ quartierName: quartierNameOrNull || null, rows });
+    });
+    ZONE_ORDER.forEach((zoneMode) => {
+      if (!groupedByZone[zoneMode]) {
+        return;
+      }
+      const groupedByGameType = groupedByZone[zoneMode];
+      const zoneDetails = document.createElement("details");
+      zoneDetails.className = "leaderboard-zone-details";
+      const zoneSummary = document.createElement("summary");
+      zoneSummary.innerHTML = `<span class="leaderboard-zone-title">${ZONE_LABELS[zoneMode] || zoneMode}</span>`;
+      zoneDetails.appendChild(zoneSummary);
+      const zoneContent = document.createElement("div");
+      zoneContent.className = "leaderboard-zone-content";
+      GAME_ORDER.forEach((gameType) => {
+        if (!groupedByGameType[gameType]) {
+          return;
+        }
+        const sections = groupedByGameType[gameType];
+        const modeContainer = document.createElement("div");
+        modeContainer.className = "leaderboard-mode-container";
+        const modeTitle = document.createElement("h4");
+        modeTitle.className = "leaderboard-mode-title";
+        modeTitle.textContent = GAME_LABELS[gameType] || gameType;
+        modeContainer.appendChild(modeTitle);
+        sections.sort(
+          (left, right) => left.quartierName && right.quartierName ? left.quartierName.localeCompare(right.quartierName) : 0
+        );
+        sections.forEach((sectionData) => {
+          const isQuartierSection = zoneMode === "quartier" && sectionData.quartierName && sectionData.quartierName !== "unknown";
+          const section = document.createElement(isQuartierSection ? "details" : "div");
+          section.className = "leaderboard-section";
+          if (isQuartierSection) {
+            const quartierSummary = document.createElement("summary");
+            quartierSummary.className = "leaderboard-quartier-title";
+            quartierSummary.textContent = sectionData.quartierName;
+            section.appendChild(quartierSummary);
+          }
+          const table = document.createElement("table");
+          table.className = "leaderboard-table";
+          const thead = document.createElement("thead");
+          let header = "<tr><th>#</th><th>Joueur</th>";
+          header += gameType === "classique" ? "<th>Score</th>" : "<th>Rues trouv\xE9es</th>";
+          if (gameType === "marathon") {
+            header += "<th>Max zone</th>";
+          }
+          if (gameType === "chrono") {
+            header += "<th>Temps</th>";
+          }
+          header += "<th>Parties</th></tr>";
+          thead.innerHTML = header;
+          table.appendChild(thead);
+          const visibleTbody = document.createElement("tbody");
+          const hiddenTbody = document.createElement("tbody");
+          hiddenTbody.className = "leaderboard-hidden-rows";
+          hiddenTbody.style.display = "none";
+          sectionData.rows.forEach((row, index) => {
+            const tr = document.createElement("tr");
+            const rank = (index === 0 ? "\u{1F947} " : index === 1 ? "\u{1F948} " : index === 2 ? "\u{1F949} " : "") || `${index + 1}`;
+            const title = getPlayerTitle(
+              row.high_score || 0,
+              zoneMode,
+              gameType,
+              row.items_total || 0,
+              row.items_correct || 0
+            );
+            const playerAvatar = row.avatar || "\u{1F464}";
+            let rowHtml = `<td>${rank}</td><td><span class="leaderboard-avatar">${playerAvatar}</span>${row.username || "Anonyme"}<br><small class="leaderboard-player-meta">${title}</small></td>`;
+            const scoreCell = gameType === "classique" ? typeof row.high_score === "number" ? row.high_score.toFixed(1) : "-" : `${row.items_correct || 0}`;
+            rowHtml += `<td>${scoreCell}</td>`;
+            if (gameType === "marathon") {
+              rowHtml += `<td>${row.items_total || 0}</td>`;
+            }
+            if (gameType === "chrono") {
+              rowHtml += `<td>${(row.time_sec || 0).toFixed(1)}s</td>`;
+            }
+            rowHtml += `<td>${row.games_played || 0}</td>`;
+            tr.innerHTML = rowHtml;
+            if (index < LEADERBOARD_VISIBLE_ROWS) {
+              visibleTbody.appendChild(tr);
+            } else {
+              hiddenTbody.appendChild(tr);
+            }
+          });
+          table.appendChild(visibleTbody);
+          table.appendChild(hiddenTbody);
+          section.appendChild(table);
+          if (sectionData.rows.length > LEADERBOARD_VISIBLE_ROWS) {
+            const toggleWrap = document.createElement("div");
+            toggleWrap.className = "leaderboard-toggle-wrap";
+            const toggleButton = document.createElement("button");
+            toggleButton.className = "leaderboard-toggle-btn";
+            toggleButton.textContent = "\u25BC Voir les autres scores";
+            toggleButton.onclick = () => {
+              if (hiddenTbody.style.display === "none") {
+                hiddenTbody.style.display = "table-row-group";
+                toggleButton.textContent = "\u25B2 Masquer les scores";
+              } else {
+                hiddenTbody.style.display = "none";
+                toggleButton.textContent = "\u25BC Voir les autres scores";
+              }
+            };
+            toggleWrap.appendChild(toggleButton);
+            section.appendChild(toggleWrap);
+          }
+          modeContainer.appendChild(section);
+        });
+        zoneContent.appendChild(modeContainer);
+      });
+      zoneDetails.appendChild(zoneContent);
+      rootElement.appendChild(zoneDetails);
+    });
+  }
+  function getCurrentMonthlyLeaderboardLabel() {
+    const label = new Intl.DateTimeFormat("fr-FR", {
+      month: "long",
+      year: "numeric",
+      timeZone: "Europe/Paris"
+    }).format(/* @__PURE__ */ new Date());
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
   function loadAllLeaderboards() {
     const leaderboardRoot = document.getElementById("leaderboard");
     if (!leaderboardRoot) {
       return;
     }
-    leaderboardRoot.innerHTML = '<div class="skeleton skeleton-line skeleton-line--60"></div><div class="skeleton skeleton-line skeleton-line--80"></div><div class="skeleton skeleton-line skeleton-line--80"></div>';
-    fetch(`${API_URL}/api/leaderboards`).then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return response.json();
-    }).then((boards) => {
-      const entries = Object.entries(boards || {}).filter(
-        ([, rows]) => Array.isArray(rows) && rows.length > 0
-      );
-      if (entries.length === 0) {
+    leaderboardRoot.innerHTML = '<div class="skeleton skeleton-line skeleton-line--50"></div><div class="skeleton skeleton-block"></div><div class="skeleton skeleton-block"></div>';
+    Promise.all([
+      fetch(`${API_URL}/api/leaderboards`).then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      }),
+      fetch(`${API_URL}/api/leaderboards?period=month`).then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      }),
+      fetch(`${API_URL}/api/daily/leaderboard`).then((response) => response.ok ? response.json() : []).catch(() => [])
+    ]).then(([allBoards, monthlyBoards, dailyRows]) => {
+      const hasAllTimeRows = hasLeaderboardRows(allBoards);
+      const hasMonthlyRows = hasLeaderboardRows(monthlyBoards);
+      const hasDailyRows = !!(dailyRows && dailyRows.length > 0);
+      if (!hasAllTimeRows && !hasMonthlyRows && !hasDailyRows) {
         leaderboardRoot.innerHTML = "<p>Aucun score enregistr\xE9.</p>";
         return;
       }
-      const preferredKeys = [
-        "ville|classique|",
-        "rues-principales|classique|",
-        "quartier|classique|",
-        "rues-celebres|classique|",
-        "monuments|classique|"
-      ];
-      const selectedEntry = preferredKeys.map((key) => entries.find(([entryKey]) => entryKey === key)).find(Boolean) || entries[0];
-      const [selectedKey, selectedRows] = selectedEntry;
-      const [zoneMode, gameType, quartierNameRaw] = selectedKey.split("|");
-      const quartierName = quartierNameRaw && quartierNameRaw !== "null" ? quartierNameRaw : null;
-      const topRows = selectedRows.slice(0, 3);
-      const currentUser2 = (() => {
-        try {
-          return JSON.parse(window.localStorage.getItem("camino_user") || "null");
-        } catch (error) {
-          return null;
-        }
-      })();
-      const currentUsername = String((currentUser2 == null ? void 0 : currentUser2.username) || "").trim().toLowerCase();
-      const userIndex = currentUsername ? selectedRows.findIndex(
-        (row) => String((row == null ? void 0 : row.username) || "").trim().toLowerCase() === currentUsername
-      ) : -1;
-      const userRow = userIndex >= 0 ? selectedRows[userIndex] : null;
-      const scoreLabelForRow = (row) => gameType === "classique" ? typeof (row == null ? void 0 : row.high_score) === "number" ? row.high_score.toFixed(1) : "0.0" : String((row == null ? void 0 : row.items_correct) || 0);
-      const boardLabel = `${ZONE_LABELS[zoneMode] || zoneMode} \u2022 ${GAME_LABELS[gameType] || gameType}${quartierName ? ` \u2022 ${quartierName}` : ""}`;
-      let html = `<div class="leaderboard-preview-head">${boardLabel}</div>`;
-      html += '<div class="leaderboard-preview-top3">';
-      topRows.forEach((row, index) => {
-        const rank = index + 1;
-        const title = getPlayerTitle(
-          row.high_score || 0,
-          zoneMode,
-          gameType,
-          row.items_total || 0,
-          row.items_correct || 0
-        );
-        html += `
-          <article class="leaderboard-preview-card">
-            <div class="leaderboard-preview-rank">#${rank}</div>
-            <div class="leaderboard-preview-player">
-              <span class="leaderboard-preview-avatar">${row.avatar || "\u{1F464}"}</span>
-              <div>
-                <div class="leaderboard-preview-name">${row.username || "Anonyme"}</div>
-                <div class="leaderboard-preview-title">${title}</div>
-              </div>
-            </div>
-            <div class="leaderboard-preview-score">${scoreLabelForRow(row)}</div>
-          </article>`;
-      });
-      html += "</div>";
-      if (currentUsername) {
-        if (userRow) {
-          const suffix = userIndex < 3 ? " (dans le top 3)" : "";
-          html += `<div class="leaderboard-preview-you">Vous : <strong>#${userIndex + 1}</strong>${suffix}</div>`;
-        } else {
-          html += '<div class="leaderboard-preview-you">Vous : non class\xE9 sur ce mode</div>';
+      leaderboardRoot.innerHTML = "";
+      if (hasDailyRows) {
+        const dailyDetails = document.createElement("details");
+        dailyDetails.className = "leaderboard-zone-details";
+        dailyDetails.open = true;
+        const dailySummary = document.createElement("summary");
+        const todayStr = new Intl.DateTimeFormat("fr-FR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit"
+        }).format(/* @__PURE__ */ new Date());
+        dailySummary.innerHTML = `<span class="leaderboard-zone-title">Daily du ${todayStr}</span>`;
+        dailyDetails.appendChild(dailySummary);
+        const dailyContent = document.createElement("div");
+        dailyContent.className = "leaderboard-zone-content";
+        const table = document.createElement("table");
+        table.className = "leaderboard-table";
+        table.innerHTML = "<thead><tr><th>#</th><th>Joueur</th><th>Essais</th></tr></thead>";
+        const tbody = document.createElement("tbody");
+        dailyRows.forEach((row, index) => {
+          const tr = document.createElement("tr");
+          const rank = (index === 0 ? "\u{1F947} " : index === 1 ? "\u{1F948} " : index === 2 ? "\u{1F949} " : "") || `${index + 1}`;
+          const playerAvatar = row.avatar || "\u{1F464}";
+          tr.innerHTML = `<td>${rank}</td><td><span class="leaderboard-avatar">${playerAvatar}</span>${row.username || "Anonyme"}</td><td>${row.attempts_count}/7</td>`;
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        const modeContainer = document.createElement("div");
+        modeContainer.className = "leaderboard-mode-container";
+        const modeTitle = document.createElement("h4");
+        modeTitle.className = "leaderboard-mode-title";
+        modeTitle.textContent = "D\xE9fi du Jour";
+        modeContainer.appendChild(modeTitle);
+        const section = document.createElement("div");
+        section.className = "leaderboard-section";
+        section.appendChild(table);
+        modeContainer.appendChild(section);
+        dailyContent.appendChild(modeContainer);
+        dailyDetails.appendChild(dailyContent);
+        leaderboardRoot.appendChild(dailyDetails);
+      }
+      if (hasAllTimeRows) {
+        appendZoneLeaderboards(leaderboardRoot, allBoards);
+      }
+      const monthlyDetails = document.createElement("details");
+      monthlyDetails.className = "leaderboard-zone-details";
+      monthlyDetails.open = true;
+      const monthlySummary = document.createElement("summary");
+      monthlySummary.innerHTML = `<span class="leaderboard-zone-title">Classement mensuel \u2014 ${getCurrentMonthlyLeaderboardLabel()}</span>`;
+      monthlyDetails.appendChild(monthlySummary);
+      const monthlyContent = document.createElement("div");
+      monthlyContent.className = "leaderboard-zone-content";
+      if (hasMonthlyRows) {
+        appendZoneLeaderboards(monthlyContent, monthlyBoards);
+      } else {
+        monthlyContent.innerHTML = "<p>Aucun score ce mois-ci.</p>";
+      }
+      monthlyDetails.appendChild(monthlyContent);
+      leaderboardRoot.appendChild(monthlyDetails);
+      if (!hasDailyRows) {
+        const firstDetails = leaderboardRoot.querySelector("details");
+        if (firstDetails) {
+          firstDetails.open = true;
         }
       }
-      leaderboardRoot.innerHTML = html;
     }).catch((error) => {
       console.warn("Leaderboard indisponible :", error.message);
       leaderboardRoot.innerHTML = "<p>Aucun score enregistr\xE9.</p>";
@@ -735,8 +891,7 @@
     hasReachedGlobalRank: hasReachedGlobalRank2,
     initAvatarSelector: initAvatarSelector2,
     onProfileRendered,
-    onAuthFailure,
-    variant = "full"
+    onAuthFailure
   }) {
     if (!currentUser2 || !currentUser2.token) {
       return;
@@ -769,7 +924,7 @@
       }
       return response.json();
     }).then((profile) => {
-      var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+      var _a, _b, _c, _d, _e, _f, _g, _h;
       try {
         if (currentUser2) {
           const nextAvatar = profile.avatar || "\u{1F464}";
@@ -790,51 +945,11 @@
         const dailyTotalDays = parseInt((_d = profile.daily) == null ? void 0 : _d.total_days) || 0;
         const dailySuccesses = parseInt((_e = profile.daily) == null ? void 0 : _e.successes) || 0;
         const dailyAverageAttempts = parseFloat((_f = profile.daily) == null ? void 0 : _f.avg_attempts) || 0;
-        const currentStreak = parseInt((_g = profile.daily) == null ? void 0 : _g.current_streak) || 0;
-        const maxStreak = parseInt((_h = profile.daily) == null ? void 0 : _h.max_streak) || 0;
         const memberSince = profile.memberSince ? new Date(profile.memberSince).toLocaleDateString("fr-FR", {
           day: "numeric",
           month: "long",
           year: "numeric"
         }) : "\u2014";
-        if (variant === "compact") {
-          let compactHtml = `
-            <div class="profile-compact-summary">
-              <div class="profile-compact-avatar">${profile.avatar || "\u{1F464}"}</div>
-              <div class="profile-compact-main">
-                <div class="profile-compact-name">${profile.username}</div>
-                <div class="profile-compact-rank">${globalTitle}</div>
-              </div>
-            </div>
-            <div class="profile-compact-meta">
-              <div class="profile-compact-meta-item">
-                <span class="profile-compact-meta-label">Daily</span>
-                <strong class="profile-compact-meta-value">${dailySuccesses}/${dailyTotalDays}</strong>
-              </div>
-              <div class="profile-compact-meta-item">
-                <span class="profile-compact-meta-label">S\xE9rie</span>
-                <strong class="profile-compact-meta-value">${currentStreak}</strong>
-              </div>
-              <div class="profile-compact-meta-item">
-                <span class="profile-compact-meta-label">Max</span>
-                <strong class="profile-compact-meta-value">${maxStreak}</strong>
-              </div>
-            </div>
-            <section class="profile-notification-card profile-notification-card--compact">
-              <div class="profile-notification-title">Rappel Daily</div>
-              <p id="daily-reminder-status" class="profile-notification-status">Chargement\u2026</p>
-              <div class="profile-notification-actions">
-                <button type="button" id="daily-reminder-enable-btn" class="btn-secondary">Activer le rappel</button>
-                <button type="button" id="daily-reminder-disable-btn" class="btn-tertiary hidden">D\xE9sactiver</button>
-              </div>
-            </section>
-            <a class="profile-open-full-link" href="/profil.html">Ouvrir le profil complet</a>`;
-          profileContent.innerHTML = compactHtml;
-          if (typeof onProfileRendered === "function") {
-            onProfileRendered();
-          }
-          return;
-        }
         let html = `
           <div class="profile-header">
             <div class="profile-avatar">
@@ -899,8 +1014,8 @@
           html += `
             <div class="profile-daily-summary">
               <span>\u{1F4C5} Daily : ${dailyAverageAttempts} essais en moyenne</span>
-              ${((_i = profile.daily) == null ? void 0 : _i.current_streak) > 0 ? `<br><span class="profile-daily-current-streak">\u{1F525} S\xE9rie actuelle : ${profile.daily.current_streak}</span>` : ""}
-              ${((_j = profile.daily) == null ? void 0 : _j.max_streak) > 0 ? `<br><span class="profile-daily-best-streak">\u{1F3C6} Meilleure s\xE9rie : ${profile.daily.max_streak}</span>` : ""}
+              ${((_g = profile.daily) == null ? void 0 : _g.current_streak) > 0 ? `<br><span class="profile-daily-current-streak">\u{1F525} S\xE9rie actuelle : ${profile.daily.current_streak}</span>` : ""}
+              ${((_h = profile.daily) == null ? void 0 : _h.max_streak) > 0 ? `<br><span class="profile-daily-best-streak">\u{1F3C6} Meilleure s\xE9rie : ${profile.daily.max_streak}</span>` : ""}
             </div>`;
         }
         html += `
@@ -5497,8 +5612,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         clearCurrentUserFromStorage();
         updateUserUI();
         showMessage("Session expir\xE9e, reconnectez-vous.", "warning");
-      },
-      variant: "compact"
+      }
     });
   }
   function initAvatarSelector(currentAvatar, globalRankLevel) {

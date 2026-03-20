@@ -18,12 +18,13 @@
       --brand-sea-900: #12297a;
       --brand-sea-600: #4057b2;
       --brand-sun-500: #f2a900;
+      --brand-terra-500: #c96b3b;
       --text-primary: #1e293b;
       --text-secondary: #5f6f84;
       --surface: #ffffff;
       --surface-soft: #f8fbff;
       --border: rgba(18, 41, 122, 0.14);
-      --shadow: 0 16px 30px rgba(12, 29, 87, 0.1);
+      --shadow: 0 18px 32px rgba(12, 29, 87, 0.12);
       --radius: 16px;
     }
 
@@ -44,9 +45,9 @@
     }
 
     .page {
-      max-width: 1240px;
+      max-width: 980px;
       margin: 0 auto;
-      padding: 20px 16px 32px;
+      padding: 24px 18px 42px;
     }
 
     .hero {
@@ -54,8 +55,8 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      padding: 18px;
-      margin-bottom: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
     }
 
     .hero-top {
@@ -77,14 +78,14 @@
       color: var(--brand-sea-900);
       border: 1px solid rgba(18, 41, 122, 0.28);
       border-radius: 999px;
-      padding: 6px 11px;
+      padding: 5px 10px;
       background: rgba(255, 255, 255, 0.72);
     }
 
     h1 {
       margin: 0;
       font-family: "Montserrat", system-ui, sans-serif;
-      font-size: clamp(28px, 3.6vw, 40px);
+      font-size: clamp(27px, 4.4vw, 38px);
       line-height: 1.05;
       letter-spacing: -0.02em;
       color: var(--brand-sea-950);
@@ -94,51 +95,28 @@
       margin: 8px 0 0;
       color: var(--text-secondary);
       font-size: 16px;
-      max-width: 84ch;
+      max-width: 72ch;
     }
 
-    .summary-strip {
-      background: rgba(255, 255, 255, 0.88);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 8px;
-      margin-top: 14px;
-      overflow: hidden;
-    }
-
-    .toc-scroll {
-      display: flex;
+    .toc {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 8px;
-      overflow-x: auto;
-      white-space: nowrap;
-      padding-bottom: 2px;
-      scrollbar-width: thin;
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
     }
 
-    .toc-scroll a {
-      display: inline-flex;
-      align-items: center;
-      border: 1px solid rgba(18, 41, 122, 0.16);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.78);
-      padding: 6px 11px;
+    .toc a {
+      display: block;
+      font-size: 13px;
       text-decoration: none;
       color: var(--brand-sea-900);
-      font-size: 12px;
+      border: 1px solid rgba(18, 41, 122, 0.16);
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 10px;
+      padding: 7px 10px;
       font-weight: 700;
-    }
-
-    .rules-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr);
-      gap: 12px;
-    }
-
-    .rules-column {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      min-width: 0;
     }
 
     section {
@@ -146,7 +124,8 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: 0 10px 22px rgba(12, 29, 87, 0.08);
-      padding: 16px;
+      padding: 18px;
+      margin-top: 14px;
     }
 
     h2 {
@@ -262,7 +241,7 @@
     }
 
     .footer-nav {
-      margin-top: 18px;
+      margin-top: 20px;
       display: flex;
       justify-content: center;
     }
@@ -273,15 +252,9 @@
       background: rgba(255, 255, 255, 0.9);
     }
 
-    @media (max-width: 1000px) {
-      .rules-grid {
-        grid-template-columns: minmax(0, 1fr);
-      }
-    }
-
-    @media (max-width: 700px) {
+    @media (max-width: 680px) {
       .page {
-        padding: 12px 10px 24px;
+        padding: 14px 12px 28px;
       }
 
       .hero,
@@ -315,230 +288,229 @@
         Cette page explique précisément comment lancer une session, ce que fait chaque mode, comment le score est
         calculé et comment progresser rapidement.
       </p>
-
-      <nav class="summary-strip" aria-label="Sommaire horizontal">
-        <div class="toc-scroll">
-          <a href="#objectif">1. Objectif</a>
-          <a href="#demarrage">2. Démarrer</a>
-          <a href="#zones">3. Zones</a>
-          <a href="#modes">4. Modes</a>
-          <a href="#score">5. Score</a>
-          <a href="#daily">6. Daily</a>
-          <a href="#classements">7. Classements</a>
-          <a href="#conseils">8. Conseils</a>
-          <a href="#faq">9. FAQ</a>
-        </div>
-      </nav>
+      <ul class="toc" aria-label="Sommaire">
+        <li><a href="#objectif">1. Objectif du jeu</a></li>
+        <li><a href="#demarrage">2. Démarrer une partie</a></li>
+        <li><a href="#zones">3. Zones de jeu</a></li>
+        <li><a href="#modes">4. Modes de partie</a></li>
+        <li><a href="#score">5. Score pondéré (Classique)</a></li>
+        <li><a href="#daily">6. Défi Daily</a></li>
+        <li><a href="#classements">7. Classements</a></li>
+        <li><a href="#conseils">8. Conseils pour progresser</a></li>
+        <li><a href="#faq">9. FAQ rapide</a></li>
+      </ul>
     </header>
 
-    <div class="rules-grid">
-      <div class="rules-column">
-        <section id="objectif">
-          <h2>1. Objectif du jeu</h2>
-          <p>
-            Camino est un jeu de géographie locale: vous devez retrouver l'emplacement d'une rue (ou d'un monument)
-            sur la carte de Marseille.
-          </p>
-          <div class="highlight">
-            Une réponse correcte rapporte des points ou fait avancer votre progression selon le mode choisi. Plus vous
-            êtes rapide en mode Classique, plus votre score est élevé.
-          </div>
-        </section>
-
-        <section id="demarrage">
-          <h2>2. Démarrer une partie pas à pas</h2>
-          <ol>
-            <li>Choisissez une <strong>zone de jeu</strong> (rues célèbres, rues principales, quartier, ville entière ou monuments).</li>
-            <li>Choisissez un <strong>type de partie</strong> (Classique, Marathon, Chrono ou Lecture).</li>
-            <li>Cliquez sur <strong>Commencer la session</strong>.</li>
-            <li>Lisez l'objectif affiché dans le panneau <strong>Rue à trouver</strong>.</li>
-            <li>Cliquez sur la carte pour répondre (ou utilisez la recherche en mode Lecture).</li>
-          </ol>
-          <p>
-            En session active, les panneaux affichent votre progression, vos chronos et un résumé final détaillé.
-          </p>
-        </section>
-
-        <section id="zones">
-          <h2>3. Zones de jeu</h2>
-          <table aria-label="Zones de jeu disponibles">
-            <thead>
-              <tr>
-                <th>Zone</th>
-                <th>Niveau</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Rues célèbres</td>
-                <td>Facile</td>
-                <td>Sélection de rues connues, idéale pour débuter.</td>
-              </tr>
-              <tr>
-                <td>Rues principales</td>
-                <td>Moins facile</td>
-                <td>Réseau plus large de grands axes et rues importantes.</td>
-              </tr>
-              <tr>
-                <td>Par quartier</td>
-                <td>Intermédiaire</td>
-                <td>Partie ciblée sur un quartier choisi.</td>
-              </tr>
-              <tr>
-                <td>Ville entière</td>
-                <td>Difficile</td>
-                <td>Couverture globale de Marseille.</td>
-              </tr>
-              <tr>
-                <td>Monuments</td>
-                <td>Intermédiaire</td>
-                <td>Vous retrouvez des points d'intérêt plutôt que des rues.</td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
-
-        <section id="score">
-          <h2>5. Score pondéré en mode Classique</h2>
-          <p>La formule appliquée pour chaque bonne réponse est la suivante:</p>
-          <div class="formula">points = max(0, 10 - floor(temps_en_secondes / 2))</div>
-          <p>
-            Cela signifie que vous perdez <strong>1 point toutes les 2 secondes</strong>. Le minimum est 0 point.
-          </p>
-          <table aria-label="Exemples de points par temps de réponse">
-            <thead>
-              <tr>
-                <th>Temps de réponse</th>
-                <th>Points gagnés</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>0.0 s à 1.9 s</td>
-                <td>10</td>
-              </tr>
-              <tr>
-                <td>2.0 s à 3.9 s</td>
-                <td>9</td>
-              </tr>
-              <tr>
-                <td>4.0 s à 5.9 s</td>
-                <td>8</td>
-              </tr>
-              <tr>
-                <td>...</td>
-                <td>...</td>
-              </tr>
-              <tr>
-                <td>18.0 s à 19.9 s</td>
-                <td>1</td>
-              </tr>
-              <tr>
-                <td>20.0 s et plus</td>
-                <td>0</td>
-              </tr>
-            </tbody>
-          </table>
-          <h3>Exemple de mini session</h3>
-          <p>
-            Si vous trouvez 3 rues en 1.2 s, 6.7 s et 12.4 s, vous gagnez respectivement 10, 7 et 4 points, soit
-            <strong>21 points</strong> au total sur ces 3 réponses.
-          </p>
-        </section>
-
-        <section id="conseils">
-          <h2>8. Conseils pour progresser</h2>
-          <ol>
-            <li>Commencez par <strong>Rues célèbres + Classique</strong> pour apprendre les repères rapidement.</li>
-            <li>Passez ensuite sur <strong>Rues principales</strong> puis <strong>Quartier</strong>.</li>
-            <li>Travaillez votre vitesse: en Classique, les 2 premières secondes sont les plus rentables.</li>
-            <li>Utilisez le mode <strong>Lecture</strong> pour mémoriser sans pression.</li>
-            <li>Jouez régulièrement le Daily pour améliorer votre précision spatiale.</li>
-          </ol>
-        </section>
+    <section id="objectif">
+      <h2>1. Objectif du jeu</h2>
+      <p>
+        Camino est un jeu de géographie locale: vous devez retrouver l'emplacement d'une rue (ou d'un monument) sur
+        la carte de Marseille.
+      </p>
+      <div class="highlight">
+        Une réponse correcte rapporte des points ou fait avancer votre progression selon le mode choisi. Plus vous êtes
+        rapide en mode Classique, plus votre score est élevé.
       </div>
+    </section>
 
-      <div class="rules-column">
-        <section id="modes">
-          <h2>4. Modes de partie</h2>
-          <table aria-label="Modes de jeu disponibles">
-            <thead>
-              <tr>
-                <th>Mode</th>
-                <th>But</th>
-                <th>Règles clés</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><span class="pill pill-score">Classique</span></td>
-                <td>Faire le meilleur score pondéré</td>
-                <td>Session de 20 items. Chaque bonne réponse vaut jusqu'à 10 points selon votre rapidité.</td>
-              </tr>
-              <tr>
-                <td><span class="pill pill-danger">Marathon</span></td>
-                <td>Aller le plus loin possible</td>
-                <td>La partie s'arrête à la 3e erreur.</td>
-              </tr>
-              <tr>
-                <td><span class="pill pill-info">Chrono</span></td>
-                <td>Trouver un maximum en temps limité</td>
-                <td>Vous avez 60 secondes pour enchaîner les bonnes réponses.</td>
-              </tr>
-              <tr>
-                <td><span class="pill pill-info">Lecture</span></td>
-                <td>Apprendre sans pression</td>
-                <td>Mode libre de découverte (pas de score compétitif).</td>
-              </tr>
-            </tbody>
-          </table>
-          <h3>Pause et bouton Passer</h3>
-          <p>
-            Le bouton <strong>Pause</strong> permet d'interrompre temporairement la session active. Le bouton
-            <strong>Passer</strong> peut être utilisé pour avancer au prochain objectif dans les modes où il est disponible.
-          </p>
-        </section>
+    <section id="demarrage">
+      <h2>2. Démarrer une partie pas à pas</h2>
+      <ol>
+        <li>Choisissez une <strong>zone de jeu</strong> (rues célèbres, rues principales, quartier, ville entière ou monuments).</li>
+        <li>Choisissez un <strong>type de partie</strong> (Classique, Marathon, Chrono ou Lecture).</li>
+        <li>Cliquez sur <strong>Commencer la session</strong>.</li>
+        <li>Lisez l'objectif affiché dans le panneau <strong>Rue à trouver</strong>.</li>
+        <li>Cliquez sur la carte pour répondre (ou utilisez la recherche en mode Lecture).</li>
+      </ol>
+      <p>
+        En session active, les panneaux affichent votre progression, vos chronos et un résumé final détaillé.
+      </p>
+    </section>
 
-        <section id="daily">
-          <h2>6. Défi Daily</h2>
-          <p>Le Daily est un défi quotidien sur une rue unique, avec un nombre d'essais limité.</p>
-          <ul>
-            <li>Le défi du jour propose une seule cible pour tous les joueurs.</li>
-            <li>Vous avez <strong>7 essais maximum</strong>.</li>
-            <li>Après chaque essai raté, la distance est affichée pour vous guider.</li>
-            <li>Le Daily nécessite une connexion au profil joueur.</li>
-          </ul>
-          <div class="highlight">
-            Le but n'est pas la vitesse, mais la précision progressive: utilisez la distance et la logique géographique
-            pour converger vers la bonne rue.
-          </div>
-        </section>
+    <section id="zones">
+      <h2>3. Zones de jeu</h2>
+      <table aria-label="Zones de jeu disponibles">
+        <thead>
+          <tr>
+            <th>Zone</th>
+            <th>Niveau</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Rues célèbres</td>
+            <td>Facile</td>
+            <td>Sélection de rues connues, idéale pour débuter.</td>
+          </tr>
+          <tr>
+            <td>Rues principales</td>
+            <td>Moins facile</td>
+            <td>Réseau plus large de grands axes et rues importantes.</td>
+          </tr>
+          <tr>
+            <td>Par quartier</td>
+            <td>Intermédiaire</td>
+            <td>Partie ciblée sur un quartier choisi.</td>
+          </tr>
+          <tr>
+            <td>Ville entière</td>
+            <td>Difficile</td>
+            <td>Couverture globale de Marseille.</td>
+          </tr>
+          <tr>
+            <td>Monuments</td>
+            <td>Intermédiaire</td>
+            <td>Vous retrouvez des points d'intérêt plutôt que des rues.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
-        <section id="classements">
-          <h2>7. Classements et résultats</h2>
-          <p>Les classements (leaderboard) permettent de comparer les performances par zone et par mode.</p>
-          <ul>
-            <li>Un classement global est affiché dans l'application.</li>
-            <li>Un classement mensuel est aussi disponible.</li>
-            <li>Les parties Daily ont leur propre classement.</li>
-          </ul>
-          <p>En fin de session, un récap détaille vos réponses, votre temps et votre score.</p>
-        </section>
+    <section id="modes">
+      <h2>4. Modes de partie</h2>
+      <table aria-label="Modes de jeu disponibles">
+        <thead>
+          <tr>
+            <th>Mode</th>
+            <th>But</th>
+            <th>Règles clés</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="pill pill-score">Classique</span></td>
+            <td>Faire le meilleur score pondéré</td>
+            <td>Session de 20 items. Chaque bonne réponse vaut jusqu'à 10 points selon votre rapidité.</td>
+          </tr>
+          <tr>
+            <td><span class="pill pill-danger">Marathon</span></td>
+            <td>Aller le plus loin possible</td>
+            <td>La partie s'arrête à la 3e erreur.</td>
+          </tr>
+          <tr>
+            <td><span class="pill pill-info">Chrono</span></td>
+            <td>Trouver un maximum en temps limité</td>
+            <td>Vous avez 60 secondes pour enchaîner les bonnes réponses.</td>
+          </tr>
+          <tr>
+            <td><span class="pill pill-info">Lecture</span></td>
+            <td>Apprendre sans pression</td>
+            <td>Mode libre de découverte (pas de score compétitif).</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3>Pause et bouton Passer</h3>
+      <p>
+        Le bouton <strong>Pause</strong> permet d'interrompre temporairement la session active. Le bouton
+        <strong>Passer</strong> peut être utilisé pour avancer au prochain objectif dans les modes où il est disponible.
+      </p>
+    </section>
 
-        <section id="faq">
-          <h2>9. FAQ rapide</h2>
-          <h3>Le mode Lecture donne-t-il un score ?</h3>
-          <p>Non, c'est un mode d'entraînement et de reconnaissance de la carte.</p>
-          <h3>Le mode Chrono dure combien de temps ?</h3>
-          <p>60 secondes.</p>
-          <h3>Quand une partie Marathon s'arrête-t-elle ?</h3>
-          <p>À la 3e erreur.</p>
-          <h3>Comment maximiser mon score Classique ?</h3>
-          <p>Répondre juste et vite: chaque tranche de 2 secondes fait perdre 1 point sur la réponse en cours.</p>
-        </section>
+    <section id="score">
+      <h2>5. Score pondéré en mode Classique</h2>
+      <p>
+        La formule appliquée pour chaque bonne réponse est la suivante:
+      </p>
+      <div class="formula">points = max(0, 10 - floor(temps_en_secondes / 2))</div>
+      <p>
+        Cela signifie que vous perdez <strong>1 point toutes les 2 secondes</strong>. Le minimum est 0 point.
+      </p>
+      <table aria-label="Exemples de points par temps de réponse">
+        <thead>
+          <tr>
+            <th>Temps de réponse</th>
+            <th>Points gagnés</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0.0 s à 1.9 s</td>
+            <td>10</td>
+          </tr>
+          <tr>
+            <td>2.0 s à 3.9 s</td>
+            <td>9</td>
+          </tr>
+          <tr>
+            <td>4.0 s à 5.9 s</td>
+            <td>8</td>
+          </tr>
+          <tr>
+            <td>...</td>
+            <td>...</td>
+          </tr>
+          <tr>
+            <td>18.0 s à 19.9 s</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>20.0 s et plus</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3>Exemple de mini session</h3>
+      <p>
+        Si vous trouvez 3 rues en 1.2 s, 6.7 s et 12.4 s, vous gagnez respectivement 10, 7 et 4 points, soit
+        <strong>21 points</strong> au total sur ces 3 réponses.
+      </p>
+    </section>
+
+    <section id="daily">
+      <h2>6. Défi Daily</h2>
+      <p>
+        Le Daily est un défi quotidien sur une rue unique, avec un nombre d'essais limité.
+      </p>
+      <ul>
+        <li>Le défi du jour propose une seule cible pour tous les joueurs.</li>
+        <li>Vous avez <strong>7 essais maximum</strong>.</li>
+        <li>Après chaque essai raté, la distance est affichée pour vous guider.</li>
+        <li>Le Daily nécessite une connexion au profil joueur.</li>
+      </ul>
+      <div class="highlight">
+        Le but n'est pas la vitesse, mais la précision progressive: utilisez la distance et la logique géographique pour
+        converger vers la bonne rue.
       </div>
-    </div>
+    </section>
+
+    <section id="classements">
+      <h2>7. Classements et résultats</h2>
+      <p>
+        Les classements (leaderboard) permettent de comparer les performances par zone et par mode.
+      </p>
+      <ul>
+        <li>Un classement global est affiché dans l'application.</li>
+        <li>Un classement mensuel est aussi disponible.</li>
+        <li>Les parties Daily ont leur propre classement.</li>
+      </ul>
+      <p>
+        En fin de session, un récap détaille vos réponses, votre temps et votre score.
+      </p>
+    </section>
+
+    <section id="conseils">
+      <h2>8. Conseils pour progresser</h2>
+      <ol>
+        <li>Commencez par <strong>Rues célèbres + Classique</strong> pour apprendre les repères rapidement.</li>
+        <li>Passez ensuite sur <strong>Rues principales</strong> puis <strong>Quartier</strong>.</li>
+        <li>Travaillez votre vitesse: en Classique, les 2 premières secondes sont les plus rentables.</li>
+        <li>Utilisez le mode <strong>Lecture</strong> pour mémoriser sans pression.</li>
+        <li>Jouez régulièrement le Daily pour améliorer votre précision spatiale.</li>
+      </ol>
+    </section>
+
+    <section id="faq">
+      <h2>9. FAQ rapide</h2>
+      <h3>Le mode Lecture donne-t-il un score ?</h3>
+      <p>Non, c'est un mode d'entraînement et de reconnaissance de la carte.</p>
+      <h3>Le mode Chrono dure combien de temps ?</h3>
+      <p>60 secondes.</p>
+      <h3>Quand une partie Marathon s'arrête-t-elle ?</h3>
+      <p>À la 3e erreur.</p>
+      <h3>Comment maximiser mon score Classique ?</h3>
+      <p>Répondre juste et vite: chaque tranche de 2 secondes fait perdre 1 point sur la réponse en cours.</p>
+    </section>
 
     <div class="footer-nav">
       <a class="back-link" href="/">← Revenir à Camino</a>

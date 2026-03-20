@@ -66,8 +66,8 @@
             <span class="material-symbols-rounded" aria-hidden="true">vibration</span>
           </button>
           <nav class="header-nav" aria-label="Navigation rapide">
-            <a class="header-nav-link" href="/profil.html">Profil</a>
-            <a class="header-nav-link" href="/classement.html">Classement</a>
+            <button type="button" class="header-nav-link" data-nav-target=".user-panel">Profil</button>
+            <button type="button" class="header-nav-link" data-nav-target=".leaderboard-panel">Classement</button>
             <a class="header-nav-link" href="/regles.html">Règles</a>
           </nav>
         </header>
@@ -368,9 +368,11 @@
 
         <!-- Panneau leaderboard -->
         <section class="panel leaderboard-panel">
-          <div class="panel-title">Leaderboard</div>
-          <div id="leaderboard" class="leaderboard leaderboard-preview"></div>
-          <a class="panel-open-link" href="/classement.html">Ouvrir le classement complet</a>
+          <details open>
+            <summary class="panel-title">Leaderboard</summary>
+
+            <div id="leaderboard" class="leaderboard"></div>
+          </details>
         </section>
 
         <!-- Panneau messages + récap -->
