@@ -116,6 +116,117 @@ export async function loadStreetsRuntime({
   };
 }
 
+function getQuartierBaseStyle(uiTheme) {
+  return {
+    color: uiTheme.mapQuartier,
+    weight: 2,
+    opacity: 0.9,
+    fillColor: uiTheme.mapQuartier,
+    fillOpacity: 0.16,
+  };
+}
+
+function getQuartierHoverStyle(uiTheme) {
+  return {
+    color: uiTheme.mapStreetHover,
+    weight: 2.5,
+    opacity: 1,
+    fillColor: uiTheme.mapStreetHover,
+    fillOpacity: 0.24,
+  };
+}
+
+export async function loadQuartiersRuntime({
+  map,
+  L,
+  uiTheme,
+  normalizeQuartierKey,
+  handleQuartierClick,
+}) {
+  const response = await fetch("data/marseille_quartiers_111.geojson?v=2");
+  if (!response.ok) {
+    throw new Error(`Impossible de charger les quartiers (HTTP ${response.status}).`);
+  }
+
+  const payload = await response.json();
+  const allQuartierFeatures = (payload.features || []).filter((feature) => {
+    const name = feature?.properties?.nom_qua;
+    const geometryType = feature?.geometry?.type;
+    return (
+      typeof name === "string" &&
+      name.trim() !== "" &&
+      (geometryType === "Polygon" || geometryType === "MultiPolygon")
+    );
+  });
+
+  const quartierPolygonsByName = new Map();
+  const quartierLayersByKey = new Map();
+  allQuartierFeatures.forEach((feature) => {
+    const quartierName = feature.properties.nom_qua.trim();
+    quartierPolygonsByName.set(quartierName, feature);
+  });
+
+  const quartiersLayer = L.geoJSON(
+    { type: "FeatureCollection", features: allQuartierFeatures },
+    {
+      style: () => getQuartierBaseStyle(uiTheme),
+      onEachFeature: (feature, layer) => {
+        const quartierName = feature?.properties?.nom_qua || "";
+        const quartierKey =
+          typeof normalizeQuartierKey === "function"
+            ? normalizeQuartierKey(quartierName)
+            : quartierName;
+
+        if (quartierKey) {
+          if (!quartierLayersByKey.has(quartierKey)) {
+            quartierLayersByKey.set(quartierKey, []);
+          }
+          quartierLayersByKey.get(quartierKey).push(layer);
+        }
+
+        let hoverTimeoutId = null;
+
+        layer.on("mouseover", () => {
+          if (layer.__caminoLockedStyle) {
+            return;
+          }
+          clearTimeout(hoverTimeoutId);
+          hoverTimeoutId = setTimeout(() => {
+            if (!layer.__caminoLockedStyle) {
+              layer.setStyle(getQuartierHoverStyle(uiTheme));
+            }
+          }, 30);
+        });
+
+        layer.on("mouseout", () => {
+          if (layer.__caminoLockedStyle) {
+            return;
+          }
+          clearTimeout(hoverTimeoutId);
+          hoverTimeoutId = setTimeout(() => {
+            if (!layer.__caminoLockedStyle) {
+              layer.setStyle(getQuartierBaseStyle(uiTheme));
+            }
+          }, 30);
+        });
+
+        layer.on("click", (event) => {
+          if (typeof handleQuartierClick === "function") {
+            handleQuartierClick(feature, layer, event);
+          }
+        });
+      },
+    },
+  );
+
+  return {
+    allQuartierFeatures,
+    quartierPolygonsByName,
+    quartierLayersByKey,
+    quartiersLayer,
+  };
+}
+
 export async function loadMonumentsRuntime({
   map,
   L,
@@ -188,6 +299,7 @@ export async function loadMonumentsRuntime({
 export function setLectureTooltipsEnabledRuntime(enabled, {
   streetsLayer,
   monumentsLayer,
+  quartiersLayer,
   getBaseStreetStyle,
   isStreetVisibleInCurrentMode,
   normalizeName,
@@ -334,6 +446,30 @@ export function setLectureTooltipsEnabledRuntime(enabled, {
           layer.closeTooltip();
           layer.unbindTooltip();
         }
+      }
+    });
+  }
+
+  if (quartiersLayer) {
+    quartiersLayer.eachLayer((layer) => {
+      const quartierName = layer.feature?.properties?.nom_qua || "";
+      if (!quartierName) {
+        return;
+      }
+
+      if (enabled) {
+        if (!layer.getTooltip()) {
+          layer.bindTooltip(quartierName, {
+            direction: "top",
+            sticky: !isTouchDevice,
+            permanent: false,
+            opacity: 0.9,
+            className: "street-tooltip",
+          });
+        }
+      } else if (layer.getTooltip()) {
+        layer.closeTooltip();
+        layer.unbindTooltip();
       }
     });
   }

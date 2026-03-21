@@ -3,6 +3,7 @@ import { API_URL, LEADERBOARD_VISIBLE_ROWS } from "./config.js";
 const TITLE_THRESHOLDS_BY_MODE = {
   classique: {
     "rues-celebres": { M: 60, H: 100, V: 140, MV: 180 },
+    "quartiers-ville": { M: 40, H: 80, V: 120, MV: 160 },
     "rues-principales": { M: 50, H: 90, V: 130, MV: 170 },
     quartier: { M: 40, H: 80, V: 120, MV: 160 },
     ville: { M: 30, H: 70, V: 110, MV: 150 },
@@ -10,12 +11,14 @@ const TITLE_THRESHOLDS_BY_MODE = {
   },
   marathon: {
     "rues-celebres": { M: 10, H: 20, V: 35, MV: 55 },
+    "quartiers-ville": { M: 9, H: 18, V: 30, MV: 46 },
     "rues-principales": { M: 9, H: 18, V: 30, MV: 48 },
     ville: { M: 8, H: 16, V: 28, MV: 44 },
     monuments: { M: 9, H: 18, V: 30, MV: 46 },
   },
   chrono: {
     "rues-celebres": { M: 7, H: 11, V: 16, MV: 22 },
+    "quartiers-ville": { M: 5, H: 8, V: 12, MV: 16 },
     "rues-principales": { M: 6, H: 10, V: 14, MV: 19 },
     quartier: { M: 5, H: 8, V: 12, MV: 16 },
     ville: { M: 4, H: 7, V: 10, MV: 14 },
@@ -38,7 +41,8 @@ export const ZONE_LABELS = {
   ville: "Ville entière",
   "rues-principales": "Rues principales",
   "rues-celebres": "Rues célèbres",
-  quartier: "Quartier",
+  "quartiers-ville": "Quartiers de la ville",
+  quartier: "Rues par quartier",
   monuments: "Monuments",
 };
 
@@ -49,7 +53,7 @@ export const GAME_LABELS = {
   lecture: "Lecture",
 };
 
-const ZONE_ORDER = ["rues-celebres", "rues-principales", "quartier", "ville", "monuments"];
+const ZONE_ORDER = ["rues-celebres", "quartiers-ville", "rues-principales", "quartier", "ville", "monuments"];
 const GAME_ORDER = ["classique", "marathon", "chrono", "lecture"];
 
 export function buildQuartierMarathonThresholds(maxItems) {
@@ -294,8 +298,14 @@ function appendZoneLeaderboards(rootElement, boards) {
         const table = document.createElement("table");
         table.className = "leaderboard-table";
         const thead = document.createElement("thead");
+        const foundColumnLabel =
+          zoneMode === "quartiers-ville"
+            ? "Quartiers trouvés"
+            : zoneMode === "monuments"
+              ? "Monuments trouvés"
+              : "Rues trouvées";
         let header = "<tr><th>#</th><th>Joueur</th>";
-        header += gameType === "classique" ? "<th>Score</th>" : "<th>Rues trouvées</th>";
+        header += gameType === "classique" ? "<th>Score</th>" : `<th>${foundColumnLabel}</th>`;
         if (gameType === "marathon") {
           header += "<th>Max zone</th>";
         }

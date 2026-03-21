@@ -107,6 +107,11 @@ export function getBaseStreetStyleFromName({
   let color = uiTheme.mapStreet;
   let weight = 5;
 
+  if (zoneMode === "quartiers-ville") {
+    color = "#00000000";
+    weight = 0;
+  }
+
   if ((zoneMode === "rues-principales" || zoneMode === "main") && !mainStreetNames.has(normalizedStreetName)) {
     color = "#00000000";
     weight = 0;
@@ -157,7 +162,7 @@ export function isStreetVisibleInCurrentMode({
   famousStreetNames,
   mainStreetNames,
 }) {
-  if (zoneMode === "monuments") {
+  if (zoneMode === "monuments" || zoneMode === "quartiers-ville") {
     return false;
   }
 
@@ -195,6 +200,10 @@ export function getCurrentZoneStreets({
   mainStreetNames,
   famousStreetNames,
 }) {
+  if (zoneMode === "quartiers-ville") {
+    return [];
+  }
+
   if (zoneMode === "quartier" && selectedQuartier) {
     return allStreetFeatures.filter(
       (feature) =>

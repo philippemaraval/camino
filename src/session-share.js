@@ -27,18 +27,27 @@ export function buildSessionEmojiGrid(summaryData, {
 
 function getSessionResultLine({
   gameMode,
+  zoneMode,
   scorePercent,
   correctCount,
   answeredCount,
   sessionScoreValue,
   poolSize,
 }) {
+  const itemLabel =
+    zoneMode === "monuments"
+      ? "monuments"
+      : zoneMode === "quartiers-ville"
+        ? "quartiers"
+        : "rues";
+  const foundWord = zoneMode === "monuments" || zoneMode === "quartiers-ville" ? "trouvés" : "trouvées";
+
   if (gameMode === "marathon") {
-    return `🎯 Résultat : ${Math.round(sessionScoreValue)} / ${poolSize || 0} rues trouvées`;
+    return `🎯 Résultat : ${Math.round(sessionScoreValue)} / ${poolSize || 0} ${itemLabel} ${foundWord}`;
   }
 
   if (gameMode === "chrono") {
-    return `🎯 Résultat : ${Math.round(sessionScoreValue)} rues trouvées en 60 s`;
+    return `🎯 Résultat : ${Math.round(sessionScoreValue)} ${itemLabel} ${foundWord} en 60 s`;
   }
 
   return `🎯 Résultat : ${scorePercent}% (${correctCount}/${answeredCount}) • ${sessionScoreValue.toFixed(1)} pts`;
@@ -77,6 +86,7 @@ export function buildSessionShareText({
 
   const resultLine = getSessionResultLine({
     gameMode,
+    zoneMode,
     scorePercent,
     correctCount,
     answeredCount,

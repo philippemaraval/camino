@@ -143,7 +143,7 @@
 
           <div class="info-block" id="mode-select-block">
             <label>Zone de jeu <span class="tooltip-icon"
-                data-tooltip="Choisissez la zone géographique : rues célèbres (facile), rues principales, par quartier, ville entière (expert) ou monuments.">i</span></label>
+                data-tooltip="Choisissez la zone géographique : rues célèbres (facile), quartiers de la ville (facile), rues principales, rues par quartier, ville entière (expert) ou monuments.">i</span></label>
 
             <div id="mode-select-wrapper" class="custom-select">
               <button id="mode-select-button" class="custom-select-button">
@@ -153,9 +153,11 @@
               <ul id="mode-select-list" class="custom-select-list">
                 <li data-value="rues-celebres">Rues célèbres <span
                     class="difficulty-pill difficulty-pill--very-easy">Facile</span></li>
+                <li data-value="quartiers-ville">Quartiers de la ville <span
+                    class="difficulty-pill difficulty-pill--easy">Facile</span></li>
                 <li data-value="rues-principales">Rues principales <span
                     class="difficulty-pill difficulty-pill--easy">Moins Facile</span></li>
-                <li data-value="quartier">Par quartier <span
+                <li data-value="quartier">Rues par quartier <span
                     class="difficulty-pill difficulty-pill--medium">Faisable</span></li>
                 <li data-value="ville">Ville entière <span
                     class="difficulty-pill difficulty-pill--hard">Difficile</span></li>
@@ -166,8 +168,9 @@
 
             <select id="mode-select" class="native-select">
               <option value="rues-celebres" selected>Rues célèbres</option>
+              <option value="quartiers-ville">Quartiers de la ville</option>
               <option value="rues-principales">Rues principales</option>
-              <option value="quartier">Par quartier</option>
+              <option value="quartier">Rues par quartier</option>
               <option value="ville">Ville entière</option>
               <option value="monuments">Monuments</option>
             </select>

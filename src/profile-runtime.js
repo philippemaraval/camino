@@ -273,7 +273,7 @@ function buildProfileCompactStatsHTML(profile, zoneLabels) {
       </tr>`).join("")
     : '<tr><td colspan="3">Aucune donnée disponible.</td></tr>';
 
-  const orderedModes = ["rues-celebres", "rues-principales", "quartier", "ville", "monuments"];
+  const orderedModes = ["rues-celebres", "quartiers-ville", "rues-principales", "quartier", "ville", "monuments"];
   const difficultyMap = new Map(difficultyStats.map((row) => [row.mode, row]));
   const difficultyRows = orderedModes
     .filter((mode) => difficultyMap.has(mode))

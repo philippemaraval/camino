@@ -27,6 +27,7 @@
   var TITLE_THRESHOLDS_BY_MODE = {
     classique: {
       "rues-celebres": { M: 60, H: 100, V: 140, MV: 180 },
+      "quartiers-ville": { M: 40, H: 80, V: 120, MV: 160 },
       "rues-principales": { M: 50, H: 90, V: 130, MV: 170 },
       quartier: { M: 40, H: 80, V: 120, MV: 160 },
       ville: { M: 30, H: 70, V: 110, MV: 150 },
@@ -34,12 +35,14 @@
     },
     marathon: {
       "rues-celebres": { M: 10, H: 20, V: 35, MV: 55 },
+      "quartiers-ville": { M: 9, H: 18, V: 30, MV: 46 },
       "rues-principales": { M: 9, H: 18, V: 30, MV: 48 },
       ville: { M: 8, H: 16, V: 28, MV: 44 },
       monuments: { M: 9, H: 18, V: 30, MV: 46 }
     },
     chrono: {
       "rues-celebres": { M: 7, H: 11, V: 16, MV: 22 },
+      "quartiers-ville": { M: 5, H: 8, V: 12, MV: 16 },
       "rues-principales": { M: 6, H: 10, V: 14, MV: 19 },
       quartier: { M: 5, H: 8, V: 12, MV: 16 },
       ville: { M: 4, H: 7, V: 10, MV: 14 },
@@ -59,7 +62,8 @@
     ville: "Ville enti\xE8re",
     "rues-principales": "Rues principales",
     "rues-celebres": "Rues c\xE9l\xE8bres",
-    quartier: "Quartier",
+    "quartiers-ville": "Quartiers de la ville",
+    quartier: "Rues par quartier",
     monuments: "Monuments"
   };
   var GAME_LABELS = {
@@ -68,7 +72,7 @@
     chrono: "Chrono",
     lecture: "Lecture"
   };
-  var ZONE_ORDER = ["rues-celebres", "rues-principales", "quartier", "ville", "monuments"];
+  var ZONE_ORDER = ["rues-celebres", "quartiers-ville", "rues-principales", "quartier", "ville", "monuments"];
   var GAME_ORDER = ["classique", "marathon", "chrono", "lecture"];
   function buildQuartierMarathonThresholds(maxItems) {
     const total = Math.max(1, parseInt(maxItems, 10) || 55);
@@ -250,8 +254,9 @@
           const table = document.createElement("table");
           table.className = "leaderboard-table";
           const thead = document.createElement("thead");
+          const foundColumnLabel = zoneMode === "quartiers-ville" ? "Quartiers trouv\xE9s" : zoneMode === "monuments" ? "Monuments trouv\xE9s" : "Rues trouv\xE9es";
           let header = "<tr><th>#</th><th>Joueur</th>";
-          header += gameType === "classique" ? "<th>Score</th>" : "<th>Rues trouv\xE9es</th>";
+          header += gameType === "classique" ? "<th>Score</th>" : `<th>${foundColumnLabel}</th>`;
           if (gameType === "marathon") {
             header += "<th>Max zone</th>";
           }
@@ -702,7 +707,7 @@
         <td>${toNumber(row.success_rate, 0).toFixed(1)}%</td>
         <td>${toNumber(row.avg_time_sec, 0).toFixed(1)} s</td>
       </tr>`).join("") : '<tr><td colspan="3">Aucune donn\xE9e disponible.</td></tr>';
-    const orderedModes = ["rues-celebres", "rues-principales", "quartier", "ville", "monuments"];
+    const orderedModes = ["rues-celebres", "quartiers-ville", "rues-principales", "quartier", "ville", "monuments"];
     const difficultyMap = new Map(difficultyStats.map((row) => [row.mode, row]));
     const difficultyRows = orderedModes.filter((mode) => difficultyMap.has(mode)).map((mode) => difficultyMap.get(mode));
     const difficultyBarsHtml = difficultyRows.length > 0 ? difficultyRows.map((row) => {
@@ -1432,6 +1437,10 @@
     const normalizedStreetName = normalizeName2(streetName || "");
     let color = uiTheme.mapStreet;
     let weight = 5;
+    if (zoneMode === "quartiers-ville") {
+      color = "#00000000";
+      weight = 0;
+    }
     if ((zoneMode === "rues-principales" || zoneMode === "main") && !mainStreetNames.has(normalizedStreetName)) {
       color = "#00000000";
       weight = 0;
@@ -1474,7 +1483,7 @@
     famousStreetNames,
     mainStreetNames
   }) {
-    if (zoneMode === "monuments") {
+    if (zoneMode === "monuments" || zoneMode === "quartiers-ville") {
       return false;
     }
     if (zoneMode === "rues-celebres") {
@@ -1505,6 +1514,9 @@
     mainStreetNames,
     famousStreetNames
   }) {
+    if (zoneMode === "quartiers-ville") {
+      return [];
+    }
     if (zoneMode === "quartier" && selectedQuartier) {
       return allStreetFeatures2.filter(
         (feature) => feature.properties && typeof feature.properties.quartier === "string" && isSameQuartierName(feature.properties.quartier, selectedQuartier) && !isExcludedFromVilleAndQuartier(normalizeName2(feature.properties.name))
@@ -1635,23 +1647,6 @@
       }
       nativeSelect.value = firstQuartier;
     }
-  }
-  async function loadQuartierPolygonsMap() {
-    const response = await fetch("data/marseille_quartiers_111.geojson?v=2");
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP ${response.status}`);
-    }
-    const payload = await response.json();
-    const features = payload.features || [];
-    const byName = /* @__PURE__ */ new Map();
-    features.forEach((feature) => {
-      const properties = feature.properties || {};
-      const quartierName = typeof properties.nom_qua === "string" ? properties.nom_qua.trim() : "";
-      if (quartierName) {
-        byName.set(quartierName, feature);
-      }
-    });
-    return byName;
   }
   function clearQuartierOverlayLayer(map2, quartierOverlay2) {
     if (quartierOverlay2) {
@@ -1794,6 +1789,100 @@
       loadedMs: (performance.now() - startedAt).toFixed(0)
     };
   }
+  function getQuartierBaseStyle(uiTheme) {
+    return {
+      color: uiTheme.mapQuartier,
+      weight: 2,
+      opacity: 0.9,
+      fillColor: uiTheme.mapQuartier,
+      fillOpacity: 0.16
+    };
+  }
+  function getQuartierHoverStyle(uiTheme) {
+    return {
+      color: uiTheme.mapStreetHover,
+      weight: 2.5,
+      opacity: 1,
+      fillColor: uiTheme.mapStreetHover,
+      fillOpacity: 0.24
+    };
+  }
+  async function loadQuartiersRuntime({
+    map: map2,
+    L: L2,
+    uiTheme,
+    normalizeQuartierKey: normalizeQuartierKey2,
+    handleQuartierClick: handleQuartierClick2
+  }) {
+    const response = await fetch("data/marseille_quartiers_111.geojson?v=2");
+    if (!response.ok) {
+      throw new Error(`Impossible de charger les quartiers (HTTP ${response.status}).`);
+    }
+    const payload = await response.json();
+    const allQuartierFeatures2 = (payload.features || []).filter((feature) => {
+      var _a, _b;
+      const name = (_a = feature == null ? void 0 : feature.properties) == null ? void 0 : _a.nom_qua;
+      const geometryType = (_b = feature == null ? void 0 : feature.geometry) == null ? void 0 : _b.type;
+      return typeof name === "string" && name.trim() !== "" && (geometryType === "Polygon" || geometryType === "MultiPolygon");
+    });
+    const quartierPolygonsByName2 = /* @__PURE__ */ new Map();
+    const quartierLayersByKey2 = /* @__PURE__ */ new Map();
+    allQuartierFeatures2.forEach((feature) => {
+      const quartierName = feature.properties.nom_qua.trim();
+      quartierPolygonsByName2.set(quartierName, feature);
+    });
+    const quartiersLayer2 = L2.geoJSON(
+      { type: "FeatureCollection", features: allQuartierFeatures2 },
+      {
+        style: () => getQuartierBaseStyle(uiTheme),
+        onEachFeature: (feature, layer) => {
+          var _a;
+          const quartierName = ((_a = feature == null ? void 0 : feature.properties) == null ? void 0 : _a.nom_qua) || "";
+          const quartierKey = typeof normalizeQuartierKey2 === "function" ? normalizeQuartierKey2(quartierName) : quartierName;
+          if (quartierKey) {
+            if (!quartierLayersByKey2.has(quartierKey)) {
+              quartierLayersByKey2.set(quartierKey, []);
+            }
+            quartierLayersByKey2.get(quartierKey).push(layer);
+          }
+          let hoverTimeoutId = null;
+          layer.on("mouseover", () => {
+            if (layer.__caminoLockedStyle) {
+              return;
+            }
+            clearTimeout(hoverTimeoutId);
+            hoverTimeoutId = setTimeout(() => {
+              if (!layer.__caminoLockedStyle) {
+                layer.setStyle(getQuartierHoverStyle(uiTheme));
+              }
+            }, 30);
+          });
+          layer.on("mouseout", () => {
+            if (layer.__caminoLockedStyle) {
+              return;
+            }
+            clearTimeout(hoverTimeoutId);
+            hoverTimeoutId = setTimeout(() => {
+              if (!layer.__caminoLockedStyle) {
+                layer.setStyle(getQuartierBaseStyle(uiTheme));
+              }
+            }, 30);
+          });
+          layer.on("click", (event) => {
+            if (typeof handleQuartierClick2 === "function") {
+              handleQuartierClick2(feature, layer, event);
+            }
+          });
+        }
+      }
+    );
+    return {
+      allQuartierFeatures: allQuartierFeatures2,
+      quartierPolygonsByName: quartierPolygonsByName2,
+      quartierLayersByKey: quartierLayersByKey2,
+      quartiersLayer: quartiersLayer2
+    };
+  }
   async function loadMonumentsRuntime({
     map: map2,
     L: L2,
@@ -1856,6 +1945,7 @@
   function setLectureTooltipsEnabledRuntime(enabled, {
     streetsLayer: streetsLayer2,
     monumentsLayer: monumentsLayer2,
+    quartiersLayer: quartiersLayer2,
     getBaseStreetStyle: getBaseStreetStyle3,
     isStreetVisibleInCurrentMode: isStreetVisibleInCurrentMode3,
     normalizeName: normalizeName2,
@@ -1988,6 +2078,29 @@
             layer.closeTooltip();
             layer.unbindTooltip();
           }
+        }
+      });
+    }
+    if (quartiersLayer2) {
+      quartiersLayer2.eachLayer((layer) => {
+        var _a, _b;
+        const quartierName = ((_b = (_a = layer.feature) == null ? void 0 : _a.properties) == null ? void 0 : _b.nom_qua) || "";
+        if (!quartierName) {
+          return;
+        }
+        if (enabled) {
+          if (!layer.getTooltip()) {
+            layer.bindTooltip(quartierName, {
+              direction: "top",
+              sticky: !isTouchDevice,
+              permanent: false,
+              opacity: 0.9,
+              className: "street-tooltip"
+            });
+          }
+        } else if (layer.getTooltip()) {
+          layer.closeTooltip();
+          layer.unbindTooltip();
         }
       });
     }
@@ -2560,17 +2673,20 @@
   }
   function getSessionResultLine({
     gameMode,
+    zoneMode,
     scorePercent,
     correctCount: correctCount2,
     answeredCount,
     sessionScoreValue,
     poolSize
   }) {
+    const itemLabel = zoneMode === "monuments" ? "monuments" : zoneMode === "quartiers-ville" ? "quartiers" : "rues";
+    const foundWord = zoneMode === "monuments" || zoneMode === "quartiers-ville" ? "trouv\xE9s" : "trouv\xE9es";
     if (gameMode === "marathon") {
-      return `\u{1F3AF} R\xE9sultat : ${Math.round(sessionScoreValue)} / ${poolSize || 0} rues trouv\xE9es`;
+      return `\u{1F3AF} R\xE9sultat : ${Math.round(sessionScoreValue)} / ${poolSize || 0} ${itemLabel} ${foundWord}`;
     }
     if (gameMode === "chrono") {
-      return `\u{1F3AF} R\xE9sultat : ${Math.round(sessionScoreValue)} rues trouv\xE9es en 60 s`;
+      return `\u{1F3AF} R\xE9sultat : ${Math.round(sessionScoreValue)} ${itemLabel} ${foundWord} en 60 s`;
     }
     return `\u{1F3AF} R\xE9sultat : ${scorePercent}% (${correctCount2}/${answeredCount}) \u2022 ${sessionScoreValue.toFixed(1)} pts`;
   }
@@ -2606,6 +2722,7 @@
     }
     const resultLine = getSessionResultLine({
       gameMode,
+      zoneMode,
       scorePercent,
       correctCount: correctCount2,
       answeredCount,
@@ -3856,6 +3973,9 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   var allStreetFeatures = [];
   var streetLayersById = /* @__PURE__ */ new Map();
   var streetLayersByName = /* @__PURE__ */ new Map();
+  var quartiersLayer = null;
+  var allQuartierFeatures = [];
+  var quartierLayersByKey = /* @__PURE__ */ new Map();
   var monumentsLayer = null;
   var allMonuments = [];
   var sessionMonuments = [];
@@ -3868,6 +3988,9 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   var sessionStreets = [];
   var currentIndex = 0;
   var currentTarget = null;
+  var sessionQuartiers = [];
+  var currentQuartierIndex = 0;
+  var currentQuartierTarget = null;
   var isSessionRunning = false;
   var activeSessionId = null;
   var sessionStartTime = null;
@@ -3894,21 +4017,24 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     return "classique" === e ? weightedScore : correctCount;
   }
   function getCurrentSessionPoolSize() {
-    return "monuments" === getZoneMode() ? sessionMonuments.length : sessionStreets.length;
+    return "monuments" === getZoneMode() ? sessionMonuments.length : "quartiers-ville" === getZoneMode() ? sessionQuartiers.length : sessionStreets.length;
   }
   function getScoreMetricUIConfig(e = getGameMode()) {
+    const zoneMode = getZoneMode();
+    const itemLabel = "monuments" === zoneMode ? "Monuments" : "quartiers-ville" === zoneMode ? "Quartiers" : "Rues";
+    const foundWord = "monuments" === zoneMode || "quartiers-ville" === zoneMode ? "trouv\xE9s" : "trouv\xE9es";
     if ("marathon" === e)
       return {
-        label: "Rues trouv\xE9es",
-        legend: "Score = nombre de rues trouv\xE9es (objectif: aller le plus loin possible).",
-        help: "<strong>Rues trouv\xE9es (Marathon)</strong><br>Le score correspond au nombre de rues trouv\xE9es avant la limite d'erreurs.<br><br>Le maximum d\xE9pend de la zone s\xE9lectionn\xE9e.",
+        label: `${itemLabel} ${foundWord}`,
+        legend: `Score = nombre de ${itemLabel.toLowerCase()} ${foundWord} (objectif: aller le plus loin possible).`,
+        help: `<strong>${itemLabel} ${foundWord} (Marathon)</strong><br>Le score correspond au nombre de ${itemLabel.toLowerCase()} ${foundWord} avant la limite d'erreurs.<br><br>Le maximum d\xE9pend de la zone s\xE9lectionn\xE9e.`,
         decimals: 0
       };
     if ("chrono" === e)
       return {
-        label: "Rues trouv\xE9es",
-        legend: `Score = nombre de rues trouv\xE9es en ${CHRONO_DURATION} secondes.`,
-        help: `<strong>Rues trouv\xE9es (Chrono)</strong><br>Le score correspond au nombre de rues trouv\xE9es dans le temps imparti (${CHRONO_DURATION} s).`,
+        label: `${itemLabel} ${foundWord}`,
+        legend: `Score = nombre de ${itemLabel.toLowerCase()} ${foundWord} en ${CHRONO_DURATION} secondes.`,
+        help: `<strong>${itemLabel} ${foundWord} (Chrono)</strong><br>Le score correspond au nombre de ${itemLabel.toLowerCase()} ${foundWord} dans le temps imparti (${CHRONO_DURATION} s).`,
         decimals: 0
       };
     return {
@@ -4055,7 +4181,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       "difficulty-pill--easy",
       "difficulty-pill--medium",
       "difficulty-pill--hard"
-    ), "rues-principales" === r ? (t.textContent = "Facile", t.classList.add("difficulty-pill--easy")) : "quartier" === r || "monuments" === r ? (t.textContent = "Faisable", t.classList.add("difficulty-pill--medium")) : "rues-celebres" === r ? (t.textContent = "Tr\xE8s Facile", t.classList.add("difficulty-pill--easy")) : "ville" === r ? (t.textContent = "Difficile", t.classList.add("difficulty-pill--hard")) : t.textContent = "";
+    ), "rues-principales" === r ? (t.textContent = "Facile", t.classList.add("difficulty-pill--easy")) : "quartiers-ville" === r ? (t.textContent = "Facile", t.classList.add("difficulty-pill--easy")) : "quartier" === r || "monuments" === r ? (t.textContent = "Faisable", t.classList.add("difficulty-pill--medium")) : "rues-celebres" === r ? (t.textContent = "Tr\xE8s Facile", t.classList.add("difficulty-pill--easy")) : "ville" === r ? (t.textContent = "Difficile", t.classList.add("difficulty-pill--hard")) : t.textContent = "";
   }
   function setTargetPanelTitleText(e) {
     const t = document.getElementById("target-panel-title-text");
@@ -4069,15 +4195,19 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const t = isSessionRunning && !isDailyMode && !isLectureMode && "classique" === getGameMode();
     if (!t)
       return e.textContent = "", void e.classList.add("hidden");
-    const r = "monuments" === getZoneMode(), a = r ? sessionMonuments.length : sessionStreets.length;
+    const r = getZoneMode(), a = "monuments" === r ? sessionMonuments.length : "quartiers-ville" === r ? sessionQuartiers.length : sessionStreets.length;
     if (!Number.isFinite(a) || a <= 0)
       return e.textContent = "", void e.classList.add("hidden");
-    const n = r ? currentMonumentIndex : currentIndex, s = Math.min(a, Math.max(1, n + 1));
+    const n = "monuments" === r ? currentMonumentIndex : "quartiers-ville" === r ? currentQuartierIndex : currentIndex, s = Math.min(a, Math.max(1, n + 1));
     e.textContent = `${s}/${a}`, e.classList.remove("hidden");
   }
   function updateTargetPanelTitle() {
     const e = getZoneMode();
-    isLectureMode ? setTargetPanelTitleText("monuments" === e ? "Monument \xE0 explorer" : "Recherche de rue") : setTargetPanelTitleText("monuments" === e ? "Monument \xE0 trouver" : "Rue \xE0 trouver"), updateTargetItemCounter();
+    isLectureMode ? setTargetPanelTitleText(
+      "monuments" === e ? "Monument \xE0 explorer" : "quartiers-ville" === e ? "Quartier \xE0 explorer" : "Recherche de rue"
+    ) : setTargetPanelTitleText(
+      "monuments" === e ? "Monument \xE0 trouver" : "quartiers-ville" === e ? "Quartier \xE0 trouver" : "Rue \xE0 trouver"
+    ), updateTargetItemCounter();
   }
   function getGameMode() {
     const e = document.getElementById("game-mode-select");
@@ -4111,7 +4241,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     container.classList.add("hidden"), target.classList.remove("hidden"), closeLectureStreetSearchResults(), input && true !== t && (input.value = "", input.blur());
   }
   function buildLectureStreetSearchIndex() {
-    if ("monuments" === getZoneMode())
+    if ("monuments" === getZoneMode() || "quartiers-ville" === getZoneMode())
       return void (lectureStreetSearchIndex = []);
     const e = buildUniqueStreetList2(getCurrentZoneStreets2()), t = /* @__PURE__ */ new Set();
     lectureStreetSearchIndex = e.map(
@@ -4170,7 +4300,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     return e ? (lectureStreetSearchMatches = findLectureStreetMatches(e), void renderLectureStreetSearchResults(lectureStreetSearchMatches)) : void closeLectureStreetSearchResults();
   }
   function refreshLectureStreetSearchForCurrentMode(e = {}) {
-    const t = true === e.preserveQuery, r = isLectureMode && "monuments" !== getZoneMode(), { input } = getLectureSearchElements();
+    const t = true === e.preserveQuery, r = isLectureMode && "monuments" !== getZoneMode() && "quartiers-ville" !== getZoneMode(), { input } = getLectureSearchElements();
     if (!r)
       return void setLectureStreetSearchVisible(false, t);
     setLectureStreetSearchVisible(true, t), buildLectureStreetSearchIndex(), input && (input.disabled = 0 === lectureStreetSearchIndex.length, input.placeholder = 0 === lectureStreetSearchIndex.length ? "Aucune rue disponible pour cette zone" : "Rechercher une rue (nom ou mot)", t && input.value.trim() && lectureStreetSearchIndex.length > 0 ? updateLectureStreetSearchResults() : closeLectureStreetSearchResults());
@@ -4355,6 +4485,24 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
           setNewTarget();
           return;
         }
+        if ("quartiers-ville" === getZoneMode()) {
+          if (!currentQuartierTarget) return;
+          summaryData.push({
+            name: getQuartierTargetName(currentQuartierTarget),
+            correct: false,
+            time: 0
+          });
+          totalAnswered += 1;
+          updateScoreUI();
+          updateWeightedScoreUI();
+          if (applyMarathonSkipPenalty()) {
+            endSession();
+            return;
+          }
+          currentQuartierIndex += 1;
+          setNewTarget();
+          return;
+        }
         if (currentTarget) {
           summaryData.push({
             name: currentTarget.properties.name,
@@ -4375,10 +4523,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     }), t && t.addEventListener("change", () => {
       currentZoneMode = t.value;
       const e2 = currentZoneMode;
-      updateTargetPanelTitle(), updateModeDifficultyPill(), streetsLayer && streetLayersById.size && streetLayersById.forEach((e3) => {
+      updateTargetPanelTitle(), updateModeDifficultyPill(), updateScoreMetricUI(), streetsLayer && streetLayersById.size && streetLayersById.forEach((e3) => {
         const t2 = getBaseStreetStyle2(e3), r2 = t2.weight > 0;
         e3.setStyle({ color: t2.color, weight: t2.weight }), e3.options.interactive = r2, e3.touchBuffer && (e3.touchBuffer.options.interactive = r2);
-      }), "quartier" === e2 ? (r.style.display = "block", a && a.value && highlightQuartier(a.value)) : (r.style.display = "none", clearQuartierOverlay()), "monuments" === e2 ? (streetsLayer && map.hasLayer(streetsLayer) && map.removeLayer(streetsLayer), monumentsLayer && !map.hasLayer(monumentsLayer) && monumentsLayer.addTo(map)) : (monumentsLayer && map.hasLayer(monumentsLayer) && map.removeLayer(monumentsLayer), streetsLayer && !map.hasLayer(streetsLayer) && streetsLayer.addTo(map)), updateStreetInfoPanelVisibility(), refreshLectureTooltipsIfNeeded(), isLectureMode && refreshLectureStreetSearchForCurrentMode({ preserveQuery: true });
+      }), "quartier" === e2 ? (r.style.display = "block", a && a.value && highlightQuartier(a.value)) : (r.style.display = "none", clearQuartierOverlay()), setZoneLayersVisibility(e2), updateStreetInfoPanelVisibility(), refreshLectureTooltipsIfNeeded(), isLectureMode && refreshLectureStreetSearchForCurrentMode({ preserveQuery: true });
       const n2 = document.getElementById("street-info");
       n2 && ("rues-principales" === e2 || "main" === e2 || (n2.textContent = "", n2.style.display = "none"));
     }), a && a.addEventListener("change", () => {
@@ -4449,12 +4597,12 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   }
   document.addEventListener("DOMContentLoaded", () => {
     loadStreetInfos();
-    setMapStatus("Chargement", "loading"), initMap(), initUI(), startTimersLoop(), loadStreets(), loadQuartierPolygons(), loadMonuments(), loadAllLeaderboards(), document.body.classList.add("app-ready");
+    setMapStatus("Chargement", "loading"), initMap(), initUI(), startTimersLoop(), loadStreets(), loadQuartiers(), loadMonuments(), loadAllLeaderboards(), document.body.classList.add("app-ready");
   });
   var infoEl = document.getElementById("street-info");
   function startTimersLoop() {
     requestAnimationFrame(function e() {
-      if (null !== sessionStartTime && null !== streetStartTime && isSessionRunning && !isPaused && (currentTarget || currentMonumentTarget)) {
+      if (null !== sessionStartTime && null !== streetStartTime && isSessionRunning && !isPaused && (currentTarget || currentMonumentTarget || currentQuartierTarget)) {
         const t = performance.now(), r = (t - sessionStartTime) / 1e3, a = (t - streetStartTime) / 1e3;
         if ("classique" !== getGameMode() && MAX_TIME_SECONDS > 0 && (r >= MAX_TIME_SECONDS || a >= MAX_TIME_SECONDS))
           return endSession(), void requestAnimationFrame(e);
@@ -4499,6 +4647,31 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       famousStreetNames: FAMOUS_STREET_NAMES,
       mainStreetNames: MAIN_STREET_NAMES
     });
+  }
+  function getQuartierTargetName(e) {
+    var _a;
+    return "string" == typeof ((_a = e == null ? void 0 : e.properties) == null ? void 0 : _a.nom_qua) ? e.properties.nom_qua.trim() : "";
+  }
+  function getQuartierBaseStyle2() {
+    return {
+      color: UI_THEME.mapQuartier,
+      weight: 2,
+      opacity: 0.9,
+      fillColor: UI_THEME.mapQuartier,
+      fillOpacity: 0.16
+    };
+  }
+  function setZoneLayersVisibility(e = getZoneMode()) {
+    if (!map) return;
+    if ("monuments" === e) {
+      quartiersLayer && map.hasLayer(quartiersLayer) && map.removeLayer(quartiersLayer), streetsLayer && map.hasLayer(streetsLayer) && map.removeLayer(streetsLayer), monumentsLayer && !map.hasLayer(monumentsLayer) && monumentsLayer.addTo(map);
+      return;
+    }
+    if ("quartiers-ville" === e) {
+      monumentsLayer && map.hasLayer(monumentsLayer) && map.removeLayer(monumentsLayer), streetsLayer && map.hasLayer(streetsLayer) && map.removeLayer(streetsLayer), quartiersLayer && !map.hasLayer(quartiersLayer) && quartiersLayer.addTo(map);
+      return;
+    }
+    monumentsLayer && map.hasLayer(monumentsLayer) && map.removeLayer(monumentsLayer), quartiersLayer && map.hasLayer(quartiersLayer) && map.removeLayer(quartiersLayer), streetsLayer && !map.hasLayer(streetsLayer) && streetsLayer.addTo(map);
   }
   function addTouchBufferForLayer(e) {
     addTouchBufferForLayerRuntime(e, { isTouchDevice: IS_TOUCH_DEVICE, map, L });
@@ -4561,12 +4734,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       }
       monumentsLayer = result.monumentsLayer;
       refreshLectureTooltipsIfNeeded();
-      if (getZoneMode() === "monuments") {
-        map.hasLayer(monumentsLayer) || monumentsLayer.addTo(map);
-        if (streetsLayer && map.hasLayer(streetsLayer)) {
-          map.removeLayer(streetsLayer);
-        }
-      }
+      setZoneLayersVisibility(getZoneMode());
     }).catch((e) => {
       console.error("Erreur lors du chargement des monuments :", e);
     });
@@ -4575,6 +4743,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     setLectureTooltipsEnabledRuntime(e, {
       streetsLayer,
       monumentsLayer,
+      quartiersLayer,
       getBaseStreetStyle: getBaseStreetStyle2,
       isStreetVisibleInCurrentMode: isStreetVisibleInCurrentMode2,
       normalizeName,
@@ -4584,12 +4753,23 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   function refreshLectureTooltipsIfNeeded() {
     "lecture" !== getGameMode() && true !== isLectureMode || setLectureTooltipsEnabled(true);
   }
-  function loadQuartierPolygons() {
-    loadQuartierPolygonsMap().then((byName) => {
-      quartierPolygonsByName = byName;
+  function loadQuartiers() {
+    loadQuartiersRuntime({
+      map,
+      L,
+      uiTheme: UI_THEME,
+      normalizeQuartierKey,
+      handleQuartierClick
+    }).then((result) => {
+      allQuartierFeatures = result.allQuartierFeatures;
+      quartiersLayer = result.quartiersLayer;
+      quartierPolygonsByName = result.quartierPolygonsByName;
+      quartierLayersByKey = result.quartierLayersByKey;
       console.log("Quartiers charg\xE9s :", quartierPolygonsByName.size);
       console.log("Noms de quartiers (polygones):");
       console.log(Array.from(quartierPolygonsByName.keys()).sort());
+      setZoneLayersVisibility(getZoneMode());
+      refreshLectureTooltipsIfNeeded();
     }).catch((e) => {
       console.error("Erreur lors du chargement des quartiers :", e);
     });
@@ -4657,15 +4837,15 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     a && (a.textContent = "", a.style.display = "none"), clearHighlight(), activeSessionId = generateSessionId(), correctCount = 0, totalAnswered = 0, summaryData = [], weightedScore = 0, errorsCount = 0, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateScoreUI(), updateTimeUI(0, 0), updateScoreMetricUI(), updateWeightedScoreUI(), updateSessionProgressBar();
     const n = document.getElementById("summary");
     if (n && (n.classList.add("hidden"), n.innerHTML = ""), clearSessionShareSlot(), isChronoMode = "chrono" === r, chronoEndTime = isChronoMode ? performance.now() + CHRONO_DURATION * 1e3 : null, setLectureTooltipsEnabled(false), "lecture" === r) {
-      isLectureMode = true, isSessionRunning = false, isChronoMode = false, chronoEndTime = null, sessionStartTime = null, streetStartTime = null, currentTarget = null, setLectureTooltipsEnabled(true), currentMonumentTarget = null, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateTargetPanelTitle(), updateLayoutSessionState(), "monuments" === t ? (streetsLayer && map.hasLayer(streetsLayer) && map.removeLayer(streetsLayer), monumentsLayer && !map.hasLayer(monumentsLayer) && monumentsLayer.addTo(map), clearQuartierOverlay()) : (monumentsLayer && map.hasLayer(monumentsLayer) && map.removeLayer(monumentsLayer), streetsLayer && !map.hasLayer(streetsLayer) && streetsLayer.addTo(map), "quartier" === t && e && e.value ? highlightQuartier(e.value) : clearQuartierOverlay()), (() => {
+      isLectureMode = true, isSessionRunning = false, isChronoMode = false, chronoEndTime = null, sessionStartTime = null, streetStartTime = null, currentTarget = null, currentMonumentTarget = null, currentQuartierTarget = null, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateTargetPanelTitle(), updateLayoutSessionState(), setZoneLayersVisibility(t), "quartier" === t && e && e.value ? highlightQuartier(e.value) : clearQuartierOverlay(), (() => {
         const r3 = document.getElementById("target-street");
-        r3 && ("monuments" === t ? (r3.textContent = "Mode lecture : survolez la carte", requestAnimationFrame(fitTargetStreetText)) : r3.textContent = "\u2014");
+        r3 && ("monuments" === t || "quartiers-ville" === t ? (r3.textContent = "Mode lecture : survolez la carte", requestAnimationFrame(fitTargetStreetText)) : r3.textContent = "\u2014");
       })(), refreshLectureStreetSearchForCurrentMode();
       const r2 = document.getElementById("pause-btn");
       r2 && (r2.disabled = true, r2.textContent = "Pause");
       const a2 = document.getElementById("skip-btn");
       return a2 && (a2.style.display = "none"), updateStartStopButton(), updatePauseButton(), updateTimeUI(0, 0), setLectureTooltipsEnabled(true), void showMessage(
-        "Mode lecture : utilisez la recherche ou survolez la carte pour voir les noms.",
+        "quartiers-ville" === t ? "Mode lecture : survolez les quartiers pour voir leur nom." : "Mode lecture : utilisez la recherche ou survolez la carte pour voir les noms.",
         "info"
       );
     }
@@ -4675,7 +4855,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
           "Aucun monument disponible (v\xE9rifiez data/marseille_monuments.geojson).",
           "error"
         );
-      if (streetsLayer && map.hasLayer(streetsLayer) && map.removeLayer(streetsLayer), monumentsLayer && !map.hasLayer(monumentsLayer) && monumentsLayer.addTo(map), clearQuartierOverlay(), "marathon" === r)
+      if (setZoneLayersVisibility(t), clearQuartierOverlay(), "marathon" === r)
         sessionMonuments = sampleWithoutReplacement(
           allMonuments,
           allMonuments.length
@@ -4689,9 +4869,25 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         const e3 = Math.min(SESSION_SIZE, allMonuments.length);
         sessionMonuments = sampleWithoutReplacement(allMonuments, e3);
       }
-      currentMonumentIndex = 0, currentMonumentTarget = null, currentTarget = null, isMonumentsMode = true, sessionStartTime = performance.now(), streetStartTime = null, isSessionRunning = true, updateStartStopButton(), updatePauseButton(), updateLayoutSessionState(), scrollSidebarToTargetPanel();
+      currentMonumentIndex = 0, currentMonumentTarget = null, currentTarget = null, currentQuartierTarget = null, isMonumentsMode = true, sessionStartTime = performance.now(), streetStartTime = null, isSessionRunning = true, updateStartStopButton(), updatePauseButton(), updateLayoutSessionState(), scrollSidebarToTargetPanel();
       const e2 = document.getElementById("skip-btn");
       return e2 && (e2.style.display = "inline-block"), setNewTarget(), showMessage("Session monuments d\xE9marr\xE9e.", "info"), void updateLayoutSessionState();
+    }
+    if (isLectureMode = false, isMonumentsMode = false, "quartiers-ville" === t) {
+      if (!allQuartierFeatures.length)
+        return void showMessage(
+          "Aucun quartier disponible (v\xE9rifiez data/marseille_quartiers_111.geojson).",
+          "error"
+        );
+      if ("marathon" === r || "chrono" === r) {
+        sessionQuartiers = sampleWithoutReplacement(allQuartierFeatures, allQuartierFeatures.length);
+      } else {
+        const e3 = Math.min(SESSION_SIZE, allQuartierFeatures.length);
+        sessionQuartiers = sampleWithoutReplacement(allQuartierFeatures, e3);
+      }
+      currentQuartierIndex = 0, currentQuartierTarget = null, currentTarget = null, currentMonumentTarget = null, setZoneLayersVisibility(t), clearQuartierOverlay(), sessionStartTime = performance.now(), streetStartTime = null, isSessionRunning = true, updateStartStopButton(), updatePauseButton(), updateLayoutSessionState(), scrollSidebarToTargetPanel();
+      const e2 = document.getElementById("skip-btn");
+      return e2 && (e2.style.display = "inline-block"), setNewTarget(), showMessage("Session quartiers d\xE9marr\xE9e.", "info"), void updateLayoutSessionState();
     }
     if (isLectureMode = false, isMonumentsMode = false, 0 === allStreetFeatures.length)
       return void showMessage(
@@ -4714,7 +4910,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       const e2 = Math.min(SESSION_SIZE, i.length);
       sessionStreets = sampleWithoutReplacement(i, e2);
     }
-    currentIndex = 0, "quartier" === t && e && e.value ? highlightQuartier(e.value) : clearQuartierOverlay(), monumentsLayer && map.hasLayer(monumentsLayer) && map.removeLayer(monumentsLayer), streetsLayer && !map.hasLayer(streetsLayer) && streetsLayer.addTo(map), sessionStartTime = performance.now(), currentTarget = null, currentMonumentTarget = null, streetStartTime = null, isSessionRunning = true, updateStartStopButton(), updatePauseButton(), updateLayoutSessionState(), scrollSidebarToTargetPanel();
+    currentIndex = 0, "quartier" === t && e && e.value ? highlightQuartier(e.value) : clearQuartierOverlay(), setZoneLayersVisibility(t), sessionStartTime = performance.now(), currentTarget = null, currentMonumentTarget = null, currentQuartierTarget = null, streetStartTime = null, isSessionRunning = true, updateStartStopButton(), updatePauseButton(), updateLayoutSessionState(), scrollSidebarToTargetPanel();
     const l = document.getElementById("skip-btn");
     l && !isLectureMode && (l.style.display = "inline-block"), setNewTarget(), showMessage("Session d\xE9marr\xE9e.", "info");
   }
@@ -4742,11 +4938,20 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       const t2 = currentMonumentTarget.properties.name, r2 = document.getElementById("target-street");
       return r2 && (r2.textContent = t2 || "\u2014", requestAnimationFrame(fitTargetStreetText)), updateTargetItemCounter(), void triggerTargetPulse();
     }
+    if ("quartiers-ville" === getZoneMode()) {
+      if (currentQuartierIndex >= sessionQuartiers.length) {
+        if ("chrono" !== e) return void endSession();
+        shuffle(sessionQuartiers), currentQuartierIndex = 0;
+      }
+      currentTarget = null, currentMonumentTarget = null, currentQuartierTarget = sessionQuartiers[currentQuartierIndex], streetStartTime = performance.now(), hasAnsweredCurrentItem = false, resetWeightedBar();
+      const t2 = getQuartierTargetName(currentQuartierTarget), r2 = document.getElementById("target-street");
+      return r2 && (r2.textContent = t2 || "\u2014", requestAnimationFrame(fitTargetStreetText)), updateTargetItemCounter(), void triggerTargetPulse();
+    }
     if (currentIndex >= sessionStreets.length) {
       if ("chrono" !== e) return void endSession();
       shuffle(sessionStreets), currentIndex = 0;
     }
-    currentMonumentTarget = null, currentTarget = sessionStreets[currentIndex], streetStartTime = performance.now(), hasAnsweredCurrentItem = false, resetWeightedBar();
+    currentMonumentTarget = null, currentQuartierTarget = null, currentTarget = sessionStreets[currentIndex], streetStartTime = performance.now(), hasAnsweredCurrentItem = false, resetWeightedBar();
     const t = currentTarget.properties.name, r = document.getElementById("target-street");
     r && (r.textContent = t || "\u2014", requestAnimationFrame(fitTargetStreetText)), updateTargetItemCounter(), triggerTargetPulse();
   }
@@ -4806,7 +5011,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   }
   function handleStreetClick(e, t, r) {
     const a = getZoneMode();
-    if ("monuments" === a) return;
+    if ("monuments" === a || "quartiers-ville" === a) return;
     if ("rues-principales" === a || "main" === a) {
       const t2 = normalizeName(e.properties.name);
       if (!MAIN_STREET_NAMES.has(t2)) return;
@@ -4951,12 +5156,48 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       ), highlightMonument(i, UI_THEME.mapWrong), "classique" === r ? updateWeightedBar(0) : updateSessionProgressBar(), triggerHaptic("error"), feedbackError();
     totalAnswered += 1, summaryData.push({ name: s, correct: n, time: a.toFixed(1) }), trackAnswer(s, "monuments", n, a), updateWeightedScoreUI(), updateScoreUI(), !n && "marathon" === r && errorsCount >= MAX_ERRORS_MARATHON ? endSession() : (currentMonumentIndex += 1, setNewTarget());
   }
+  function handleQuartierClick(e, t) {
+    if ("quartiers-ville" !== getZoneMode()) return;
+    if (isPaused) return;
+    if (!currentQuartierTarget || null === sessionStartTime || null === streetStartTime)
+      return;
+    const r = getGameMode(), a = (performance.now() - streetStartTime) / 1e3, n = getQuartierTargetName(e), s = getQuartierTargetName(currentQuartierTarget), i = normalizeQuartierKey(n) === normalizeQuartierKey(s);
+    if (i) {
+      correctCount += 1;
+      hasAnsweredCurrentItem = true;
+      if ("classique" === r) {
+        const e2 = computeItemPoints(a);
+        weightedScore += e2, updateWeightedBar(e2 / 10), showMessage(
+          `Correct (${a.toFixed(1)} s, +${e2.toFixed(1)} pts)`,
+          "success"
+        );
+      } else if ("marathon" === r) {
+        const e2 = getCurrentSessionPoolSize();
+        showMessage(
+          `Correct (${correctCount}/${e2 > 0 ? e2 : "?"})`,
+          "success"
+        );
+      } else showMessage(`Correct (${correctCount} trouv\xE9s)`, "success");
+      updateSessionProgressBar(), highlightQuartierGuess(t, UI_THEME.mapCorrect), triggerHaptic("success"), feedbackCorrect();
+    } else
+      errorsCount += 1, showMessage(
+        "marathon" === r && errorsCount >= MAX_ERRORS_MARATHON ? `Incorrect (limite de ${MAX_ERRORS_MARATHON} erreurs atteinte)` : "Incorrect",
+        "error"
+      ), highlightQuartierGuess(t, UI_THEME.mapWrong), "classique" === r ? updateWeightedBar(0) : updateSessionProgressBar(), triggerHaptic("error"), feedbackError();
+    totalAnswered += 1, summaryData.push({ name: s, correct: i, time: a.toFixed(1) }), trackAnswer(s, "quartiers-ville", i, a), updateWeightedScoreUI(), updateScoreUI(), !i && "marathon" === r && errorsCount >= MAX_ERRORS_MARATHON ? endSession() : (currentQuartierIndex += 1, setNewTarget());
+  }
   function highlightMonument(e, t) {
     e && (e.setStyle({ color: t, fillColor: t }), setTimeout(() => {
       e.setStyle && e.setStyle({
         color: UI_THEME.mapMonumentStroke,
         fillColor: UI_THEME.mapMonumentFill
       });
+    }, 5e3));
+  }
+  function highlightQuartierGuess(e, t) {
+    e && (e.__caminoLockedStyle = true, e.setStyle({ color: t, fillColor: t, fillOpacity: 0.28, weight: 3, opacity: 1 }), setTimeout(() => {
+      e.__caminoLockedStyle = false;
+      e.setStyle && e.setStyle(getQuartierBaseStyle2());
     }, 5e3));
   }
   function showStreetInfo(e) {
@@ -5055,6 +5296,12 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       normalizeName((_b = (_a = e2.feature) == null ? void 0 : _a.properties) == null ? void 0 : _b.name) === t && (r = e2);
     }), r;
   }
+  function findQuartierLayersByName(e) {
+    if (!e) return [];
+    const t = normalizeQuartierKey(e);
+    if (!t || !quartierLayersByKey.has(t)) return [];
+    return quartierLayersByKey.get(t) || [];
+  }
   function clearHighlight() {
     null !== highlightTimeoutId && (clearTimeout(highlightTimeoutId), highlightTimeoutId = null), highlightedLayers && highlightedLayers.length > 0 && (highlightedLayers.forEach((e) => {
       e.setStyle({ color: UI_THEME.mapStreet, weight: 5 });
@@ -5072,11 +5319,23 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     }), r && r.isValid && r.isValid() && map.fitBounds(r, { padding: [40, 40], animate: true, duration: 1.5 });
     return t[0] || null;
   }
+  function focusQuartierByName(e) {
+    const t = findQuartierLayersByName(e);
+    if (!t || 0 === t.length) return null;
+    let r = null;
+    t.forEach((e2) => {
+      if ("function" == typeof e2.getBounds) {
+        const t2 = e2.getBounds();
+        r = r ? r.extend(t2) : t2;
+      }
+    }), r && r.isValid && r.isValid() && map.fitBounds(r, { padding: [40, 40], animate: true, duration: 1.5 });
+    return t[0] || null;
+  }
   function endSession() {
     document.body.classList.add("session-ended");
     playVictory();
     const e = performance.now(), t = sessionStartTime ? (e - sessionStartTime) / 1e3 : 0;
-    sessionStartTime = null, streetStartTime = null, currentTarget = null, currentMonumentTarget = null, isSessionRunning = false, isChronoMode = false, chronoEndTime = null, isDailyMode && (isDailyMode = false, updateDailyUI()), isLectureMode = false, updateTargetPanelTitle(), updateLayoutSessionState(), isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateStartStopButton(), updatePauseButton(), updateLayoutSessionState();
+    sessionStartTime = null, streetStartTime = null, currentTarget = null, currentMonumentTarget = null, currentQuartierTarget = null, isSessionRunning = false, isChronoMode = false, chronoEndTime = null, isDailyMode && (isDailyMode = false, updateDailyUI()), isLectureMode = false, updateTargetPanelTitle(), updateLayoutSessionState(), isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateStartStopButton(), updatePauseButton(), updateLayoutSessionState();
     const r = document.getElementById("skip-btn");
     r && (r.style.display = "none");
     const a = summaryData.length, n = summaryData.filter((e2) => e2.correct).length, s = 0 === a ? 0 : Math.round(n / a * 100), i = 0 === a ? 0 : summaryData.reduce((e2, t2) => e2 + parseFloat(t2.time), 0) / a, l = getGameMode(), o = getZoneMode(), uScore = getSessionScoreValue(l), poolSize = "marathon" === l || "chrono" === l ? getCurrentSessionPoolSize() : a;
@@ -5107,12 +5366,14 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const c = document.createElement("div");
     c.className = "summary-global";
     const m = document.createElement("h2");
+    const zoneLabel = ZONE_LABELS[o] || o;
+    const foundItemsLabel = "monuments" === o ? "Monuments trouv\xE9s" : "quartiers-ville" === o ? "Quartiers trouv\xE9s" : "Rues trouv\xE9es";
     let p;
-    m.textContent = "R\xE9capitulatif de la session", c.appendChild(m), p = "marathon" === l ? `Mode : Marathon (max. ${MAX_ERRORS_MARATHON} erreurs)` : "chrono" === l ? `Mode : Chrono (${CHRONO_DURATION} s)` : `Mode : Classique (${SESSION_SIZE} items max)`, p += ` \u2013 Zone : ${o}`, u && (p += ` \u2013 Quartier : ${u}`);
+    m.textContent = "R\xE9capitulatif de la session", c.appendChild(m), p = "marathon" === l ? `Mode : Marathon (max. ${MAX_ERRORS_MARATHON} erreurs)` : "chrono" === l ? `Mode : Chrono (${CHRONO_DURATION} s)` : `Mode : Classique (${SESSION_SIZE} items max)`, p += ` \u2013 Zone : ${zoneLabel}`, u && (p += ` \u2013 Quartier : ${u}`);
     const g = document.createElement("p");
     g.textContent = p, c.appendChild(g);
     const h = document.createElement("div");
-    const yScoreLine = "classique" === l ? `<p>Score pond\xE9r\xE9 : <strong>${uScore.toFixed(1)} pts</strong></p>` : "marathon" === l ? `<p>Rues trouv\xE9es : <strong>${Math.round(uScore)} / ${poolSize || 0}</strong></p>` : `<p>Rues trouv\xE9es : <strong>${Math.round(uScore)}</strong> en 60 s</p>`;
+    const yScoreLine = "classique" === l ? `<p>Score pond\xE9r\xE9 : <strong>${uScore.toFixed(1)} pts</strong></p>` : "marathon" === l ? `<p>${foundItemsLabel} : <strong>${Math.round(uScore)} / ${poolSize || 0}</strong></p>` : `<p>${foundItemsLabel} : <strong>${Math.round(uScore)}</strong> en 60 s</p>`;
     h.className = "summary-stats", h.innerHTML = `<p>Temps total : <strong>${t.toFixed(1)} s</strong></p>
      <p>Temps moyen par item : <strong>${i.toFixed(1)} s</strong></p>
      <p>Score : <strong>${s} %</strong> (${n} bonnes r\xE9ponses / ${a})</p>
@@ -5140,7 +5401,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const v = document.createElement("div");
     v.className = "summary-detail-header";
     const f = document.createElement("h3");
-    f.textContent = "D\xE9tail par item (cliquable pour zoomer et voir la fiche)", v.appendChild(f);
+    f.textContent = "D\xE9tail par item (cliquable pour zoomer)", v.appendChild(f);
     const b = document.createElement("div");
     b.className = "summary-filters";
     let S = "all";
@@ -5187,6 +5448,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     L2.className = "summary-list", summaryData.forEach((e2) => {
       const t2 = document.createElement("li");
       t2.classList.add("summary-item"), t2.dataset.correct = e2.correct ? "true" : "false", e2.correct ? t2.classList.add("summary-item--correct") : t2.classList.add("summary-item--incorrect"), t2.textContent = `${e2.name} \u2013 ${e2.correct ? "Correct" : "Incorrect"} \u2013 ${e2.time} s`, t2.dataset.streetName = e2.name, t2.addEventListener("click", () => {
+        if ("quartiers-ville" === o) {
+          focusQuartierByName(e2.name);
+          return;
+        }
         const t3 = focusStreetByName(e2.name);
         t3 && t3.feature && showStreetInfo(t3.feature);
       }), L2.appendChild(t2);

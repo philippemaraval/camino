@@ -398,7 +398,7 @@ const SCORE_MODE_ALIASES = {
     main: 'rues-principales',
     famous: 'rues-celebres',
 };
-const ALLOWED_SCORE_MODES = new Set(['ville', 'quartier', 'rues-principales', 'rues-celebres', 'monuments']);
+const ALLOWED_SCORE_MODES = new Set(['ville', 'quartier', 'quartiers-ville', 'rues-principales', 'rues-celebres', 'monuments']);
 const ALLOWED_SCORE_GAME_TYPES = new Set(['classique', 'marathon', 'chrono']);
 const MAX_SCORE_ITEMS = 100000;
 const MAX_SCORE_SECONDS = 24 * 60 * 60;
