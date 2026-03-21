@@ -295,9 +295,10 @@
         <li><a href="#modes">4. Modes de partie</a></li>
         <li><a href="#score">5. Score pondéré (Classique)</a></li>
         <li><a href="#daily">6. Défi Daily</a></li>
-        <li><a href="#classements">7. Classements</a></li>
-        <li><a href="#conseils">8. Conseils pour progresser</a></li>
-        <li><a href="#faq">9. FAQ rapide</a></li>
+        <li><a href="#rangs">7. Rangs, seuils et avatars</a></li>
+        <li><a href="#classements">8. Classements</a></li>
+        <li><a href="#conseils">9. Conseils pour progresser</a></li>
+        <li><a href="#faq">10. FAQ rapide</a></li>
       </ul>
     </header>
 
@@ -316,7 +317,7 @@
     <section id="demarrage">
       <h2>2. Démarrer une partie pas à pas</h2>
       <ol>
-        <li>Choisissez une <strong>zone de jeu</strong> (rues célèbres, rues principales, quartier, ville entière ou monuments).</li>
+        <li>Choisissez une <strong>zone de jeu</strong> (rues célèbres, rues principales, rues par quartier, ville entière, monuments ou quartiers de la ville).</li>
         <li>Choisissez un <strong>type de partie</strong> (Classique, Marathon, Chrono ou Lecture).</li>
         <li>Cliquez sur <strong>Commencer la session</strong>.</li>
         <li>Lisez l'objectif affiché dans le panneau <strong>Rue à trouver</strong>.</li>
@@ -349,9 +350,9 @@
             <td>Réseau plus large de grands axes et rues importantes.</td>
           </tr>
           <tr>
-            <td>Par quartier</td>
+            <td>Rues par quartier</td>
             <td>Intermédiaire</td>
-            <td>Partie ciblée sur un quartier choisi.</td>
+            <td>Partie ciblée sur un quartier choisi, avec des rues uniquement.</td>
           </tr>
           <tr>
             <td>Ville entière</td>
@@ -362,6 +363,11 @@
             <td>Monuments</td>
             <td>Intermédiaire</td>
             <td>Vous retrouvez des points d'intérêt plutôt que des rues.</td>
+          </tr>
+          <tr>
+            <td>Quartiers de la ville</td>
+            <td>Facile</td>
+            <td>Objectif = trouver le bon quartier parmi les 111 polygones officiels de Marseille.</td>
           </tr>
         </tbody>
       </table>
@@ -474,8 +480,121 @@
       </div>
     </section>
 
+    <section id="rangs">
+      <h2>7. Rangs, seuils et avatars</h2>
+      <p>
+        Les rangs de joueur sont: <strong>Minot</strong>, <strong>Habitué du Vieux-Port</strong>,
+        <strong>Vrai Marseillais</strong> et <strong>Maire de la Ville</strong>.
+      </p>
+      <div class="highlight">
+        Pour valider un rang global, vous devez atteindre ce rang sur <strong>chaque zone du classement global</strong>
+        et sur <strong>chaque mode compétitif</strong> (Classique, Marathon, Chrono).
+      </div>
+
+      <h3>Score pris en compte selon le mode</h3>
+      <ul>
+        <li><strong>Classique</strong> : score pondéré (points).</li>
+        <li><strong>Marathon</strong> : nombre d'items trouvés avant 3 erreurs.</li>
+        <li><strong>Chrono</strong> : nombre d'items trouvés en 60 s.</li>
+      </ul>
+
+      <h3>Seuils de rang - Classique (score pondéré)</h3>
+      <table aria-label="Seuils de rang en mode Classique">
+        <thead>
+          <tr>
+            <th>Zone</th>
+            <th>Minot (M)</th>
+            <th>Habitué (H)</th>
+            <th>Vrai (V)</th>
+            <th>Maire (MV)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Rues célèbres</td><td>60</td><td>100</td><td>140</td><td>180</td></tr>
+          <tr><td>Rues principales</td><td>50</td><td>90</td><td>130</td><td>170</td></tr>
+          <tr><td>Rues par quartier</td><td>40</td><td>80</td><td>120</td><td>160</td></tr>
+          <tr><td>Monuments</td><td>40</td><td>80</td><td>120</td><td>160</td></tr>
+          <tr><td>Quartiers de la ville</td><td>40</td><td>80</td><td>120</td><td>160</td></tr>
+          <tr><td>Ville entière</td><td>30</td><td>70</td><td>110</td><td>150</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Seuils de rang - Marathon (items trouvés)</h3>
+      <table aria-label="Seuils de rang en mode Marathon">
+        <thead>
+          <tr>
+            <th>Zone</th>
+            <th>Minot (M)</th>
+            <th>Habitué (H)</th>
+            <th>Vrai (V)</th>
+            <th>Maire (MV)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Rues célèbres</td><td>10</td><td>20</td><td>35</td><td>55</td></tr>
+          <tr><td>Rues principales</td><td>9</td><td>18</td><td>30</td><td>48</td></tr>
+          <tr><td>Rues par quartier</td><td>10%</td><td>20%</td><td>35%</td><td>55%</td></tr>
+          <tr><td>Monuments</td><td>9</td><td>18</td><td>30</td><td>46</td></tr>
+          <tr><td>Quartiers de la ville</td><td>9</td><td>18</td><td>30</td><td>46</td></tr>
+          <tr><td>Ville entière</td><td>8</td><td>16</td><td>28</td><td>44</td></tr>
+        </tbody>
+      </table>
+      <p>
+        En <strong>Rues par quartier</strong> (Marathon), les seuils sont dynamiques selon la taille du pool de la
+        session (arrondi supérieur, avec progression stricte). Exemple sur 55 rues: <strong>6 / 11 / 20 / 31</strong>.
+      </p>
+
+      <h3>Seuils de rang - Chrono (items trouvés en 60 s)</h3>
+      <table aria-label="Seuils de rang en mode Chrono">
+        <thead>
+          <tr>
+            <th>Zone</th>
+            <th>Minot (M)</th>
+            <th>Habitué (H)</th>
+            <th>Vrai (V)</th>
+            <th>Maire (MV)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Rues célèbres</td><td>7</td><td>11</td><td>16</td><td>22</td></tr>
+          <tr><td>Rues principales</td><td>6</td><td>10</td><td>14</td><td>19</td></tr>
+          <tr><td>Rues par quartier</td><td>5</td><td>8</td><td>12</td><td>16</td></tr>
+          <tr><td>Monuments</td><td>5</td><td>8</td><td>12</td><td>16</td></tr>
+          <tr><td>Quartiers de la ville</td><td>5</td><td>8</td><td>12</td><td>16</td></tr>
+          <tr><td>Ville entière</td><td>4</td><td>7</td><td>10</td><td>14</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Rang global joueur et exception Ville entière</h3>
+      <ul>
+        <li>Le <strong>rang global joueur</strong> (Minot/Habitué/Vrai/Maire) se gagne en validant le rang sur chaque combinaison:
+          Rues célèbres, Rues principales, Rues par quartier, Monuments, Quartiers de la ville × (Classique, Marathon, Chrono).</li>
+        <li><strong>Ville entière</strong> est traitée à part: elle ne compte pas dans le rang global, mais confère ses propres rangs multi-modes.</li>
+      </ul>
+
+      <h3>Rangs dédiés Ville entière (avatars spéciaux)</h3>
+      <table aria-label="Rangs spéciaux Ville entière">
+        <thead>
+          <tr>
+            <th>Avatar</th>
+            <th>Nom</th>
+            <th>Condition</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>🚀</td><td>Astronaute</td><td>Atteindre Minot sur Ville entière en Classique, Marathon et Chrono</td></tr>
+          <tr><td>⭐️</td><td>Étoile</td><td>Atteindre Habitué sur Ville entière en Classique, Marathon et Chrono</td></tr>
+          <tr><td>🛸</td><td>Extraterrestre</td><td>Atteindre Vrai Marseillais sur Ville entière en Classique, Marathon et Chrono</td></tr>
+          <tr><td>👽</td><td>Alien</td><td>Atteindre Maire sur Ville entière en Classique, Marathon et Chrono</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Les rangs débloquent des avatars supplémentaires (globaux et spéciaux) visibles dans le profil.
+      </p>
+    </section>
+
     <section id="classements">
-      <h2>7. Classements et résultats</h2>
+      <h2>8. Classements et résultats</h2>
       <p>
         Les classements (leaderboard) permettent de comparer les performances par zone et par mode.
       </p>
@@ -490,10 +609,10 @@
     </section>
 
     <section id="conseils">
-      <h2>8. Conseils pour progresser</h2>
+      <h2>9. Conseils pour progresser</h2>
       <ol>
         <li>Commencez par <strong>Rues célèbres + Classique</strong> pour apprendre les repères rapidement.</li>
-        <li>Passez ensuite sur <strong>Rues principales</strong> puis <strong>Quartier</strong>.</li>
+        <li>Passez ensuite sur <strong>Rues principales</strong> puis <strong>Rues par quartier</strong>.</li>
         <li>Travaillez votre vitesse: en Classique, les 2 premières secondes sont les plus rentables.</li>
         <li>Utilisez le mode <strong>Lecture</strong> pour mémoriser sans pression.</li>
         <li>Jouez régulièrement le Daily pour améliorer votre précision spatiale.</li>
@@ -501,7 +620,7 @@
     </section>
 
     <section id="faq">
-      <h2>9. FAQ rapide</h2>
+      <h2>10. FAQ rapide</h2>
       <h3>Le mode Lecture donne-t-il un score ?</h3>
       <p>Non, c'est un mode d'entraînement et de reconnaissance de la carte.</p>
       <h3>Le mode Chrono dure combien de temps ?</h3>

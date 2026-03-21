@@ -35,7 +35,7 @@ export const TITLE_NAMES = [
 ];
 
 const SCORING_GAME_TYPES = ["classique", "marathon", "chrono"];
-const SCORING_ZONES = ["rues-celebres", "rues-principales", "quartier", "monuments"];
+const SCORING_ZONES = ["rues-celebres", "rues-principales", "quartier", "monuments", "quartiers-ville"];
 
 export const ZONE_LABELS = {
   ville: "Ville entière",

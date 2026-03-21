@@ -90,6 +90,7 @@ function getBadgeDefinitions(hasReachedGlobalRank) {
           "rues-principales",
           "rues-celebres",
           "monuments",
+          "quartiers-ville",
         ].every((mode) => playedModes.has(mode));
       },
     },

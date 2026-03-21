@@ -57,7 +57,7 @@
     "\u{1F9F3} Touriste"
   ];
   var SCORING_GAME_TYPES = ["classique", "marathon", "chrono"];
-  var SCORING_ZONES = ["rues-celebres", "rues-principales", "quartier", "monuments"];
+  var SCORING_ZONES = ["rues-celebres", "rues-principales", "quartier", "monuments", "quartiers-ville"];
   var ZONE_LABELS = {
     ville: "Ville enti\xE8re",
     "rues-principales": "Rues principales",
@@ -541,7 +541,8 @@
             "quartier",
             "rues-principales",
             "rues-celebres",
-            "monuments"
+            "monuments",
+            "quartiers-ville"
           ].every((mode) => playedModes.has(mode));
         }
       },
