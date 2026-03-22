@@ -21,6 +21,7 @@ const FRONTEND_ENTRY = path.join(ROOT, "src", "app.js");
 
 const DIST_INCLUDE = [
   "_headers",
+  "googlee4a7e2d5ea351f02.html",
   "index.html",
   "regles.html",
   "main.js",
