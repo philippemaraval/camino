@@ -594,6 +594,15 @@ async function getFriendChallengeLeaderboard(challengeId, gameType, limit = 20) 
   return result.rows;
 }
 
+async function deleteExpiredFriendChallenges() {
+  const result = await pool.query(
+    `DELETE FROM friend_challenges
+     WHERE expires_at IS NOT NULL
+       AND expires_at <= NOW()`
+  );
+  return result.rowCount || 0;
+}
+
 // ── Daily Challenge Helpers ──
 
 async function getDailyTarget(date) {
@@ -1163,6 +1172,7 @@ module.exports = {
   hasPlayedFriendChallenge,
   addFriendChallengeScore,
   getFriendChallengeLeaderboard,
+  deleteExpiredFriendChallenges,
   getDailyTarget,
   getRecentDailyTargets,
   setDailyTarget,

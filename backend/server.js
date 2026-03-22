@@ -282,6 +282,7 @@ db.initDb().then(async () => {
     console.log('Database ready.');
     await initializePushRuntime();
     startPushReminderScheduler();
+    startFriendChallengeCleanupScheduler();
     app.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
     });
@@ -659,12 +660,8 @@ const MAX_DAILY_DISTANCE_METERS = 1000000;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const FRIEND_CHALLENGE_CODE_LENGTH = 10;
 const FRIEND_CHALLENGE_CODE_PATTERN = /^[A-Z0-9]{10}$/;
-const FRIEND_CHALLENGE_EXPIRATION_DAYS = readEnvIntegerInRange(
-    'FRIEND_CHALLENGE_EXPIRATION_DAYS',
-    30,
-    1,
-    365,
-);
+const FRIEND_CHALLENGE_EXPIRATION_HOURS = 24;
+const FRIEND_CHALLENGE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 const FRIEND_CHALLENGE_CLASSIQUE_SIZE = 20;
 
 function normalizeQuartierChallengeKey(value) {
@@ -716,7 +713,7 @@ function generateFriendChallengeCode() {
 
 function getFriendChallengeExpiryDate() {
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + FRIEND_CHALLENGE_EXPIRATION_DAYS);
+    expiresAt.setHours(expiresAt.getHours() + FRIEND_CHALLENGE_EXPIRATION_HOURS);
     return expiresAt;
 }
 
@@ -1962,6 +1959,31 @@ function startPushReminderScheduler() {
         });
     }, 30 * 1000);
     console.log(`Push reminder scheduler enabled from ${String(PUSH_REMINDER_HOUR).padStart(2, '0')}:${String(PUSH_REMINDER_MINUTE).padStart(2, '0')} (${PUSH_REMINDER_TIMEZONE}).`);
+}
+
+async function cleanupExpiredFriendChallengesTick() {
+    try {
+        const removed = await db.deleteExpiredFriendChallenges();
+        if (removed > 0) {
+            console.log(`[Friend challenges] Removed ${removed} expired challenge(s).`);
+        }
+    } catch (err) {
+        console.error('Friend challenge cleanup failed:', err);
+    }
+}
+
+function startFriendChallengeCleanupScheduler() {
+    cleanupExpiredFriendChallengesTick().catch((err) => {
+        console.error('Initial friend challenge cleanup failed:', err);
+    });
+    setInterval(() => {
+        cleanupExpiredFriendChallengesTick().catch((err) => {
+            console.error('Friend challenge cleanup tick failed:', err);
+        });
+    }, FRIEND_CHALLENGE_CLEANUP_INTERVAL_MS);
+    console.log(
+        `[Friend challenges] TTL is ${FRIEND_CHALLENGE_EXPIRATION_HOURS}h; cleanup every ${Math.round(FRIEND_CHALLENGE_CLEANUP_INTERVAL_MS / 60000)} min.`,
+    );
 }
 
 // ----------------------
