@@ -3695,6 +3695,13 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   function normalizeChallengeNameKey(e) {
     return normalizeSearchText(e).replace(/[’`´]/g, "'").replace(/[-‐‑‒–—]/g, "-").replace(/\s+/g, " ").trim();
   }
+  function formatFriendChallengeSerial(serialNumber) {
+    const parsed = Number.parseInt(serialNumber, 10);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return "";
+    }
+    return `#${String(parsed).padStart(5, "0")}`;
+  }
   function toPushServerKeyUint8Array(base64String) {
     const normalized = String(base64String || "").trim();
     const padding = "=".repeat((4 - normalized.length % 4) % 4);
@@ -4337,12 +4344,18 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const mode = String((payload == null ? void 0 : payload.mode) || "").trim();
     const gameType = String((payload == null ? void 0 : payload.gameType) || "").trim();
     const targetType = String((payload == null ? void 0 : payload.targetType) || "").trim() || "street";
+    const rawSerialNumber = Number.parseInt(payload == null ? void 0 : payload.serialNumber, 10);
+    const serialNumber = Number.isInteger(rawSerialNumber) && rawSerialNumber > 0 ? rawSerialNumber : null;
+    const rawSerialCode = typeof (payload == null ? void 0 : payload.serialCode) === "string" ? payload.serialCode.trim() : "";
+    const serialCode = serialNumber ? formatFriendChallengeSerial(serialNumber) : rawSerialCode;
     const targetNames = Array.isArray(payload == null ? void 0 : payload.targetNames) ? payload.targetNames.map((value) => String(value || "").trim()).filter(Boolean) : [];
     if (!/^[A-Z0-9]{10}$/.test(code) || !FRIEND_CHALLENGE_ALLOWED_ZONE_MODES.has(mode) || !FRIEND_CHALLENGE_ALLOWED_GAME_MODES.has(gameType) || targetNames.length < 1) {
       return null;
     }
     return {
       code,
+      serialNumber,
+      serialCode,
       mode,
       gameType,
       quartierName: typeof (payload == null ? void 0 : payload.quartierName) === "string" ? payload.quartierName.trim() : null,
@@ -4524,11 +4537,21 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   }
   function updateFriendChallengeToggleUI() {
     const button = document.getElementById("friends-challenge-toggle");
+    const serialLabel = document.getElementById("friends-challenge-serial");
     if (!button) return;
     const isOn = !!activeFriendChallenge;
+    const serialCode = formatFriendChallengeSerial(activeFriendChallenge == null ? void 0 : activeFriendChallenge.serialNumber) || (activeFriendChallenge == null ? void 0 : activeFriendChallenge.serialCode) || "";
     button.classList.toggle("is-on", isOn);
     button.textContent = isOn ? "D\xE9fi amis ON" : "D\xE9fi amis OFF";
     button.setAttribute("aria-pressed", isOn ? "true" : "false");
+    if (!serialLabel) return;
+    if (isOn && serialCode) {
+      serialLabel.textContent = `Num\xE9ro du d\xE9fi : ${serialCode}`;
+      serialLabel.classList.remove("hidden");
+      return;
+    }
+    serialLabel.textContent = "";
+    serialLabel.classList.add("hidden");
   }
   function getZoneMode() {
     return currentZoneMode;
@@ -4550,7 +4573,8 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     slot.classList.remove("hidden");
     const title = document.createElement("p");
     title.className = "friend-challenge-board-title";
-    title.textContent = "Mini leaderboard \u2014 D\xE9fi amis";
+    const serialCode = formatFriendChallengeSerial(activeFriendChallenge == null ? void 0 : activeFriendChallenge.serialNumber) || (activeFriendChallenge == null ? void 0 : activeFriendChallenge.serialCode) || "";
+    title.textContent = serialCode ? `Mini leaderboard \u2014 D\xE9fi amis ${serialCode}` : "Mini leaderboard \u2014 D\xE9fi amis";
     slot.appendChild(title);
     const meta = document.createElement("p");
     meta.className = "friend-challenge-board-meta";

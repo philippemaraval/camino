@@ -226,6 +226,14 @@ function normalizeChallengeNameKey(e) {
     .trim();
 }
 
+function formatFriendChallengeSerial(serialNumber) {
+  const parsed = Number.parseInt(serialNumber, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return "";
+  }
+  return `#${String(parsed).padStart(5, "0")}`;
+}
+
 function toPushServerKeyUint8Array(base64String) {
   const normalized = String(base64String || "").trim();
   const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
@@ -1022,6 +1030,10 @@ function normalizeFriendChallengePayload(payload) {
   const mode = String(payload?.mode || "").trim();
   const gameType = String(payload?.gameType || "").trim();
   const targetType = String(payload?.targetType || "").trim() || "street";
+  const rawSerialNumber = Number.parseInt(payload?.serialNumber, 10);
+  const serialNumber = Number.isInteger(rawSerialNumber) && rawSerialNumber > 0 ? rawSerialNumber : null;
+  const rawSerialCode = typeof payload?.serialCode === "string" ? payload.serialCode.trim() : "";
+  const serialCode = serialNumber ? formatFriendChallengeSerial(serialNumber) : rawSerialCode;
   const targetNames = Array.isArray(payload?.targetNames)
     ? payload.targetNames
       .map((value) => String(value || "").trim())
@@ -1037,6 +1049,8 @@ function normalizeFriendChallengePayload(payload) {
   }
   return {
     code,
+    serialNumber,
+    serialCode,
     mode,
     gameType,
     quartierName: typeof payload?.quartierName === "string" ? payload.quartierName.trim() : null,
@@ -1239,11 +1253,21 @@ function setGameConfigurationControlsLocked(locked) {
 
 function updateFriendChallengeToggleUI() {
   const button = document.getElementById("friends-challenge-toggle");
+  const serialLabel = document.getElementById("friends-challenge-serial");
   if (!button) return;
   const isOn = !!activeFriendChallenge;
+  const serialCode = formatFriendChallengeSerial(activeFriendChallenge?.serialNumber) || activeFriendChallenge?.serialCode || "";
   button.classList.toggle("is-on", isOn);
   button.textContent = isOn ? "Défi amis ON" : "Défi amis OFF";
   button.setAttribute("aria-pressed", isOn ? "true" : "false");
+  if (!serialLabel) return;
+  if (isOn && serialCode) {
+    serialLabel.textContent = `Numéro du défi : ${serialCode}`;
+    serialLabel.classList.remove("hidden");
+    return;
+  }
+  serialLabel.textContent = "";
+  serialLabel.classList.add("hidden");
 }
 
 function getZoneMode() {
@@ -1270,7 +1294,10 @@ function renderFriendChallengeMiniBoard({ rows = [], infoMessage = "" } = {}) {
 
   const title = document.createElement("p");
   title.className = "friend-challenge-board-title";
-  title.textContent = "Mini leaderboard — Défi amis";
+  const serialCode = formatFriendChallengeSerial(activeFriendChallenge?.serialNumber) || activeFriendChallenge?.serialCode || "";
+  title.textContent = serialCode
+    ? `Mini leaderboard — Défi amis ${serialCode}`
+    : "Mini leaderboard — Défi amis";
   slot.appendChild(title);
 
   const meta = document.createElement("p");

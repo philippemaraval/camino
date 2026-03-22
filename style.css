@@ -477,7 +477,10 @@ select:focus {
 
 .params-actions {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   justify-content: flex-end;
+  gap: 4px;
   margin-top: 4px;
 }
 
@@ -502,6 +505,14 @@ select:focus {
 .friends-challenge-toggle:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.friends-challenge-serial {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  letter-spacing: 0.04em;
 }
 
 .tries-counter {

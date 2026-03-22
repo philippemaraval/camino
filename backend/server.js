@@ -857,9 +857,16 @@ function serializeFriendChallenge(challenge) {
             .map((value) => String(value || '').trim())
             .filter(Boolean)
         : [];
+    const serialNumber = Number.parseInt(challenge?.id, 10);
+    const safeSerialNumber = Number.isInteger(serialNumber) && serialNumber > 0 ? serialNumber : null;
+    const serialCode = safeSerialNumber === null
+        ? ''
+        : `#${String(safeSerialNumber).padStart(5, '0')}`;
 
     return {
         code: challenge.code,
+        serialNumber: safeSerialNumber,
+        serialCode,
         mode: challenge.mode,
         gameType: challenge.game_type,
         quartierName: challenge.quartier_name || null,
