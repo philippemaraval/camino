@@ -413,6 +413,7 @@ export function updateUserUIRuntime({
   const authBlock = document.querySelector(".auth-block");
   const logoutBtn = document.getElementById("logout-btn");
   const dailyModeBtn = document.getElementById("daily-mode-btn");
+  const friendsChallengeBtn = document.getElementById("friends-challenge-toggle");
 
   if (currentUser && currentUser.username) {
     if (currentUserLabel) {
@@ -436,6 +437,9 @@ export function updateUserUIRuntime({
     }
     if (dailyModeBtn) {
       dailyModeBtn.style.display = "inline-flex";
+    }
+    if (friendsChallengeBtn) {
+      friendsChallengeBtn.style.display = "inline-flex";
     }
 
     const profilePanel = document.getElementById("profile-panel");
@@ -467,6 +471,9 @@ export function updateUserUIRuntime({
   }
   if (dailyModeBtn) {
     dailyModeBtn.style.display = "none";
+  }
+  if (friendsChallengeBtn) {
+    friendsChallengeBtn.style.display = "none";
   }
 
   const profilePanel = document.getElementById("profile-panel");

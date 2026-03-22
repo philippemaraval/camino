@@ -835,6 +835,7 @@
     const authBlock = document.querySelector(".auth-block");
     const logoutBtn = document.getElementById("logout-btn");
     const dailyModeBtn = document.getElementById("daily-mode-btn");
+    const friendsChallengeBtn = document.getElementById("friends-challenge-toggle");
     if (currentUser2 && currentUser2.username) {
       if (currentUserLabel) {
         currentUserLabel.textContent = `Connect\xE9 en tant que ${currentUser2.username}`;
@@ -853,6 +854,9 @@
       }
       if (dailyModeBtn) {
         dailyModeBtn.style.display = "inline-flex";
+      }
+      if (friendsChallengeBtn) {
+        friendsChallengeBtn.style.display = "inline-flex";
       }
       const profilePanel2 = document.getElementById("profile-panel");
       if (profilePanel2) {
@@ -878,6 +882,9 @@
     }
     if (dailyModeBtn) {
       dailyModeBtn.style.display = "none";
+    }
+    if (friendsChallengeBtn) {
+      friendsChallengeBtn.style.display = "none";
     }
     const profilePanel = document.getElementById("profile-panel");
     if (profilePanel) {
@@ -4803,6 +4810,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     if (friendChallengeInitPromise) {
       return friendChallengeInitPromise;
     }
+    if (!currentUser || !currentUser.token) {
+      activeFriendChallenge && deactivateFriendChallenge({ clearUrl: false, silent: true });
+      return null;
+    }
     const challengeCode = getFriendChallengeCodeFromUrl();
     if (!challengeCode) {
       deactivateFriendChallenge({ clearUrl: false, silent: true });
@@ -6269,6 +6280,14 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       renderUserSticker,
       loadProfile
     });
+    if (!currentUser || !currentUser.token) {
+      activeFriendChallenge && deactivateFriendChallenge({ clearUrl: false, silent: true });
+      return;
+    }
+    if (!activeFriendChallenge && getFriendChallengeCodeFromUrl()) {
+      initFriendChallengeModeFromUrl();
+      return;
+    }
     loadFriendChallengeLeaderboard();
   }
   infoEl && (infoEl.textContent = ""), function() {
