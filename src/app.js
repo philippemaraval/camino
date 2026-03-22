@@ -2710,7 +2710,8 @@ function handleQuartierClick(e, t) {
     a = (performance.now() - streetStartTime) / 1e3,
     n = getQuartierTargetName(e),
     s = getQuartierTargetName(currentQuartierTarget),
-    i = normalizeQuartierKey(n) === normalizeQuartierKey(s);
+    i = normalizeQuartierKey(n) === normalizeQuartierKey(s),
+    l = findQuartierLayersByName(s);
   if (i) {
     correctCount += 1;
     (hasAnsweredCurrentItem = !0);
@@ -2741,7 +2742,12 @@ function handleQuartierClick(e, t) {
           : "Incorrect",
         "error",
       ),
-      highlightQuartierGuess(t, UI_THEME.mapWrong),
+      l && l.length > 0
+        ? (focusQuartierByName(s),
+          l.forEach((e) => {
+            highlightQuartierGuess(e, UI_THEME.mapWrong);
+          }))
+        : highlightQuartierGuess(t, UI_THEME.mapWrong),
       "classique" === r ? updateWeightedBar(0) : updateSessionProgressBar(),
       triggerHaptic('error'),
       feedbackError());

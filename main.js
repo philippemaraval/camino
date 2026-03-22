@@ -5301,7 +5301,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     if (isPaused) return;
     if (!currentQuartierTarget || null === sessionStartTime || null === streetStartTime)
       return;
-    const r = getGameMode(), a = (performance.now() - streetStartTime) / 1e3, n = getQuartierTargetName(e), s = getQuartierTargetName(currentQuartierTarget), i = normalizeQuartierKey(n) === normalizeQuartierKey(s);
+    const r = getGameMode(), a = (performance.now() - streetStartTime) / 1e3, n = getQuartierTargetName(e), s = getQuartierTargetName(currentQuartierTarget), i = normalizeQuartierKey(n) === normalizeQuartierKey(s), l = findQuartierLayersByName(s);
     if (i) {
       correctCount += 1;
       hasAnsweredCurrentItem = true;
@@ -5323,7 +5323,9 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       errorsCount += 1, showMessage(
         "marathon" === r && errorsCount >= MAX_ERRORS_MARATHON ? `Incorrect (limite de ${MAX_ERRORS_MARATHON} erreurs atteinte)` : "Incorrect",
         "error"
-      ), highlightQuartierGuess(t, UI_THEME.mapWrong), "classique" === r ? updateWeightedBar(0) : updateSessionProgressBar(), triggerHaptic("error"), feedbackError();
+      ), l && l.length > 0 ? (focusQuartierByName(s), l.forEach((e2) => {
+        highlightQuartierGuess(e2, UI_THEME.mapWrong);
+      })) : highlightQuartierGuess(t, UI_THEME.mapWrong), "classique" === r ? updateWeightedBar(0) : updateSessionProgressBar(), triggerHaptic("error"), feedbackError();
     totalAnswered += 1, summaryData.push({ name: s, correct: i, time: a.toFixed(1) }), trackAnswer(s, "quartiers-ville", i, a), updateWeightedScoreUI(), updateScoreUI(), !i && "marathon" === r && errorsCount >= MAX_ERRORS_MARATHON ? endSession() : (currentQuartierIndex += 1, setNewTarget());
   }
   function highlightMonument(e, t) {
