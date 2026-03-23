@@ -38,8 +38,10 @@ const refs = {
   deleteStreetInfoBtn: document.getElementById("delete-street-info-btn"),
   famousListText: document.getElementById("famous-list-text"),
   mainListText: document.getElementById("main-list-text"),
-  monumentsListText: document.getElementById("monuments-list-text"),
   saveListsBtn: document.getElementById("save-lists-btn"),
+  monumentsTableBody: document.getElementById("monuments-table-body"),
+  addMonumentRowBtn: document.getElementById("add-monument-row-btn"),
+  saveMonumentsBtn: document.getElementById("save-monuments-btn"),
 };
 
 function normalizeName(value) {
@@ -168,6 +170,221 @@ function listToTextarea(values) {
   return (Array.isArray(values) ? values : []).join("\n");
 }
 
+function parseCoordinateValue(rawValue) {
+  const normalized = String(rawValue ?? "")
+    .trim()
+    .replace(",", ".");
+  if (!normalized) {
+    return null;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatCoordinateValue(value) {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  return String(value);
+}
+
+function parseMonumentsPayload(values) {
+  const normalized = [];
+  const dedup = new Set();
+  (Array.isArray(values) ? values : []).forEach((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return;
+    }
+    const name = String(entry.name || "").trim();
+    const normalizedName = normalizeName(name);
+    if (!normalizedName || dedup.has(normalizedName)) {
+      return;
+    }
+
+    const longitude = parseCoordinateValue(
+      entry.longitude ??
+        entry.lng ??
+        (Array.isArray(entry.coordinates) ? entry.coordinates[0] : null),
+    );
+    const latitude = parseCoordinateValue(
+      entry.latitude ??
+        entry.lat ??
+        (Array.isArray(entry.coordinates) ? entry.coordinates[1] : null),
+    );
+    if (longitude === null || latitude === null) {
+      return;
+    }
+    if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+      return;
+    }
+
+    dedup.add(normalizedName);
+    normalized.push({
+      name,
+      longitude,
+      latitude,
+    });
+  });
+  return normalized;
+}
+
+function getMonumentsForEditor() {
+  const monumentsFromApi = parseMonumentsPayload(state.content?.monuments);
+  const monumentsByName = new Map();
+  monumentsFromApi.forEach((entry) => {
+    monumentsByName.set(normalizeName(entry.name), entry);
+  });
+
+  const orderedRows = [];
+  const listNames = Array.isArray(state.content?.lists?.monuments)
+    ? state.content.lists.monuments
+    : [];
+  listNames.forEach((rawName) => {
+    const normalizedName = normalizeName(rawName);
+    if (!normalizedName) {
+      return;
+    }
+
+    const existing = monumentsByName.get(normalizedName);
+    if (existing) {
+      orderedRows.push(existing);
+      monumentsByName.delete(normalizedName);
+      return;
+    }
+
+    orderedRows.push({
+      name: String(rawName || "").trim(),
+      longitude: null,
+      latitude: null,
+    });
+  });
+
+  monumentsByName.forEach((entry) => {
+    orderedRows.push(entry);
+  });
+
+  return orderedRows;
+}
+
+function appendMonumentRow(entry = {}) {
+  if (!refs.monumentsTableBody) {
+    return;
+  }
+
+  const row = document.createElement("tr");
+
+  const nameCell = document.createElement("td");
+  const nameWrap = document.createElement("div");
+  nameWrap.className = "monument-name-cell";
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.className = "monument-name-input";
+  nameInput.placeholder = "Nom du monument";
+  nameInput.value = String(entry.name || "");
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "btn btn-danger-outline monument-remove-btn";
+  removeBtn.textContent = "Retirer";
+  removeBtn.addEventListener("click", () => {
+    row.remove();
+    if (!refs.monumentsTableBody.querySelector("tr")) {
+      appendMonumentRow();
+    }
+  });
+  nameWrap.appendChild(nameInput);
+  nameWrap.appendChild(removeBtn);
+  nameCell.appendChild(nameWrap);
+
+  const locationCell = document.createElement("td");
+  const coordsWrap = document.createElement("div");
+  coordsWrap.className = "monument-coords";
+  const longitudeInput = document.createElement("input");
+  longitudeInput.type = "text";
+  longitudeInput.className = "monument-longitude-input";
+  longitudeInput.placeholder = "Longitude (ex: 5.371242)";
+  longitudeInput.value = formatCoordinateValue(entry.longitude);
+  const latitudeInput = document.createElement("input");
+  latitudeInput.type = "text";
+  latitudeInput.className = "monument-latitude-input";
+  latitudeInput.placeholder = "Latitude (ex: 43.2839455)";
+  latitudeInput.value = formatCoordinateValue(entry.latitude);
+  coordsWrap.appendChild(longitudeInput);
+  coordsWrap.appendChild(latitudeInput);
+  locationCell.appendChild(coordsWrap);
+
+  row.appendChild(nameCell);
+  row.appendChild(locationCell);
+  refs.monumentsTableBody.appendChild(row);
+}
+
+function renderMonumentsEditor() {
+  if (!refs.monumentsTableBody) {
+    return;
+  }
+  refs.monumentsTableBody.innerHTML = "";
+
+  const rows = getMonumentsForEditor();
+  if (!rows.length) {
+    appendMonumentRow();
+    return;
+  }
+  rows.forEach((entry) => appendMonumentRow(entry));
+}
+
+function collectMonumentsFromTable() {
+  const rows = Array.from(refs.monumentsTableBody?.querySelectorAll("tr") || []);
+  const dedup = new Set();
+  const entries = [];
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    const rowNumber = index + 1;
+    const nameInput = row.querySelector(".monument-name-input");
+    const longitudeInput = row.querySelector(".monument-longitude-input");
+    const latitudeInput = row.querySelector(".monument-latitude-input");
+
+    const name = String(nameInput?.value || "").trim();
+    const normalizedName = normalizeName(name);
+    const rawLongitude = String(longitudeInput?.value || "").trim();
+    const rawLatitude = String(latitudeInput?.value || "").trim();
+
+    const hasSomeValue = Boolean(name || rawLongitude || rawLatitude);
+    if (!hasSomeValue) {
+      continue;
+    }
+
+    if (!name) {
+      throw new Error(`Ligne ${rowNumber}: le nom du monument est obligatoire.`);
+    }
+
+    const longitude = parseCoordinateValue(rawLongitude);
+    const latitude = parseCoordinateValue(rawLatitude);
+    if (longitude === null || latitude === null) {
+      throw new Error(
+        `Ligne ${rowNumber}: longitude et latitude doivent etre des nombres valides.`,
+      );
+    }
+    if (longitude < -180 || longitude > 180) {
+      throw new Error(`Ligne ${rowNumber}: longitude hors plage (-180 a 180).`);
+    }
+    if (latitude < -90 || latitude > 90) {
+      throw new Error(`Ligne ${rowNumber}: latitude hors plage (-90 a 90).`);
+    }
+    if (dedup.has(normalizedName)) {
+      continue;
+    }
+
+    dedup.add(normalizedName);
+    entries.push({
+      name,
+      longitude,
+      latitude,
+    });
+  }
+
+  return entries;
+}
+
 function getCurrentMode() {
   return refs.infoModeSelect.value === "main" ? "main" : "famous";
 }
@@ -275,7 +492,6 @@ function renderListsEditors() {
   }
   refs.famousListText.value = listToTextarea(state.content.lists?.famousStreets);
   refs.mainListText.value = listToTextarea(state.content.lists?.mainStreets);
-  refs.monumentsListText.value = listToTextarea(state.content.lists?.monuments);
 }
 
 function renderAllEditors(preferredStreetName = "") {
@@ -283,6 +499,7 @@ function renderAllEditors(preferredStreetName = "") {
   refs.sessionRole.textContent = state.role || "player";
   renderStats();
   renderListsEditors();
+  renderMonumentsEditor();
   renderStreetSelect(preferredStreetName);
 }
 
@@ -527,10 +744,15 @@ async function onRemoveStreetFromModeList() {
 }
 
 async function onSaveLists() {
+  if (!state.content) {
+    setGlobalStatus("Contenu non charge.", "error");
+    return;
+  }
+
   const payload = {
     famousStreets: parseListTextarea(refs.famousListText.value),
     mainStreets: parseListTextarea(refs.mainListText.value),
-    monuments: parseListTextarea(refs.monumentsListText.value),
+    monuments: normalizeNameArray(state.content?.lists?.monuments),
   };
 
   try {
@@ -543,6 +765,33 @@ async function onSaveLists() {
     setGlobalStatus("Listes enregistrees.", "success");
   } catch (error) {
     setGlobalStatus(`Echec enregistrement listes: ${error.message}`, "error");
+  }
+}
+
+async function onSaveMonuments() {
+  if (!state.content) {
+    setGlobalStatus("Contenu non charge.", "error");
+    return;
+  }
+
+  let entries = [];
+  try {
+    entries = collectMonumentsFromTable();
+  } catch (error) {
+    setGlobalStatus(error.message, "error");
+    return;
+  }
+
+  try {
+    setGlobalStatus("Enregistrement des monuments...", "info");
+    await apiRequest("/api/editor/monuments", {
+      method: "PUT",
+      body: { entries },
+    });
+    await loadContent();
+    setGlobalStatus(`Monuments enregistres (${entries.length}).`, "success");
+  } catch (error) {
+    setGlobalStatus(`Echec enregistrement monuments: ${error.message}`, "error");
   }
 }
 
@@ -579,6 +828,10 @@ function bindEvents() {
   refs.removeStreetFromListBtn.addEventListener("click", onRemoveStreetFromModeList);
   refs.deleteStreetInfoBtn.addEventListener("click", onDeleteStreetInfo);
   refs.saveListsBtn.addEventListener("click", onSaveLists);
+  refs.addMonumentRowBtn.addEventListener("click", () => {
+    appendMonumentRow();
+  });
+  refs.saveMonumentsBtn.addEventListener("click", onSaveMonuments);
 }
 
 bindEvents();

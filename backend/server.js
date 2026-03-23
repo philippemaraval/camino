@@ -89,8 +89,10 @@ const VALID_USER_ROLES = new Set([USER_ROLE_PLAYER, USER_ROLE_EDITOR, USER_ROLE_
 const CONTENT_EDITOR_ROLES = new Set([USER_ROLE_EDITOR, USER_ROLE_ADMIN]);
 const STREET_INFOS_SETTING_KEY = 'content_street_infos_v1';
 const CONTENT_LISTS_SETTING_KEY = 'content_lists_v1';
+const CONTENT_MONUMENTS_SETTING_KEY = 'content_monuments_v1';
 const MAX_STREET_INFO_ENTRIES = 20000;
 const MAX_LIST_ENTRIES = 20000;
+const MAX_MONUMENT_ENTRIES = 20000;
 const MAX_NAME_LENGTH = 160;
 const MAX_INFO_LENGTH = 5000;
 
@@ -509,6 +511,98 @@ function normalizeNameList(rawList, maxEntries = MAX_LIST_ENTRIES) {
     return normalized;
 }
 
+function parseMonumentCoordinates(rawEntry) {
+    if (!rawEntry || typeof rawEntry !== 'object' || Array.isArray(rawEntry)) {
+        return null;
+    }
+
+    if (rawEntry.type === 'Feature') {
+        const coordinates = Array.isArray(rawEntry?.geometry?.coordinates)
+            ? rawEntry.geometry.coordinates
+            : [];
+        const longitude = toFiniteNumber(coordinates[0]);
+        const latitude = toFiniteNumber(coordinates[1]);
+        if (longitude === null || latitude === null) {
+            return null;
+        }
+        return { longitude, latitude };
+    }
+
+    const coordinates = Array.isArray(rawEntry.coordinates) ? rawEntry.coordinates : null;
+    const longitude = toFiniteNumber(
+        coordinates ? coordinates[0] : (rawEntry.longitude ?? rawEntry.lng),
+    );
+    const latitude = toFiniteNumber(
+        coordinates ? coordinates[1] : (rawEntry.latitude ?? rawEntry.lat),
+    );
+    if (longitude === null || latitude === null) {
+        return null;
+    }
+    return { longitude, latitude };
+}
+
+function extractMonumentRawName(rawEntry) {
+    if (!rawEntry || typeof rawEntry !== 'object' || Array.isArray(rawEntry)) {
+        return '';
+    }
+    if (rawEntry.type === 'Feature') {
+        return String(rawEntry?.properties?.name || '');
+    }
+    return String(rawEntry.name || '');
+}
+
+function normalizeMonumentEntries(rawEntries, maxEntries = MAX_MONUMENT_ENTRIES) {
+    if (!Array.isArray(rawEntries)) {
+        return [];
+    }
+
+    const normalized = [];
+    const seen = new Set();
+    for (const rawEntry of rawEntries) {
+        const displayName = extractMonumentRawName(rawEntry).trim().slice(0, MAX_NAME_LENGTH);
+        const normalizedName = normalizeContentName(displayName).slice(0, MAX_NAME_LENGTH);
+        if (!normalizedName || seen.has(normalizedName)) {
+            continue;
+        }
+
+        const coordinates = parseMonumentCoordinates(rawEntry);
+        if (!coordinates) {
+            continue;
+        }
+        if (
+            coordinates.longitude < -180 ||
+            coordinates.longitude > 180 ||
+            coordinates.latitude < -90 ||
+            coordinates.latitude > 90
+        ) {
+            continue;
+        }
+
+        seen.add(normalizedName);
+        normalized.push({
+            name: displayName,
+            normalizedName,
+            longitude: coordinates.longitude,
+            latitude: coordinates.latitude,
+        });
+        if (normalized.length >= maxEntries) {
+            break;
+        }
+    }
+    return normalized;
+}
+
+function serializeMonumentEntries(entries) {
+    if (!Array.isArray(entries)) {
+        return [];
+    }
+    return entries.map((entry) => ({
+        name: String(entry?.name || '').trim(),
+        longitude: Number(entry?.longitude),
+        latitude: Number(entry?.latitude),
+    }));
+}
+
 function cloneStreetInfos(streetInfos) {
     return {
         famous: { ...(streetInfos?.famous || {}) },
@@ -522,6 +616,15 @@ function cloneContentLists(lists) {
         mainStreets: [...(lists?.mainStreets || [])],
         monuments: [...(lists?.monuments || [])],
     };
+}
+
+function cloneMonumentEntries(entries) {
+    return (Array.isArray(entries) ? entries : []).map((entry) => ({
+        name: String(entry?.name || ''),
+        normalizedName: String(entry?.normalizedName || ''),
+        longitude: Number(entry?.longitude),
+        latitude: Number(entry?.latitude),
+    }));
 }
 
 function parseJsonSetting(rawValue) {
@@ -549,24 +652,28 @@ function loadDefaultStreetInfosFromFile() {
     }
 }
 
-function loadDefaultMonumentNamesFromGeoJson() {
+function loadDefaultMonumentEntriesFromGeoJson() {
     try {
         const raw = fs.readFileSync(path.join(__dirname, '..', 'data', 'marseille_monuments.geojson'), 'utf8');
         const parsed = JSON.parse(raw);
-        const names = Array.isArray(parsed?.features)
-            ? parsed.features
-                .map((feature) => feature?.properties?.name)
-                .filter((value) => typeof value === 'string' && value.trim())
-            : [];
-        return normalizeNameList(names);
+        return normalizeMonumentEntries(parsed?.features);
     } catch (error) {
-        console.warn('Could not load default monument names from GeoJSON:', error.message);
-        return normalizeNameList(Array.from(DEFAULT_MONUMENT_NAMES || []));
+        console.warn('Could not load default monuments from GeoJSON:', error.message);
+        return [];
     }
+}
+
+function loadDefaultMonumentNamesFromGeoJson() {
+    const entries = loadDefaultMonumentEntriesFromGeoJson();
+    if (entries.length > 0) {
+        return normalizeNameList(entries.map((entry) => entry.name));
+    }
+    return normalizeNameList(Array.from(DEFAULT_MONUMENT_NAMES || []));
 }
 
 const DEFAULT_CONTENT_SNAPSHOT = (() => {
     const defaultStreetInfos = loadDefaultStreetInfosFromFile();
+    const defaultMonuments = loadDefaultMonumentEntriesFromGeoJson();
     const defaultLists = {
         famousStreets: normalizeNameList(Array.from(DEFAULT_FAMOUS_STREET_NAMES || [])),
         mainStreets: normalizeNameList(Array.from(DEFAULT_MAIN_STREET_NAMES || [])),
@@ -575,6 +682,7 @@ const DEFAULT_CONTENT_SNAPSHOT = (() => {
     return {
         streetInfos: defaultStreetInfos,
         lists: defaultLists,
+        monuments: defaultMonuments,
     };
 })();
 
@@ -619,6 +727,23 @@ async function getEffectiveContentLists() {
     return effective;
 }
 
+async function getEffectiveMonumentEntries() {
+    const fallback = cloneMonumentEntries(DEFAULT_CONTENT_SNAPSHOT.monuments);
+    const parsed = parseJsonSetting(await db.getAppSetting(CONTENT_MONUMENTS_SETTING_KEY));
+    if (!parsed) {
+        return fallback;
+    }
+
+    const rawEntries = Array.isArray(parsed)
+        ? parsed
+        : (Array.isArray(parsed?.entries) ? parsed.entries : null);
+    if (!rawEntries) {
+        return fallback;
+    }
+
+    return normalizeMonumentEntries(rawEntries);
+}
+
 function computeContentStats(streetInfos, lists) {
     return {
         famousStreetInfoCount: Object.keys(streetInfos?.famous || {}).length,
@@ -630,13 +755,15 @@ function computeContentStats(streetInfos, lists) {
 }
 
 async function getEffectiveContentSnapshot() {
-    const [streetInfos, lists] = await Promise.all([
+    const [streetInfos, lists, monuments] = await Promise.all([
         getEffectiveStreetInfos(),
         getEffectiveContentLists(),
+        getEffectiveMonumentEntries(),
     ]);
     return {
         streetInfos,
         lists,
+        monuments: serializeMonumentEntries(monuments),
         stats: computeContentStats(streetInfos, lists),
     };
 }
@@ -1015,6 +1142,7 @@ app.get('/api/content/public', asyncHandler(async (req, res) => {
     return res.json({
         streetInfos: snapshot.streetInfos,
         lists: snapshot.lists,
+        monuments: snapshot.monuments,
     });
 }));
 
@@ -1158,6 +1286,29 @@ app.put('/api/editor/lists', authenticateToken, requireContentEditor, asyncHandl
     const streetInfos = await getEffectiveStreetInfos();
     return res.json({
         success: true,
+        lists,
+        stats: computeContentStats(streetInfos, lists),
+    });
+}));
+
+app.put('/api/editor/monuments', authenticateToken, requireContentEditor, asyncHandler(async (req, res) => {
+    const rawEntries = req.body?.entries;
+    if (!Array.isArray(rawEntries)) {
+        return res.status(400).json({ error: 'entries must be an array of {name, longitude, latitude}' });
+    }
+
+    const monuments = normalizeMonumentEntries(rawEntries);
+    const serializedMonuments = serializeMonumentEntries(monuments);
+    await db.setAppSetting(CONTENT_MONUMENTS_SETTING_KEY, JSON.stringify(serializedMonuments));
+
+    const lists = await getEffectiveContentLists();
+    lists.monuments = normalizeNameList(monuments.map((entry) => entry.name));
+    await db.setAppSetting(CONTENT_LISTS_SETTING_KEY, JSON.stringify(lists));
+
+    const streetInfos = await getEffectiveStreetInfos();
+    return res.json({
+        success: true,
+        monuments: serializedMonuments,
         lists,
         stats: computeContentStats(streetInfos, lists),
     });
@@ -1316,7 +1467,7 @@ app.post('/api/friend-challenges', authenticateToken, asyncHandler(async (req, r
     }
 
     const lists = await getEffectiveContentLists();
-    const built = buildFriendChallengeTargets({
+    const built = await buildFriendChallengeTargets({
         mode: parsed.value.mode,
         gameType: parsed.value.gameType,
         quartierName: parsed.value.quartierName,
@@ -1641,7 +1792,7 @@ try {
     console.error('Could not load monuments index for friend challenges:', err.message);
 }
 
-function buildFriendChallengeTargets({ mode, gameType, quartierName, lists }) {
+async function buildFriendChallengeTargets({ mode, gameType, quartierName, lists }) {
     const normalizedMode = SCORE_MODE_ALIASES[mode] || mode;
     const normalizedGameType = String(gameType || '').trim();
     const famousStreetSet = new Set(Array.isArray(lists?.famousStreets) ? lists.famousStreets : []);
@@ -1657,12 +1808,25 @@ function buildFriendChallengeTargets({ mode, gameType, quartierName, lists }) {
         pool = quartierChallengeIndex.map((entry) => entry.name);
     } else if (normalizedMode === 'monuments') {
         targetType = 'monument';
+        let dynamicMonumentIndex = monumentChallengeIndex;
+        try {
+            const monuments = await getEffectiveMonumentEntries();
+            if (Array.isArray(monuments) && monuments.length > 0) {
+                dynamicMonumentIndex = monuments.map((entry) => ({
+                    name: entry.name,
+                    normalizedName: normalizeContentName(entry.name),
+                }));
+            }
+        } catch (error) {
+            console.warn('Could not resolve effective monuments for friend challenges:', error.message);
+        }
+
         if (monumentSet.size > 0) {
-            pool = monumentChallengeIndex
+            pool = dynamicMonumentIndex
                 .filter((entry) => monumentSet.has(entry.normalizedName))
                 .map((entry) => entry.name);
         } else {
-            pool = monumentChallengeIndex.map((entry) => entry.name);
+            pool = dynamicMonumentIndex.map((entry) => entry.name);
         }
     } else {
         targetType = 'street';

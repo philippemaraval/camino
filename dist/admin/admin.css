@@ -213,6 +213,61 @@ button:hover {
   gap: 12px;
 }
 
+.lists-grid--streets {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+}
+
+.monuments-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.monuments-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.monuments-table th,
+.monuments-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.monuments-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f6f9ff;
+}
+
+.monument-name-cell {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.monument-coords {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.btn-danger-outline {
+  background: #fff;
+  color: var(--danger);
+  border-color: #e9b9bf;
+}
+
+.btn-danger-outline:hover {
+  background: #fff3f5;
+}
+
 .muted {
   color: var(--muted);
   margin: 8px 0 0;
@@ -226,7 +281,12 @@ button:hover {
 @media (max-width: 960px) {
   .field-row,
   .editor-grid,
-  .lists-grid {
+  .lists-grid,
+  .lists-grid--streets {
+    grid-template-columns: 1fr;
+  }
+
+  .monument-coords {
     grid-template-columns: 1fr;
   }
 }

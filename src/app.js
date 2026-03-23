@@ -106,6 +106,7 @@ let MAIN_STREET_NAMES_RUNTIME = new Set(
   typeof MAIN_STREET_NAMES !== "undefined" ? Array.from(MAIN_STREET_NAMES) : [],
 );
 let MONUMENT_NAMES_RUNTIME = new Set();
+let MONUMENT_FEATURES_RUNTIME = null;
 const DEFAULT_REMINDER_CONFIG = {
   hour: 10,
   minute: 0,
@@ -154,6 +155,57 @@ function normalizeNameListPayload(entries) {
   return normalized;
 }
 
+function normalizeMonumentsPayload(entries) {
+  if (!Array.isArray(entries)) {
+    return null;
+  }
+
+  const normalized = [];
+  const seen = new Set();
+  entries.forEach((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return;
+    }
+
+    const name = String(entry.name || "").trim();
+    const normalizedName = normalizeName(name);
+    if (!normalizedName || seen.has(normalizedName)) {
+      return;
+    }
+
+    const longitude = Number(
+      entry.longitude ??
+      entry.lng ??
+      (Array.isArray(entry.coordinates) ? entry.coordinates[0] : Number.NaN),
+    );
+    const latitude = Number(
+      entry.latitude ??
+      entry.lat ??
+      (Array.isArray(entry.coordinates) ? entry.coordinates[1] : Number.NaN),
+    );
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+      return;
+    }
+    if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+      return;
+    }
+
+    seen.add(normalizedName);
+    normalized.push({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [longitude, latitude],
+      },
+      properties: {
+        name,
+      },
+    });
+  });
+
+  return normalized;
+}
+
 function applyPublicContentPayload(payload) {
   if (!payload || typeof payload !== "object") {
     return;
@@ -182,6 +234,11 @@ function applyPublicContentPayload(payload) {
   const monumentsList = normalizeNameListPayload(payload?.lists?.monuments);
   if (monumentsList) {
     MONUMENT_NAMES_RUNTIME = new Set(monumentsList);
+  }
+
+  const monuments = normalizeMonumentsPayload(payload?.monuments);
+  if (monuments) {
+    MONUMENT_FEATURES_RUNTIME = monuments;
   }
 }
 
@@ -2588,6 +2645,7 @@ function loadMonuments() {
     isTouchDevice: IS_TOUCH_DEVICE,
     handleMonumentClick,
     allowedMonumentNames: MONUMENT_NAMES_RUNTIME,
+    runtimeMonuments: MONUMENT_FEATURES_RUNTIME,
   })
     .then((result) => {
       allMonuments = result.allMonuments;

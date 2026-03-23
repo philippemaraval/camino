@@ -1976,18 +1976,25 @@
     uiTheme,
     isTouchDevice,
     handleMonumentClick: handleMonumentClick2,
-    allowedMonumentNames
+    allowedMonumentNames,
+    runtimeMonuments
   }) {
-    const response = await fetch("data/marseille_monuments.geojson?v=2");
-    if (!response.ok) {
-      throw new Error(`Impossible de charger les monuments (HTTP ${response.status}).`);
+    let sourceFeatures = null;
+    if (Array.isArray(runtimeMonuments)) {
+      sourceFeatures = runtimeMonuments;
+    } else {
+      const response = await fetch("data/marseille_monuments.geojson?v=2");
+      if (!response.ok) {
+        throw new Error(`Impossible de charger les monuments (HTTP ${response.status}).`);
+      }
+      const payload = await response.json();
+      sourceFeatures = payload.features || [];
     }
-    const payload = await response.json();
     const normalizedAllowedMonumentNames = allowedMonumentNames instanceof Set ? new Set(
       Array.from(allowedMonumentNames).map((value) => String(value || "").trim().toLowerCase()).filter(Boolean)
     ) : /* @__PURE__ */ new Set();
     const hasMonumentFilter = normalizedAllowedMonumentNames.size > 0;
-    const allMonuments2 = (payload.features || []).filter(
+    const allMonuments2 = (sourceFeatures || []).filter(
       (feature) => feature.geometry && feature.geometry.type === "Point" && feature.properties && typeof feature.properties.name === "string" && feature.properties.name.trim() !== "" && (!hasMonumentFilter || normalizedAllowedMonumentNames.has(feature.properties.name.trim().toLowerCase()))
     );
     let monumentsLayer2 = L2.geoJSON(
@@ -3622,6 +3629,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     typeof MAIN_STREET_NAMES !== "undefined" ? Array.from(MAIN_STREET_NAMES) : []
   );
   var MONUMENT_NAMES_RUNTIME = /* @__PURE__ */ new Set();
+  var MONUMENT_FEATURES_RUNTIME = null;
   var DEFAULT_REMINDER_CONFIG = {
     hour: 10,
     minute: 0,
@@ -3669,6 +3677,48 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     });
     return normalized;
   }
+  function normalizeMonumentsPayload(entries) {
+    if (!Array.isArray(entries)) {
+      return null;
+    }
+    const normalized = [];
+    const seen = /* @__PURE__ */ new Set();
+    entries.forEach((entry) => {
+      var _a, _b, _c, _d;
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return;
+      }
+      const name = String(entry.name || "").trim();
+      const normalizedName = normalizeName(name);
+      if (!normalizedName || seen.has(normalizedName)) {
+        return;
+      }
+      const longitude = Number(
+        (_b = (_a = entry.longitude) != null ? _a : entry.lng) != null ? _b : Array.isArray(entry.coordinates) ? entry.coordinates[0] : Number.NaN
+      );
+      const latitude = Number(
+        (_d = (_c = entry.latitude) != null ? _c : entry.lat) != null ? _d : Array.isArray(entry.coordinates) ? entry.coordinates[1] : Number.NaN
+      );
+      if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+        return;
+      }
+      if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+        return;
+      }
+      seen.add(normalizedName);
+      normalized.push({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [longitude, latitude]
+        },
+        properties: {
+          name
+        }
+      });
+    });
+    return normalized;
+  }
   function applyPublicContentPayload(payload) {
     var _a, _b, _c, _d, _e;
     if (!payload || typeof payload !== "object") {
@@ -3693,6 +3743,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const monumentsList = normalizeNameListPayload((_e = payload == null ? void 0 : payload.lists) == null ? void 0 : _e.monuments);
     if (monumentsList) {
       MONUMENT_NAMES_RUNTIME = new Set(monumentsList);
+    }
+    const monuments = normalizeMonumentsPayload(payload == null ? void 0 : payload.monuments);
+    if (monuments) {
+      MONUMENT_FEATURES_RUNTIME = monuments;
     }
   }
   async function loadStreetInfosFromStaticFile() {
@@ -5495,7 +5549,8 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       uiTheme: UI_THEME,
       isTouchDevice: IS_TOUCH_DEVICE,
       handleMonumentClick,
-      allowedMonumentNames: MONUMENT_NAMES_RUNTIME
+      allowedMonumentNames: MONUMENT_NAMES_RUNTIME,
+      runtimeMonuments: MONUMENT_FEATURES_RUNTIME
     }).then((result) => {
       allMonuments = result.allMonuments;
       console.log("Nombre de monuments charg\xE9s :", allMonuments.length);

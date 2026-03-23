@@ -234,13 +234,20 @@ export async function loadMonumentsRuntime({
   isTouchDevice,
   handleMonumentClick,
   allowedMonumentNames,
+  runtimeMonuments,
 }) {
-  const response = await fetch("data/marseille_monuments.geojson?v=2");
-  if (!response.ok) {
-    throw new Error(`Impossible de charger les monuments (HTTP ${response.status}).`);
-  }
+  let sourceFeatures = null;
+  if (Array.isArray(runtimeMonuments)) {
+    sourceFeatures = runtimeMonuments;
+  } else {
+    const response = await fetch("data/marseille_monuments.geojson?v=2");
+    if (!response.ok) {
+      throw new Error(`Impossible de charger les monuments (HTTP ${response.status}).`);
+    }
 
-  const payload = await response.json();
+    const payload = await response.json();
+    sourceFeatures = payload.features || [];
+  }
   const normalizedAllowedMonumentNames =
     allowedMonumentNames instanceof Set
       ? new Set(
@@ -250,7 +257,7 @@ export async function loadMonumentsRuntime({
       )
       : new Set();
   const hasMonumentFilter = normalizedAllowedMonumentNames.size > 0;
-  const allMonuments = (payload.features || []).filter(
+  const allMonuments = (sourceFeatures || []).filter(
     (feature) =>
       feature.geometry &&
       feature.geometry.type === "Point" &&

@@ -92,7 +92,7 @@
       <section class="card">
         <h2>Listes de jeu</h2>
         <p class="muted">Une ligne = un nom. Les doublons sont supprimes automatiquement.</p>
-        <div class="lists-grid">
+        <div class="lists-grid lists-grid--streets">
           <label>
             Rues celebres
             <textarea id="famous-list-text" rows="14"></textarea>
@@ -101,13 +101,29 @@
             Rues principales
             <textarea id="main-list-text" rows="14"></textarea>
           </label>
-          <label>
-            Monuments
-            <textarea id="monuments-list-text" rows="14"></textarea>
-          </label>
         </div>
         <div class="button-row">
-          <button id="save-lists-btn" type="button" class="btn btn-primary">Enregistrer les listes</button>
+          <button id="save-lists-btn" type="button" class="btn btn-primary">Enregistrer les listes rues</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Monuments</h2>
+        <p class="muted">Tableau defilant en 2 colonnes: nom et localisation (longitude / latitude).</p>
+        <div class="monuments-table-wrap">
+          <table class="monuments-table">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Localisation</th>
+              </tr>
+            </thead>
+            <tbody id="monuments-table-body"></tbody>
+          </table>
+        </div>
+        <div class="button-row">
+          <button id="add-monument-row-btn" type="button" class="btn">Ajouter un monument</button>
+          <button id="save-monuments-btn" type="button" class="btn btn-primary">Enregistrer les monuments</button>
         </div>
       </section>
     </section>
