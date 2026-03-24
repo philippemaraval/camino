@@ -868,6 +868,7 @@ let sessionStreets = [],
   errorsCount = 0,
   highlightTimeoutId = null,
   highlightedLayers = [],
+  dailyLastGuessHighlightLayers = [],
   messageTimeoutId = null,
   currentUser = null,
   isLectureMode = !1,
@@ -2720,7 +2721,9 @@ function loadStreets({ force = false } = {}) {
     normalizeName,
     getBaseStreetStyle,
     isStreetVisibleInCurrentMode,
-    isLayerHighlighted: (layer) => highlightedLayers && highlightedLayers.includes(layer),
+    isLayerHighlighted: (layer) =>
+      (highlightedLayers && highlightedLayers.includes(layer)) ||
+      (dailyLastGuessHighlightLayers && dailyLastGuessHighlightLayers.includes(layer)),
     handleStreetClick,
     addTouchBufferForLayer,
   })
@@ -2992,6 +2995,7 @@ function startNewSession(options = {}) {
     return;
   }
   (a && ((a.textContent = ""), (a.style.display = "none")),
+    clearDailyLastGuessHighlight(),
     clearHighlight(),
     (activeSessionId = generateSessionId()),
     (correctCount = 0),
@@ -3462,13 +3466,10 @@ function handleStreetClick(e, t, r) {
           : getDistanceMeters(p, m, o[1], o[0])),
         (i = getDirectionArrow([m, p], o)));
     }
-    if (!n && t && "function" == typeof t.setStyle) {
-      const e = getBaseStreetStyle(t);
-      (t.setStyle({ color: UI_THEME.timerWarn, weight: 6, opacity: 1 }),
-        setTimeout(() => {
-          t && map.hasLayer(t) && t.setStyle(e);
-        }, 2e3));
-    }
+    lockDailyLastGuessHighlight(
+      e.properties.name,
+      n ? UI_THEME.mapCorrect : UI_THEME.timerWarn,
+    );
     (dailyGuessHistory.push({
       streetName: e.properties.name,
       distance: Math.round(s),
@@ -3489,6 +3490,7 @@ function handleStreetClick(e, t, r) {
         renderDailyGuessHistory({ success: !0, attempts: u }));
       (setTargetPanelTitleText("🎉 Défi réussi !"),
         updateTargetItemCounter(),
+        clearDailyLastGuessHighlight(),
         revealDailyTargetStreet(!0));
     } else if (d <= 0) {
       ((window._dailyGameOver = !0),
@@ -3501,6 +3503,7 @@ function handleStreetClick(e, t, r) {
         renderDailyGuessHistory({ success: !1 }));
       (setTargetPanelTitleText("❌ Défi échoué"),
         updateTargetItemCounter(),
+        clearDailyLastGuessHighlight(),
         revealDailyTargetStreet(!1));
     } else
       (renderDailyGuessHistory(),
@@ -3905,6 +3908,32 @@ function clearHighlight() {
       e.setStyle({ color: UI_THEME.mapStreet, weight: 5 });
     }),
       (highlightedLayers = [])));
+}
+function clearDailyLastGuessHighlight() {
+  dailyLastGuessHighlightLayers &&
+    dailyLastGuessHighlightLayers.length > 0 &&
+    (dailyLastGuessHighlightLayers.forEach((e) => {
+      if (!e || "function" != typeof e.setStyle) return;
+      delete e.__caminoLockedStyle;
+      const t = getBaseStreetStyle(e);
+      e.setStyle({ color: t.color, weight: t.weight, opacity: t.opacity });
+    }),
+      (dailyLastGuessHighlightLayers = []));
+}
+function lockDailyLastGuessHighlight(e, t = UI_THEME.timerWarn) {
+  clearDailyLastGuessHighlight();
+  const r = normalizeName(e);
+  if (!r || !streetLayersByName || !streetLayersByName.has(r)) return [];
+  const a = { color: t, weight: 7, opacity: 1 };
+  return (
+    (dailyLastGuessHighlightLayers = (streetLayersByName.get(r) || []).filter(
+      (e) => e && "function" == typeof e.setStyle,
+    )),
+    dailyLastGuessHighlightLayers.forEach((e) => {
+      (e.__caminoLockedStyle = { ...a }), e.setStyle(a);
+    }),
+    dailyLastGuessHighlightLayers
+  );
 }
 function focusStreetByName(e) {
   const t = highlightStreetByName(e, UI_THEME.mapStreetHover);
@@ -4490,6 +4519,7 @@ function startDailySession(e) {
     cleanOldDailyGuessStorage(e.date),
     isSessionRunning && endSession(),
     clearSessionShareSlot(),
+    clearDailyLastGuessHighlight(),
     removeDailyHighlight(),
     (currentZoneMode = "ville"));
   const s = document.getElementById("mode-select"),
@@ -4544,6 +4574,7 @@ function endDailySession() {
     (isSessionRunning = !1),
     (window._dailyGameOver = !1),
     (window._dailyGuessInFlight = !1));
+  clearDailyLastGuessHighlight();
   (updateTargetPanelTitle(),
     refreshLectureStreetSearchForCurrentMode(),
     updateStartStopButton(),
@@ -4580,6 +4611,8 @@ function clearDailyTransientUiState() {
   if (targetPanelEl) {
     targetPanelEl.classList.remove("target-panel--daily-image-open");
   }
+
+  clearDailyLastGuessHighlight();
 
   requestAnimationFrame(() => {
     requestMapInvalidateSize();

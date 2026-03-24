@@ -1945,6 +1945,10 @@
                 return;
               }
               (streetLayersByName2.get(normalizedStreetName) || []).forEach((candidateLayer) => {
+                if (candidateLayer.__caminoLockedStyle) {
+                  candidateLayer.setStyle(candidateLayer.__caminoLockedStyle);
+                  return;
+                }
                 candidateLayer.setStyle({ weight: 7, color: uiTheme.mapStreetHover });
               });
             }, 50);
@@ -1956,6 +1960,10 @@
                 return;
               }
               (streetLayersByName2.get(normalizedStreetName) || []).forEach((candidateLayer) => {
+                if (candidateLayer.__caminoLockedStyle) {
+                  candidateLayer.setStyle(candidateLayer.__caminoLockedStyle);
+                  return;
+                }
                 if (isLayerHighlighted(candidateLayer)) {
                   return;
                 }
@@ -4518,6 +4526,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   var errorsCount = 0;
   var highlightTimeoutId = null;
   var highlightedLayers = [];
+  var dailyLastGuessHighlightLayers = [];
   var messageTimeoutId = null;
   var currentUser = null;
   var isLectureMode = false;
@@ -5861,7 +5870,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       normalizeName,
       getBaseStreetStyle: getBaseStreetStyle2,
       isStreetVisibleInCurrentMode: isStreetVisibleInCurrentMode2,
-      isLayerHighlighted: (layer) => highlightedLayers && highlightedLayers.includes(layer),
+      isLayerHighlighted: (layer) => highlightedLayers && highlightedLayers.includes(layer) || dailyLastGuessHighlightLayers && dailyLastGuessHighlightLayers.includes(layer),
       handleStreetClick,
       addTouchBufferForLayer
     }).then((result) => {
@@ -6069,7 +6078,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       });
       return;
     }
-    a && (a.textContent = "", a.style.display = "none"), clearHighlight(), activeSessionId = generateSessionId(), correctCount = 0, totalAnswered = 0, summaryData = [], weightedScore = 0, errorsCount = 0, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateScoreUI(), updateTimeUI(0, 0), updateScoreMetricUI(), updateWeightedScoreUI(), updateSessionProgressBar();
+    a && (a.textContent = "", a.style.display = "none"), clearDailyLastGuessHighlight(), clearHighlight(), activeSessionId = generateSessionId(), correctCount = 0, totalAnswered = 0, summaryData = [], weightedScore = 0, errorsCount = 0, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateScoreUI(), updateTimeUI(0, 0), updateScoreMetricUI(), updateWeightedScoreUI(), updateSessionProgressBar();
     const n = document.getElementById("summary");
     if (n && (n.classList.add("hidden"), n.innerHTML = ""), clearSessionShareSlot(), isChronoMode = "chrono" === r, chronoEndTime = isChronoMode ? performance.now() + CHRONO_DURATION * 1e3 : null, setLectureTooltipsEnabled(false), "lecture" === r) {
       isLectureMode = true, isSessionRunning = false, isChronoMode = false, chronoEndTime = null, sessionStartTime = null, streetStartTime = null, currentTarget = null, currentMonumentTarget = null, currentQuartierTarget = null, isPaused = false, pauseStartTime = null, remainingChronoMs = null, updateTargetPanelTitle(), updateLayoutSessionState(), setZoneLayersVisibility(t), "quartier" === t && e && e.value ? highlightQuartier(e.value) : clearQuartierOverlay(), (() => {
@@ -6294,12 +6303,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
         );
         s2 = n3 && n3.geometry ? getDistanceToFeature(p, m, n3.geometry) : getDistanceMeters(p, m, o[1], o[0]), i2 = getDirectionArrow([m, p], o);
       }
-      if (!n2 && t && "function" == typeof t.setStyle) {
-        const e2 = getBaseStreetStyle2(t);
-        t.setStyle({ color: UI_THEME.timerWarn, weight: 6, opacity: 1 }), setTimeout(() => {
-          t && map.hasLayer(t) && t.setStyle(e2);
-        }, 2e3);
-      }
+      lockDailyLastGuessHighlight(
+        e.properties.name,
+        n2 ? UI_THEME.mapCorrect : UI_THEME.timerWarn
+      );
       dailyGuessHistory.push({
         streetName: e.properties.name,
         distance: Math.round(s2),
@@ -6311,13 +6318,13 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
           `\u{1F389} BRAVO ! Trouv\xE9 en ${u} essai${u > 1 ? "s" : ""} !`,
           "success"
         ), triggerHaptic("success"), renderDailyGuessHistory({ success: true, attempts: u });
-        setTargetPanelTitleText("\u{1F389} D\xE9fi r\xE9ussi !"), updateTargetItemCounter(), revealDailyTargetStreet(true);
+        setTargetPanelTitleText("\u{1F389} D\xE9fi r\xE9ussi !"), updateTargetItemCounter(), clearDailyLastGuessHighlight(), revealDailyTargetStreet(true);
       } else if (d <= 0) {
         window._dailyGameOver = true, document.body.classList.add("daily-game-over"), showMessage(
           `\u274C Dommage ! C'\xE9tait \xAB ${dailyTargetData.streetName} \xBB. Fin du d\xE9fi.`,
           "error"
         ), triggerHaptic("error"), renderDailyGuessHistory({ success: false });
-        setTargetPanelTitleText("\u274C D\xE9fi \xE9chou\xE9"), updateTargetItemCounter(), revealDailyTargetStreet(false);
+        setTargetPanelTitleText("\u274C D\xE9fi \xE9chou\xE9"), updateTargetItemCounter(), clearDailyLastGuessHighlight(), revealDailyTargetStreet(false);
       } else
         renderDailyGuessHistory(), triggerHaptic("error"), showMessage(
           `\u274C Rat\xE9 ! Distance : ${s2 >= 1e3 ? `${(s2 / 1e3).toFixed(1)} km` : `${Math.round(s2)} m`}. Plus que ${d} essai${d > 1 ? "s" : ""}.`,
@@ -6558,6 +6565,25 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     null !== highlightTimeoutId && (clearTimeout(highlightTimeoutId), highlightTimeoutId = null), highlightedLayers && highlightedLayers.length > 0 && (highlightedLayers.forEach((e) => {
       e.setStyle({ color: UI_THEME.mapStreet, weight: 5 });
     }), highlightedLayers = []);
+  }
+  function clearDailyLastGuessHighlight() {
+    dailyLastGuessHighlightLayers && dailyLastGuessHighlightLayers.length > 0 && (dailyLastGuessHighlightLayers.forEach((e) => {
+      if (!e || "function" != typeof e.setStyle) return;
+      delete e.__caminoLockedStyle;
+      const t = getBaseStreetStyle2(e);
+      e.setStyle({ color: t.color, weight: t.weight, opacity: t.opacity });
+    }), dailyLastGuessHighlightLayers = []);
+  }
+  function lockDailyLastGuessHighlight(e, t = UI_THEME.timerWarn) {
+    clearDailyLastGuessHighlight();
+    const r = normalizeName(e);
+    if (!r || !streetLayersByName || !streetLayersByName.has(r)) return [];
+    const a = { color: t, weight: 7, opacity: 1 };
+    return dailyLastGuessHighlightLayers = (streetLayersByName.get(r) || []).filter(
+      (e2) => e2 && "function" == typeof e2.setStyle
+    ), dailyLastGuessHighlightLayers.forEach((e2) => {
+      e2.__caminoLockedStyle = { ...a }, e2.setStyle(a);
+    }), dailyLastGuessHighlightLayers;
   }
   function focusStreetByName(e) {
     const t = highlightStreetByName(e, UI_THEME.mapStreetHover);
@@ -6941,7 +6967,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     let r = false, a = null;
     t.success ? (r = true, a = { success: true, attempts: t.attempts_count }) : t.attempts_count >= 7 && (r = true, a = { success: false, attempts: t.attempts_count }), isDailyMode = true, isLectureMode = false, setLectureTooltipsEnabled(false), dailyGuessHistory = [], window._dailyGameOver = r, window._dailyGuessInFlight = false;
     const n = document.getElementById("daily-guesses-history");
-    n && (n.style.display = "none", n.innerHTML = ""), r ? restoreDailyGuessesFromStorage(e.date) : (t.attempts_count || 0) > 0 && !t.success && (restoreDailyGuessesFromStorage(e.date), dailyGuessHistory.length > 0 && renderDailyGuessHistory()), cleanOldDailyGuessStorage(e.date), isSessionRunning && endSession(), clearSessionShareSlot(), removeDailyHighlight(), currentZoneMode = "ville";
+    n && (n.style.display = "none", n.innerHTML = ""), r ? restoreDailyGuessesFromStorage(e.date) : (t.attempts_count || 0) > 0 && !t.success && (restoreDailyGuessesFromStorage(e.date), dailyGuessHistory.length > 0 && renderDailyGuessHistory()), cleanOldDailyGuessStorage(e.date), isSessionRunning && endSession(), clearSessionShareSlot(), clearDailyLastGuessHighlight(), removeDailyHighlight(), currentZoneMode = "ville";
     const s = document.getElementById("mode-select"), i = document.getElementById("mode-select-button");
     s && (s.value = "ville", i && (i.innerHTML = '<span class="custom-select-label">Ville enti\xE8re</span><span class="difficulty-pill difficulty-pill--hard">Difficile</span>'));
     const l = document.getElementById("target-street");
@@ -6962,6 +6988,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     document.body.classList.remove("daily-game-over");
     clearDailyTransientUiState();
     isDailyMode = false, isSessionRunning = false, window._dailyGameOver = false, window._dailyGuessInFlight = false;
+    clearDailyLastGuessHighlight();
     updateTargetPanelTitle(), refreshLectureStreetSearchForCurrentMode(), updateStartStopButton(), updatePauseButton(), updateLayoutSessionState(), updateDailyUI(), updateDailyResultPanel();
   }
   function renderDailyGuessHistory(e) {
@@ -6990,6 +7017,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     if (targetPanelEl) {
       targetPanelEl.classList.remove("target-panel--daily-image-open");
     }
+    clearDailyLastGuessHighlight();
     requestAnimationFrame(() => {
       requestMapInvalidateSize();
     });

@@ -80,6 +80,10 @@ export async function loadStreetsRuntime({
               return;
             }
             (streetLayersByName.get(normalizedStreetName) || []).forEach((candidateLayer) => {
+              if (candidateLayer.__caminoLockedStyle) {
+                candidateLayer.setStyle(candidateLayer.__caminoLockedStyle);
+                return;
+              }
               candidateLayer.setStyle({ weight: 7, color: uiTheme.mapStreetHover });
             });
           }, 50);
@@ -92,6 +96,10 @@ export async function loadStreetsRuntime({
               return;
             }
             (streetLayersByName.get(normalizedStreetName) || []).forEach((candidateLayer) => {
+              if (candidateLayer.__caminoLockedStyle) {
+                candidateLayer.setStyle(candidateLayer.__caminoLockedStyle);
+                return;
+              }
               if (isLayerHighlighted(candidateLayer)) {
                 return;
               }
