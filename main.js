@@ -4504,6 +4504,9 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   var activeFriendChallenge = null;
   var friendChallengeInitPromise = null;
   var pendingFriendChallengeQuartierName = null;
+  var streetsLoadingPromise = null;
+  var areStreetsReady = false;
+  var mapInvalidateTimeoutIds = [];
   var monumentsContentSyncPromise = null;
   var monumentsSessionRefreshPending = false;
   var FRIEND_CHALLENGE_QUERY_PARAM = "defi";
@@ -5781,8 +5784,46 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   function addTouchBufferForLayer(e) {
     addTouchBufferForLayerRuntime(e, { isTouchDevice: IS_TOUCH_DEVICE, map, L });
   }
-  function loadStreets() {
-    loadStreetsRuntime({
+  function syncDailyModeButtonLoadingState() {
+    const dailyModeBtn = document.getElementById("daily-mode-btn");
+    if (!dailyModeBtn) {
+      return;
+    }
+    const isLoading = !areStreetsReady && !!streetsLoadingPromise;
+    dailyModeBtn.disabled = isLoading;
+    dailyModeBtn.setAttribute("aria-busy", isLoading ? "true" : "false");
+    dailyModeBtn.title = isLoading ? "Chargement des rues..." : "";
+  }
+  function requestMapInvalidateSize() {
+    if (!map) {
+      return;
+    }
+    mapInvalidateTimeoutIds.forEach((timeoutId) => {
+      clearTimeout(timeoutId);
+    });
+    mapInvalidateTimeoutIds = [];
+    [0, 160, 420].forEach((delayMs) => {
+      const timeoutId = setTimeout(() => {
+        if (!map) {
+          return;
+        }
+        try {
+          map.invalidateSize({ pan: false, animate: false });
+        } catch (error) {
+          map.invalidateSize();
+        }
+      }, delayMs);
+      mapInvalidateTimeoutIds.push(timeoutId);
+    });
+  }
+  function loadStreets({ force = false } = {}) {
+    if (streetsLoadingPromise) {
+      return streetsLoadingPromise;
+    }
+    if (areStreetsReady && !force) {
+      return Promise.resolve(true);
+    }
+    streetsLoadingPromise = loadStreetsRuntime({
       map,
       L,
       uiTheme: UI_THEME,
@@ -5793,6 +5834,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       handleStreetClick,
       addTouchBufferForLayer
     }).then((result) => {
+      areStreetsReady = true;
       allStreetFeatures = result.allStreetFeatures;
       streetsLayer = result.streetsLayer;
       streetLayersById = result.streetLayersById;
@@ -5814,11 +5856,20 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       }
       setMapStatus("Carte OK", "ready");
       document.body.classList.add("app-ready");
+      requestMapInvalidateSize();
+      return true;
     }).catch((e) => {
+      areStreetsReady = false;
       console.error("Erreur lors du chargement des rues :", e);
       showMessage("Erreur de chargement des rues (voir console).", "error");
       setMapStatus("Erreur", "error");
+      return false;
+    }).finally(() => {
+      streetsLoadingPromise = null;
+      syncDailyModeButtonLoadingState();
     });
+    syncDailyModeButtonLoadingState();
+    return streetsLoadingPromise;
   }
   function loadMonuments() {
     return loadMonumentsRuntime({
@@ -6157,7 +6208,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     const e = document.body;
     if (!e) return;
     const t = isSessionRunning || isLectureMode || isDailyMode && !!window._dailyGameOver;
-    if (t ? e.classList.add("session-running") : e.classList.remove("session-running"), isLectureMode ? e.classList.add("lecture-mode") : e.classList.remove("lecture-mode"), map && setTimeout(() => map.invalidateSize(), 300), isLectureMode) {
+    if (t ? e.classList.add("session-running") : e.classList.remove("session-running"), isLectureMode ? e.classList.add("lecture-mode") : e.classList.remove("lecture-mode"), requestMapInvalidateSize(), isLectureMode) {
       const e2 = document.getElementById("sidebar"), t2 = document.querySelector(".target-panel");
       e2 && t2 && setTimeout(() => {
         e2.scrollTo({ top: t2.offsetTop - 8, behavior: "smooth" });
@@ -6827,6 +6878,14 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     }
     if (currentUser && currentUser.token)
       try {
+        if (!areStreetsReady) {
+          showMessage("Chargement des rues...", "info");
+          const loaded = await loadStreets({ force: true });
+          if (!loaded) {
+            showMessage("Impossible de lancer le Daily: rues indisponibles.", "error");
+            return;
+          }
+        }
         const e = await fetch(API_URL + "/api/daily", {
           headers: { Authorization: `Bearer ${currentUser.token}` }
         });

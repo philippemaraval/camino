@@ -878,6 +878,9 @@ let sessionStreets = [],
   activeFriendChallenge = null,
   friendChallengeInitPromise = null,
   pendingFriendChallengeQuartierName = null;
+let streetsLoadingPromise = null;
+let areStreetsReady = false;
+let mapInvalidateTimeoutIds = [];
 let monumentsContentSyncPromise = null;
 let monumentsSessionRefreshPending = !1;
 
@@ -2656,8 +2659,54 @@ function setZoneLayersVisibility(e = getZoneMode()) {
 function addTouchBufferForLayer(e) {
   addTouchBufferForLayerRuntime(e, { isTouchDevice: IS_TOUCH_DEVICE, map, L });
 }
-function loadStreets() {
-  loadStreetsRuntime({
+function syncDailyModeButtonLoadingState() {
+  const dailyModeBtn = document.getElementById("daily-mode-btn");
+  if (!dailyModeBtn) {
+    return;
+  }
+
+  const isLoading = !areStreetsReady && !!streetsLoadingPromise;
+  dailyModeBtn.disabled = isLoading;
+  dailyModeBtn.setAttribute("aria-busy", isLoading ? "true" : "false");
+  dailyModeBtn.title = isLoading ? "Chargement des rues..." : "";
+}
+
+function requestMapInvalidateSize() {
+  if (!map) {
+    return;
+  }
+
+  mapInvalidateTimeoutIds.forEach((timeoutId) => {
+    clearTimeout(timeoutId);
+  });
+  mapInvalidateTimeoutIds = [];
+
+  [0, 160, 420].forEach((delayMs) => {
+    const timeoutId = setTimeout(() => {
+      if (!map) {
+        return;
+      }
+
+      try {
+        map.invalidateSize({ pan: false, animate: false });
+      } catch (error) {
+        map.invalidateSize();
+      }
+    }, delayMs);
+    mapInvalidateTimeoutIds.push(timeoutId);
+  });
+}
+
+function loadStreets({ force = false } = {}) {
+  if (streetsLoadingPromise) {
+    return streetsLoadingPromise;
+  }
+
+  if (areStreetsReady && !force) {
+    return Promise.resolve(true);
+  }
+
+  streetsLoadingPromise = loadStreetsRuntime({
     map,
     L,
     uiTheme: UI_THEME,
@@ -2669,6 +2718,7 @@ function loadStreets() {
     addTouchBufferForLayer,
   })
     .then((result) => {
+      areStreetsReady = true;
       allStreetFeatures = result.allStreetFeatures;
       streetsLayer = result.streetsLayer;
       streetLayersById = result.streetLayersById;
@@ -2694,12 +2744,23 @@ function loadStreets() {
 
       setMapStatus("Carte OK", "ready");
       document.body.classList.add("app-ready");
+      requestMapInvalidateSize();
+      return true;
     })
     .catch((e) => {
+      areStreetsReady = false;
       console.error("Erreur lors du chargement des rues :", e);
       showMessage("Erreur de chargement des rues (voir console).", "error");
       setMapStatus("Erreur", "error");
+      return false;
+    })
+    .finally(() => {
+      streetsLoadingPromise = null;
+      syncDailyModeButtonLoadingState();
     });
+
+  syncDailyModeButtonLoadingState();
+  return streetsLoadingPromise;
 }
 function loadMonuments() {
   return loadMonumentsRuntime({
@@ -3312,7 +3373,7 @@ function updateLayoutSessionState() {
       isLectureMode
         ? e.classList.add("lecture-mode")
         : e.classList.remove("lecture-mode"),
-      map && setTimeout(() => map.invalidateSize(), 300),
+      requestMapInvalidateSize(),
       isLectureMode)
   ) {
     const e = document.getElementById("sidebar"),
@@ -4369,6 +4430,14 @@ async function handleDailyModeClick() {
   }
   if (currentUser && currentUser.token)
     try {
+      if (!areStreetsReady) {
+        showMessage("Chargement des rues...", "info");
+        const loaded = await loadStreets({ force: true });
+        if (!loaded) {
+          showMessage("Impossible de lancer le Daily: rues indisponibles.", "error");
+          return;
+        }
+      }
       const e = await fetch(API_URL + "/api/daily", {
         headers: { Authorization: `Bearer ${currentUser.token}` },
       });
