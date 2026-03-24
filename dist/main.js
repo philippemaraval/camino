@@ -1489,8 +1489,85 @@
     "centre",
     "complexe"
   ];
+  var FREE_MODE_SAFE_PREFIXES = /* @__PURE__ */ new Set([
+    "rue",
+    "boulevard",
+    "bd",
+    "avenue",
+    "av",
+    "cours",
+    "place",
+    "chemin",
+    "traverse",
+    "impasse",
+    "montee",
+    "quai",
+    "route",
+    "corniche",
+    "square",
+    "promenade",
+    "rond-point",
+    "esplanade",
+    "tunnel",
+    "pont",
+    "viaduc",
+    "autoroute",
+    "escaliers",
+    "escalier",
+    "passerelle",
+    "bretelle",
+    "vallon",
+    "clos",
+    "carrefour",
+    "echangeur",
+    "ancien",
+    "ancienne",
+    "plage",
+    "rampe",
+    "passage",
+    "allee",
+    "allees"
+  ]);
+  var FREE_MODE_WHITELIST = /* @__PURE__ */ new Set([
+    "parvis madeleine et andre villard",
+    "parvis saint-laurent",
+    "pas d'ai de l'eboulis",
+    "pavillon des intendants",
+    "pavillon du parc",
+    "placette ange-marius michel",
+    "plateau cherchell chaix bryan",
+    "plateau sacoman",
+    "plateau de malmousque",
+    "plateau de l'eglise",
+    "plateau des marguerites",
+    "plateau des martegaux",
+    "plateau du peintre",
+    "porte d'air bel",
+    "porte de la castellane",
+    "porte de la pomme",
+    "ront-point robert dor",
+    "rond-point robert dor",
+    "ront-point abbe jean marcorelles",
+    "rond-point abbe jean marcorelles",
+    "ront-point monique gallician",
+    "rond-point monique gallician",
+    "rotonde pierre estrangin",
+    "ruelle saint-charles",
+    "vieux chemin d'endoume",
+    "digue berry",
+    "digue est",
+    "digue sainte-marie",
+    "digue du fort saint-jean",
+    "boulevard de la colline",
+    "bouvelard de la colline",
+    "voie saint-theodore",
+    "voie saint -theodore",
+    "grand rue",
+    "la canebiere",
+    "l2"
+  ]);
   function normalizeStreetTextForFilters(streetName) {
-    return (streetName || "").toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9' ]+/g, " ").replace(/’/g, "'").replace(/\s+/g, " ");
+    return (streetName || "").toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/’/g, "'").replace(/[-‐‑‒–—]/g, "-").replace(/\s*-\s*/g, "-").replace(/[^a-z0-9' -]+/g, " ").replace(/\s+/g, " ");
   }
   function isExcludedFromVilleAndQuartier(streetName) {
     const normalized = normalizeStreetTextForFilters(streetName);
@@ -1501,10 +1578,22 @@
     if (!firstToken) {
       return true;
     }
+    if (normalized === "l2" || normalized.startsWith("l2 ")) {
+      return false;
+    }
+    if (FREE_MODE_WHITELIST.has(normalized)) {
+      return false;
+    }
     if (FREE_MODE_EXCLUDED_PREFIXES.has(firstToken)) {
       return true;
     }
-    return FREE_MODE_EXCLUDED_KEYWORDS.some((keyword) => normalized.includes(keyword));
+    if (FREE_MODE_EXCLUDED_KEYWORDS.some((keyword) => normalized.includes(keyword))) {
+      return true;
+    }
+    if (!FREE_MODE_SAFE_PREFIXES.has(firstToken)) {
+      return true;
+    }
+    return false;
   }
   function createArrondissementByQuartierMap(arrondissementByQuartier2) {
     const map2 = /* @__PURE__ */ new Map();
@@ -2877,6 +2966,9 @@ Essaie de faire mieux sur ${host}`;
   }
 
   // src/daily-runtime.js
+  function escapeHtml2(value) {
+    return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
   function saveDailyMetaToStorageRuntime(dailyTargetData2, getDailyMetaStorageKey2) {
     if (dailyTargetData2 && dailyTargetData2.date) {
       try {
@@ -2885,7 +2977,8 @@ Essaie de faire mieux sur ${host}`;
           JSON.stringify({
             date: dailyTargetData2.date,
             streetName: dailyTargetData2.streetName || "",
-            quartier: dailyTargetData2.quartier || ""
+            quartier: dailyTargetData2.quartier || "",
+            dailyImageUrl: dailyTargetData2.dailyImageUrl || ""
           })
         );
       } catch (error) {
@@ -2956,7 +3049,8 @@ Essaie de faire mieux sur ${host}`;
         ...dailyTargetData2 || {},
         date: dailyDate,
         streetName: parsed.streetName,
-        quartier: parsed.quartier || (dailyTargetData2 == null ? void 0 : dailyTargetData2.quartier) || ""
+        quartier: parsed.quartier || (dailyTargetData2 == null ? void 0 : dailyTargetData2.quartier) || "",
+        dailyImageUrl: parsed.dailyImageUrl || (dailyTargetData2 == null ? void 0 : dailyTargetData2.dailyImageUrl) || ""
       };
     } catch (error) {
       return null;
@@ -3060,6 +3154,16 @@ Essaie de faire mieux sur ${host}`;
       if (guessCount >= 2 && dailyTargetData2 && !finalStatus) {
         html += '<div class="daily-hints">';
         html += '<div class="daily-hints-title">\u{1F4A1} Indices</div>';
+        const dailyImageUrl = typeof dailyTargetData2.dailyImageUrl === "string" ? dailyTargetData2.dailyImageUrl.trim() : "";
+        if (dailyImageUrl) {
+          const imageAlt = dailyTargetData2.streetName ? `Photo indice de ${dailyTargetData2.streetName}` : "Photo indice du Daily";
+          html += '<details class="daily-image-hint" open>';
+          html += '<summary class="daily-image-hint-summary">\u{1F5BC}\uFE0F Photo indice (repliable)</summary>';
+          html += '<div class="daily-image-hint-body">';
+          html += `<img src="${escapeHtml2(dailyImageUrl)}" alt="${escapeHtml2(imageAlt)}" loading="lazy" decoding="async">`;
+          html += "</div>";
+          html += "</details>";
+        }
         const quartierName = dailyTargetData2.quartier || "";
         try {
           const normalizedQuartier = normalizeQuartierKey2(quartierName);
@@ -3219,6 +3323,7 @@ ${result.success ? "\u2705" : "\u274C"} R\xE9sultat: ${scoreLabel}/7
     const streetName = dailyTargetData2.streetName || "Rue inconnue";
     const dateLabel = getDailyShareDateLabel(dailyTargetData2 == null ? void 0 : dailyTargetData2.date);
     const minDistance = dailyGuessHistory2.length > 0 ? Math.min(...dailyGuessHistory2.map((guess) => guess.distance)) : null;
+    const dailyImageUrl = typeof dailyTargetData2.dailyImageUrl === "string" ? dailyTargetData2.dailyImageUrl.trim() : "";
     const bestDistanceLabel = minDistance !== null && Number.isFinite(minDistance) ? formatDailyDistanceForShare2(minDistance) : "\u2014";
     function drawWrappedCenterText(text, center, context, maxWidth, startY, lineHeight, maxLines) {
       const lines = [];
@@ -3245,6 +3350,40 @@ ${result.success ? "\u2705" : "\u274C"} R\xE9sultat: ${scoreLabel}/7
         context.fillText(line, center, startY + i * lineHeight);
       }
       return drawCount;
+    }
+    function drawCoverImage(context, image, frame, radius = 16) {
+      if (!image || !image.naturalWidth || !image.naturalHeight) {
+        return;
+      }
+      const imageRatio = image.naturalWidth / image.naturalHeight;
+      const frameRatio = frame.w / frame.h;
+      let sourceWidth = image.naturalWidth;
+      let sourceHeight = image.naturalHeight;
+      let sourceX = 0;
+      let sourceY = 0;
+      if (imageRatio > frameRatio) {
+        sourceWidth = image.naturalHeight * frameRatio;
+        sourceX = (image.naturalWidth - sourceWidth) / 2;
+      } else {
+        sourceHeight = image.naturalWidth / frameRatio;
+        sourceY = (image.naturalHeight - sourceHeight) / 2;
+      }
+      context.save();
+      context.beginPath();
+      context.roundRect(frame.x, frame.y, frame.w, frame.h, radius);
+      context.clip();
+      context.drawImage(
+        image,
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        frame.x,
+        frame.y,
+        frame.w,
+        frame.h
+      );
+      context.restore();
     }
     const topGradient = ctx.createLinearGradient(0, 0, 0, height);
     topGradient.addColorStop(0, "#f8dca5");
@@ -3321,10 +3460,17 @@ ${result.success ? "\u2705" : "\u274C"} R\xE9sultat: ${scoreLabel}/7
     ctx.fillText(`${resultLabel}/7`, centerX, scoreCard.y + 98);
     ctx.font = '600 28px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
     ctx.fillText(result.success ? "D\xE9fi r\xE9ussi" : "D\xE9fi non r\xE9solu", centerX, scoreCard.y + 140);
-    const rowX = panel.x + 70;
-    const rowWidth = panel.w - 140;
-    const rowHeight = 74;
     const rowsStartY = 610;
+    const rowHeight = 74;
+    const photoPanel = {
+      x: centerX + 20,
+      y: rowsStartY + 2 * (rowHeight + 12) - 6,
+      w: panel.x + panel.w - 70 - (centerX + 20),
+      h: 3 * (rowHeight + 12) + 12
+    };
+    const rowX = panel.x + 70;
+    const rowRightLimit = photoPanel.x - 20;
+    const rowWidth = Math.max(300, rowRightLimit - rowX);
     if (dailyGuessHistory2.length > 0) {
       dailyGuessHistory2.slice(0, 7).forEach((guess, index) => {
         const rowY = rowsStartY + index * (rowHeight + 12);
@@ -3357,7 +3503,7 @@ ${result.success ? "\u2705" : "\u274C"} R\xE9sultat: ${scoreLabel}/7
         ctx.font = '600 30px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
         ctx.fillText(
           isFinalSuccessRow ? "Trouv\xE9 !" : formatDailyDistanceForShare2(guess.distance),
-          rowX + 246,
+          rowX + 224,
           rowY + 48
         );
       });
@@ -3366,70 +3512,109 @@ ${result.success ? "\u2705" : "\u274C"} R\xE9sultat: ${scoreLabel}/7
       ctx.font = '600 30px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
       ctx.fillText("Aucun essai enregistr\xE9", rowX, rowsStartY + 44);
     }
-    const bestPanel = {
-      x: centerX + 20,
-      y: rowsStartY + 2 * (rowHeight + 12) - 6,
-      w: panel.x + panel.w - 70 - (centerX + 20),
-      h: 3 * (rowHeight + 12) + 12
-    };
     ctx.fillStyle = "rgba(15,23,42,0.82)";
     ctx.beginPath();
-    ctx.roundRect(bestPanel.x, bestPanel.y, bestPanel.w, bestPanel.h, 20);
+    ctx.roundRect(photoPanel.x, photoPanel.y, photoPanel.w, photoPanel.h, 20);
     ctx.fill();
     ctx.strokeStyle = "rgba(148,163,184,0.3)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
-    const bestCenterX = bestPanel.x + bestPanel.w / 2;
+    const bestCenterX = photoPanel.x + photoPanel.w / 2;
+    const photoFrame = {
+      x: photoPanel.x + 20,
+      y: photoPanel.y + 52,
+      w: photoPanel.w - 40,
+      h: 148
+    };
     ctx.textAlign = "center";
     ctx.fillStyle = "#f8fafc";
     ctx.font = '700 28px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
-    ctx.fillText("\u{1F3AF} Meilleure", bestCenterX, bestPanel.y + 42);
-    ctx.fillText(`distance : ${bestDistanceLabel}`, bestCenterX, bestPanel.y + 76);
+    ctx.fillText("\u{1F5BC}\uFE0F Indice visuel", bestCenterX, photoPanel.y + 34);
+    ctx.fillStyle = "rgba(30,41,59,0.65)";
+    ctx.beginPath();
+    ctx.roundRect(photoFrame.x, photoFrame.y, photoFrame.w, photoFrame.h, 16);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(148,163,184,0.35)";
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.roundRect(photoFrame.x, photoFrame.y, photoFrame.w, photoFrame.h, 16);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(226,232,240,0.85)";
+    ctx.font = '600 22px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
+    ctx.fillText(
+      dailyImageUrl ? "Chargement photo\u2026" : "Photo non disponible",
+      bestCenterX,
+      photoFrame.y + photoFrame.h / 2 + 8
+    );
     ctx.fillStyle = "#cbd5e1";
     ctx.font = '500 22px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
-    ctx.fillText("Essaie de faire", bestCenterX, bestPanel.y + 130);
-    ctx.fillText("mieux sur", bestCenterX, bestPanel.y + 158);
+    ctx.fillText(`\u{1F3AF} Meilleure distance: ${bestDistanceLabel}`, bestCenterX, photoPanel.y + 236);
+    ctx.fillText("Essaie de faire mieux sur", bestCenterX, photoPanel.y + 268);
     ctx.fillStyle = "#93c5fd";
     ctx.font = '700 24px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
-    ctx.fillText("camino-ajm.pages.dev", bestCenterX, bestPanel.y + 200);
-    canvas.toBlob(async (blob) => {
-      if (!blob) {
-        showMessage2("Erreur lors de la g\xE9n\xE9ration", "error");
-        return;
-      }
-      const file = new File([blob], "camino-daily.png", { type: "image/png" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            title: "Camino - D\xE9fi Quotidien",
-            text: `${dailyTargetData2.streetName} \u2022 ${resultLabel}/7
-Essaie de faire mieux sur camino-ajm.pages.dev`,
-            files: [file]
-          });
-          showMessage2("Partag\xE9 !", "success");
+    ctx.fillText("camino-ajm.pages.dev", bestCenterX, photoPanel.y + 300);
+    const finalizeShareImage = () => {
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          showMessage2("Erreur lors de la g\xE9n\xE9ration", "error");
           return;
-        } catch (error) {
-          if (error.name === "AbortError") {
+        }
+        const file = new File([blob], "camino-daily.png", { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              title: "Camino - D\xE9fi Quotidien",
+              text: `${dailyTargetData2.streetName} \u2022 ${resultLabel}/7
+Essaie de faire mieux sur camino-ajm.pages.dev`,
+              files: [file]
+            });
+            showMessage2("Partag\xE9 !", "success");
             return;
+          } catch (error) {
+            if (error.name === "AbortError") {
+              return;
+            }
           }
         }
-      }
-      if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-          showMessage2("Image copi\xE9e dans le presse-papier !", "success");
-          return;
-        } catch (error) {
+        if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+            showMessage2("Image copi\xE9e dans le presse-papier !", "success");
+            return;
+          } catch (error) {
+          }
         }
-      }
-      const objectUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = "camino-daily.png";
-      anchor.click();
-      URL.revokeObjectURL(objectUrl);
-      showMessage2("Image t\xE9l\xE9charg\xE9e !", "success");
-    }, "image/png");
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = "camino-daily.png";
+        anchor.click();
+        URL.revokeObjectURL(objectUrl);
+        showMessage2("Image t\xE9l\xE9charg\xE9e !", "success");
+      }, "image/png");
+    };
+    if (dailyImageUrl) {
+      const dailyImage = new Image();
+      dailyImage.decoding = "async";
+      dailyImage.onload = () => {
+        drawCoverImage(ctx, dailyImage, photoFrame, 14);
+        ctx.strokeStyle = "rgba(226,232,240,0.75)";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.roundRect(photoFrame.x, photoFrame.y, photoFrame.w, photoFrame.h, 14);
+        ctx.stroke();
+        finalizeShareImage();
+      };
+      dailyImage.onerror = () => {
+        ctx.fillStyle = "rgba(254,226,226,0.92)";
+        ctx.font = '600 22px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
+        ctx.fillText("Photo indisponible", bestCenterX, photoFrame.y + photoFrame.h / 2 + 8);
+        finalizeShareImage();
+      };
+      dailyImage.src = dailyImageUrl;
+      return;
+    }
+    finalizeShareImage();
   }
   function updateDailyResultPanelRuntime({
     isSessionRunning: isSessionRunning2,

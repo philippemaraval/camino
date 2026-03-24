@@ -1,3 +1,11 @@
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export function saveDailyMetaToStorageRuntime(dailyTargetData, getDailyMetaStorageKey) {
   if (dailyTargetData && dailyTargetData.date) {
     try {
@@ -7,6 +15,7 @@ export function saveDailyMetaToStorageRuntime(dailyTargetData, getDailyMetaStora
           date: dailyTargetData.date,
           streetName: dailyTargetData.streetName || "",
           quartier: dailyTargetData.quartier || "",
+          dailyImageUrl: dailyTargetData.dailyImageUrl || "",
         }),
       );
     } catch (error) {
@@ -88,6 +97,7 @@ export function restoreDailyMetaFromStorageRuntime(dailyDate, dailyTargetData, g
       date: dailyDate,
       streetName: parsed.streetName,
       quartier: parsed.quartier || dailyTargetData?.quartier || "",
+      dailyImageUrl: parsed.dailyImageUrl || dailyTargetData?.dailyImageUrl || "",
     };
   } catch (error) {
     return null;
@@ -209,6 +219,22 @@ export function renderDailyGuessHistoryRuntime({
     if (guessCount >= 2 && dailyTargetData && !finalStatus) {
       html += '<div class="daily-hints">';
       html += '<div class="daily-hints-title">💡 Indices</div>';
+
+      const dailyImageUrl =
+        typeof dailyTargetData.dailyImageUrl === "string"
+          ? dailyTargetData.dailyImageUrl.trim()
+          : "";
+      if (dailyImageUrl) {
+        const imageAlt = dailyTargetData.streetName
+          ? `Photo indice de ${dailyTargetData.streetName}`
+          : "Photo indice du Daily";
+        html += '<details class="daily-image-hint" open>';
+        html += '<summary class="daily-image-hint-summary">🖼️ Photo indice (repliable)</summary>';
+        html += '<div class="daily-image-hint-body">';
+        html += `<img src="${escapeHtml(dailyImageUrl)}" alt="${escapeHtml(imageAlt)}" loading="lazy" decoding="async">`;
+        html += "</div>";
+        html += "</details>";
+      }
 
       const quartierName = dailyTargetData.quartier || "";
       try {
@@ -398,6 +424,10 @@ export function handleDailyShareImageRuntime({
     dailyGuessHistory.length > 0
       ? Math.min(...dailyGuessHistory.map((guess) => guess.distance))
       : null;
+  const dailyImageUrl =
+    typeof dailyTargetData.dailyImageUrl === "string"
+      ? dailyTargetData.dailyImageUrl.trim()
+      : "";
   const bestDistanceLabel =
     minDistance !== null && Number.isFinite(minDistance)
       ? formatDailyDistanceForShare(minDistance)
@@ -432,6 +462,44 @@ export function handleDailyShareImageRuntime({
     }
 
     return drawCount;
+  }
+
+  function drawCoverImage(context, image, frame, radius = 16) {
+    if (!image || !image.naturalWidth || !image.naturalHeight) {
+      return;
+    }
+
+    const imageRatio = image.naturalWidth / image.naturalHeight;
+    const frameRatio = frame.w / frame.h;
+    let sourceWidth = image.naturalWidth;
+    let sourceHeight = image.naturalHeight;
+    let sourceX = 0;
+    let sourceY = 0;
+
+    if (imageRatio > frameRatio) {
+      sourceWidth = image.naturalHeight * frameRatio;
+      sourceX = (image.naturalWidth - sourceWidth) / 2;
+    } else {
+      sourceHeight = image.naturalWidth / frameRatio;
+      sourceY = (image.naturalHeight - sourceHeight) / 2;
+    }
+
+    context.save();
+    context.beginPath();
+    context.roundRect(frame.x, frame.y, frame.w, frame.h, radius);
+    context.clip();
+    context.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      frame.x,
+      frame.y,
+      frame.w,
+      frame.h,
+    );
+    context.restore();
   }
 
   const topGradient = ctx.createLinearGradient(0, 0, 0, height);
@@ -522,10 +590,17 @@ export function handleDailyShareImageRuntime({
   ctx.font = '600 28px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
   ctx.fillText(result.success ? "Défi réussi" : "Défi non résolu", centerX, scoreCard.y + 140);
 
-  const rowX = panel.x + 70;
-  const rowWidth = panel.w - 140;
-  const rowHeight = 74;
   const rowsStartY = 610;
+  const rowHeight = 74;
+  const photoPanel = {
+    x: centerX + 20,
+    y: rowsStartY + 2 * (rowHeight + 12) - 6,
+    w: panel.x + panel.w - 70 - (centerX + 20),
+    h: 3 * (rowHeight + 12) + 12,
+  };
+  const rowX = panel.x + 70;
+  const rowRightLimit = photoPanel.x - 20;
+  const rowWidth = Math.max(300, rowRightLimit - rowX);
 
   if (dailyGuessHistory.length > 0) {
     dailyGuessHistory.slice(0, 7).forEach((guess, index) => {
@@ -566,7 +641,7 @@ export function handleDailyShareImageRuntime({
       ctx.font = '600 30px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
       ctx.fillText(
         isFinalSuccessRow ? "Trouvé !" : formatDailyDistanceForShare(guess.distance),
-        rowX + 246,
+        rowX + 224,
         rowY + 48,
       );
     });
@@ -576,80 +651,123 @@ export function handleDailyShareImageRuntime({
     ctx.fillText("Aucun essai enregistré", rowX, rowsStartY + 44);
   }
 
-  const bestPanel = {
-    x: centerX + 20,
-    y: rowsStartY + 2 * (rowHeight + 12) - 6,
-    w: panel.x + panel.w - 70 - (centerX + 20),
-    h: 3 * (rowHeight + 12) + 12,
-  };
-
   ctx.fillStyle = "rgba(15,23,42,0.82)";
   ctx.beginPath();
-  ctx.roundRect(bestPanel.x, bestPanel.y, bestPanel.w, bestPanel.h, 20);
+  ctx.roundRect(photoPanel.x, photoPanel.y, photoPanel.w, photoPanel.h, 20);
   ctx.fill();
 
   ctx.strokeStyle = "rgba(148,163,184,0.3)";
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  const bestCenterX = bestPanel.x + bestPanel.w / 2;
+  const bestCenterX = photoPanel.x + photoPanel.w / 2;
+  const photoFrame = {
+    x: photoPanel.x + 20,
+    y: photoPanel.y + 52,
+    w: photoPanel.w - 40,
+    h: 148,
+  };
   ctx.textAlign = "center";
   ctx.fillStyle = "#f8fafc";
   ctx.font = '700 28px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
-  ctx.fillText("🎯 Meilleure", bestCenterX, bestPanel.y + 42);
-  ctx.fillText(`distance : ${bestDistanceLabel}`, bestCenterX, bestPanel.y + 76);
+  ctx.fillText("🖼️ Indice visuel", bestCenterX, photoPanel.y + 34);
+
+  ctx.fillStyle = "rgba(30,41,59,0.65)";
+  ctx.beginPath();
+  ctx.roundRect(photoFrame.x, photoFrame.y, photoFrame.w, photoFrame.h, 16);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(148,163,184,0.35)";
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  ctx.roundRect(photoFrame.x, photoFrame.y, photoFrame.w, photoFrame.h, 16);
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(226,232,240,0.85)";
+  ctx.font = '600 22px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
+  ctx.fillText(
+    dailyImageUrl ? "Chargement photo…" : "Photo non disponible",
+    bestCenterX,
+    photoFrame.y + photoFrame.h / 2 + 8,
+  );
 
   ctx.fillStyle = "#cbd5e1";
   ctx.font = '500 22px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
-  ctx.fillText("Essaie de faire", bestCenterX, bestPanel.y + 130);
-  ctx.fillText("mieux sur", bestCenterX, bestPanel.y + 158);
+  ctx.fillText(`🎯 Meilleure distance: ${bestDistanceLabel}`, bestCenterX, photoPanel.y + 236);
+  ctx.fillText("Essaie de faire mieux sur", bestCenterX, photoPanel.y + 268);
 
   ctx.fillStyle = "#93c5fd";
   ctx.font = '700 24px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
-  ctx.fillText("camino-ajm.pages.dev", bestCenterX, bestPanel.y + 200);
+  ctx.fillText("camino-ajm.pages.dev", bestCenterX, photoPanel.y + 300);
 
-  canvas.toBlob(async (blob) => {
-    if (!blob) {
-      showMessage("Erreur lors de la génération", "error");
-      return;
-    }
-
-    const file = new File([blob], "camino-daily.png", { type: "image/png" });
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          title: "Camino - Défi Quotidien",
-          text: `${dailyTargetData.streetName} • ${resultLabel}/7\nEssaie de faire mieux sur camino-ajm.pages.dev`,
-          files: [file],
-        });
-        showMessage("Partagé !", "success");
+  const finalizeShareImage = () => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        showMessage("Erreur lors de la génération", "error");
         return;
-      } catch (error) {
-        if (error.name === "AbortError") {
+      }
+
+      const file = new File([blob], "camino-daily.png", { type: "image/png" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: "Camino - Défi Quotidien",
+            text: `${dailyTargetData.streetName} • ${resultLabel}/7\nEssaie de faire mieux sur camino-ajm.pages.dev`,
+            files: [file],
+          });
+          showMessage("Partagé !", "success");
           return;
+        } catch (error) {
+          if (error.name === "AbortError") {
+            return;
+          }
         }
       }
-    }
 
-    if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
-      try {
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-        showMessage("Image copiée dans le presse-papier !", "success");
-        return;
-      } catch (error) {
-        // fallback to download below
+      if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+          showMessage("Image copiée dans le presse-papier !", "success");
+          return;
+        } catch (error) {
+          // fallback to download below
+        }
       }
-    }
 
-    const objectUrl = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = objectUrl;
-    anchor.download = "camino-daily.png";
-    anchor.click();
-    URL.revokeObjectURL(objectUrl);
-    showMessage("Image téléchargée !", "success");
-  }, "image/png");
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = "camino-daily.png";
+      anchor.click();
+      URL.revokeObjectURL(objectUrl);
+      showMessage("Image téléchargée !", "success");
+    }, "image/png");
+  };
+
+  if (dailyImageUrl) {
+    const dailyImage = new Image();
+    dailyImage.decoding = "async";
+    dailyImage.onload = () => {
+      drawCoverImage(ctx, dailyImage, photoFrame, 14);
+      ctx.strokeStyle = "rgba(226,232,240,0.75)";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.roundRect(photoFrame.x, photoFrame.y, photoFrame.w, photoFrame.h, 14);
+      ctx.stroke();
+      finalizeShareImage();
+    };
+    dailyImage.onerror = () => {
+      ctx.fillStyle = "rgba(254,226,226,0.92)";
+      ctx.font = '600 22px "Nunito", "Avenir Next", "Segoe UI", sans-serif';
+      ctx.fillText("Photo indisponible", bestCenterX, photoFrame.y + photoFrame.h / 2 + 8);
+      finalizeShareImage();
+    };
+    dailyImage.src = dailyImageUrl;
+    return;
+  }
+
+  finalizeShareImage();
 }
 
 export function updateDailyResultPanelRuntime({

@@ -14,6 +14,10 @@ const {
     ARRONDISSEMENT_PAR_QUARTIER,
 } = require('../data_rules.js');
 
+const DAILY_IMAGES_PUBLIC_DIR = '/data/daily_images';
+const DAILY_IMAGES_ABSOLUTE_DIR = path.join(__dirname, '..', 'data', 'daily_images');
+const DAILY_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'webp', 'png'];
+
 function readEnvIntegerInRange(name, fallback, min, max) {
     const raw = Number.parseInt(process.env[name], 10);
     if (!Number.isInteger(raw) || raw < min || raw > max) {
@@ -421,6 +425,39 @@ function getTimePartsInZone(date, timeZone) {
 
 function getDateKeyInZone(timeZone) {
     return getTimePartsInZone(new Date(), timeZone).dateStr;
+}
+
+function slugifyDailyStreetName(streetName) {
+    return String(streetName || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[’'`´]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+function resolveDailyImageUrl(date, streetName) {
+    if (!date || !streetName) {
+        return null;
+    }
+
+    const slug = slugifyDailyStreetName(streetName);
+    if (!slug) {
+        return null;
+    }
+
+    for (const ext of DAILY_IMAGE_EXTENSIONS) {
+        const fileName = `${date}__${slug}.${ext}`;
+        const absolutePath = path.join(DAILY_IMAGES_ABSOLUTE_DIR, fileName);
+        if (fs.existsSync(absolutePath)) {
+            return `${DAILY_IMAGES_PUBLIC_DIR}/${fileName}`;
+        }
+    }
+
+    return null;
 }
 
 function isValidPushSubscription(subscription) {
@@ -2072,6 +2109,7 @@ app.get('/api/daily', authenticateToken, async (req, res) => {
             date,
             streetName: target.street_name,
             quartier: target.quartier,
+            dailyImageUrl: resolveDailyImageUrl(date, target.street_name),
             targetGeoJson: target.coordinates_json,
             userStatus
         };
