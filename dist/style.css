@@ -2053,6 +2053,315 @@ button {
   font-weight: 600;
 }
 
+.profile-rank-trigger {
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-underline-offset: 3px;
+}
+
+.profile-rank-trigger:hover {
+  color: var(--primary-dark);
+}
+
+.profile-rank-trigger:focus-visible {
+  outline: 2px solid rgba(18, 41, 122, 0.45);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.rank-progress-page {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank-progress-page-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(12, 20, 36, 0.42);
+}
+
+.rank-progress-page-dialog {
+  position: relative;
+  width: min(980px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(18, 41, 122, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 250, 255, 0.94) 100%);
+  box-shadow: 0 14px 34px rgba(11, 22, 48, 0.28);
+}
+
+.rank-progress-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rank-progress-page-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--primary-dark);
+}
+
+.rank-progress-close-btn {
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(18, 41, 122, 0.18);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--primary-dark);
+  font-size: 13px;
+}
+
+.rank-progress-page-subtitle {
+  margin: 4px 0 10px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rank-progress-rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.rank-progress-rail-arrow {
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.rank-progress-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(18, 41, 122, 0.14);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.rank-progress-chip--current {
+  background: rgba(232, 239, 250, 0.92);
+  color: var(--primary-dark);
+}
+
+.rank-progress-chip--next {
+  background: rgba(238, 250, 237, 0.95);
+  color: #12502f;
+  border-color: rgba(20, 89, 50, 0.22);
+}
+
+.rank-progress-overview {
+  margin-bottom: 12px;
+}
+
+.rank-progress-overview-count {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--primary-dark);
+}
+
+.rank-progress-overview-label {
+  display: block;
+  margin-top: 1px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.rank-progress-overview-bar {
+  margin-top: 6px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(18, 41, 122, 0.12);
+  overflow: hidden;
+}
+
+.rank-progress-overview-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2a64cc 0%, #2d8f61 100%);
+}
+
+.rank-progress-tree {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 24px;
+}
+
+.rank-progress-tree::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(18, 41, 122, 0.2);
+}
+
+.rank-progress-zone {
+  position: relative;
+  padding: 9px;
+  border-radius: 9px;
+  border: 1px solid rgba(18, 41, 122, 0.14);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.rank-progress-zone::before {
+  content: "";
+  position: absolute;
+  left: -15px;
+  top: 20px;
+  width: 15px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(18, 41, 122, 0.2);
+}
+
+.rank-progress-zone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.rank-progress-zone-title {
+  margin: 0;
+  font-size: 12px;
+  color: var(--primary-dark);
+}
+
+.rank-progress-zone-count {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.rank-progress-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.rank-progress-mode-card {
+  border-radius: 8px;
+  border: 1px solid rgba(18, 41, 122, 0.14);
+  padding: 6px;
+  background: rgba(245, 248, 255, 0.88);
+}
+
+.rank-progress-mode-card--done {
+  background: rgba(234, 249, 239, 0.9);
+  border-color: rgba(30, 115, 64, 0.34);
+}
+
+.rank-progress-mode-card--pending {
+  background: rgba(255, 247, 233, 0.92);
+  border-color: rgba(176, 117, 33, 0.34);
+}
+
+.rank-progress-mode-card--new {
+  background: rgba(243, 247, 251, 0.9);
+  border-color: rgba(87, 110, 142, 0.25);
+}
+
+.rank-progress-mode-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.rank-progress-mode-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.rank-progress-mode-state {
+  font-size: 9px;
+  color: var(--text-secondary);
+}
+
+.rank-progress-mode-values {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 9px;
+  color: var(--text-secondary);
+}
+
+.rank-progress-mode-metric {
+  margin-top: 4px;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.rank-progress-mode-bar {
+  margin-top: 3px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(18, 41, 122, 0.1);
+  overflow: hidden;
+}
+
+.rank-progress-mode-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f6ad8 0%, #2d8f61 100%);
+}
+
+.rank-progress-max-note {
+  margin: 8px 0 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .rank-progress-page-dialog {
+    width: calc(100vw - 12px);
+    max-height: calc(100vh - 12px);
+    padding: 10px;
+  }
+
+  .rank-progress-mode-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .profile-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

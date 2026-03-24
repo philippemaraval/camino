@@ -174,6 +174,17 @@ export function computeBadgesRuntime(profile, hasReachedGlobalRank, hasReachedVi
   }));
 }
 
+const GLOBAL_RANK_FLOW = [
+  { letter: null, name: "🧳 Touriste" },
+  { letter: "M", name: "🧒 Minot" },
+  { letter: "H", name: "⚓ Habitué du Vieux-Port" },
+  { letter: "V", name: "💪 Vrai Marseillais" },
+  { letter: "MV", name: "🏛️ Maire de la Ville" },
+];
+
+const RANK_PROGRESS_GAME_TYPES = ["classique", "marathon", "chrono"];
+const RANK_PROGRESS_ZONES = ["rues-celebres", "rues-principales", "quartier", "monuments", "quartiers-ville"];
+
 function toNumber(value, fallback = 0) {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -198,6 +209,237 @@ function getProfileErrorMessage(error) {
 
 function isAuthFailureStatus(status) {
   return status === 401 || status === 403;
+}
+
+function getRankProgressScoreValue(modeEntry, gameType) {
+  if (!modeEntry) {
+    return 0;
+  }
+  if (gameType === "classique") {
+    return toNumber(modeEntry.high_score, 0);
+  }
+  const bestItems = Number.parseFloat(modeEntry.best_items_correct);
+  if (Number.isFinite(bestItems)) {
+    return bestItems;
+  }
+  return toNumber(modeEntry.high_score, 0);
+}
+
+function formatRankProgressValue(value, gameType) {
+  const numericValue = toNumber(value, 0);
+  return gameType === "classique" ? numericValue.toFixed(1) : String(Math.round(numericValue));
+}
+
+function getCurrentGlobalRankLevel(profile, hasReachedGlobalRank) {
+  if (hasReachedGlobalRank(profile, "MV")) {
+    return 4;
+  }
+  if (hasReachedGlobalRank(profile, "V")) {
+    return 3;
+  }
+  if (hasReachedGlobalRank(profile, "H")) {
+    return 2;
+  }
+  if (hasReachedGlobalRank(profile, "M")) {
+    return 1;
+  }
+  return 0;
+}
+
+function buildRankProgressTreeData(profile, nextRankLetter, zoneLabels, gameLabels, getTitleThresholds) {
+  const modeRows = Array.isArray(profile?.modes) ? profile.modes : [];
+  const comboMap = new Map();
+  modeRows.forEach((row) => {
+    comboMap.set(`${row.mode}|${row.game_type}`, row);
+  });
+
+  let completedCount = 0;
+  const zoneNodes = RANK_PROGRESS_ZONES.map((zoneMode) => {
+    let zoneCompleted = 0;
+    const modeNodes = RANK_PROGRESS_GAME_TYPES.map((gameType) => {
+      const key = `${zoneMode}|${gameType}`;
+      const row = comboMap.get(key);
+      const thresholds = getTitleThresholds(zoneMode, gameType, row?.best_items_total || 0);
+      const threshold = typeof thresholds?.[nextRankLetter] === "number" ? thresholds[nextRankLetter] : null;
+      const currentValue = getRankProgressScoreValue(row, gameType);
+      const reached = threshold !== null && currentValue >= threshold;
+      const missingValue = threshold === null ? 0 : Math.max(0, threshold - currentValue);
+      const progressPct = threshold && threshold > 0
+        ? Math.max(0, Math.min(100, (currentValue / threshold) * 100))
+        : 0;
+
+      if (reached) {
+        zoneCompleted += 1;
+        completedCount += 1;
+      }
+
+      return {
+        gameType,
+        gameLabel: gameLabels?.[gameType] || gameType,
+        rowExists: !!row,
+        reached,
+        currentDisplay: formatRankProgressValue(currentValue, gameType),
+        thresholdDisplay: threshold === null ? "—" : formatRankProgressValue(threshold, gameType),
+        missingDisplay: formatRankProgressValue(missingValue, gameType),
+        metricLabel: gameType === "classique" ? "score" : "bonnes réponses",
+        progressPct,
+      };
+    });
+
+    return {
+      zoneMode,
+      zoneLabel: zoneLabels?.[zoneMode] || zoneMode,
+      zoneCompleted,
+      zoneTotal: RANK_PROGRESS_GAME_TYPES.length,
+      modeNodes,
+    };
+  });
+
+  return {
+    zoneNodes,
+    completedCount,
+    totalCount: RANK_PROGRESS_ZONES.length * RANK_PROGRESS_GAME_TYPES.length,
+  };
+}
+
+function buildRankProgressPageHTML({
+  profile,
+  hasReachedGlobalRank,
+  zoneLabels,
+  gameLabels,
+  getTitleThresholds,
+}) {
+  const currentLevel = getCurrentGlobalRankLevel(profile, hasReachedGlobalRank);
+  const currentRank = GLOBAL_RANK_FLOW[currentLevel] || GLOBAL_RANK_FLOW[0];
+  const nextRank = GLOBAL_RANK_FLOW[currentLevel + 1] || null;
+
+  if (!nextRank) {
+    return `
+      <section id="rank-progress-page" class="rank-progress-page hidden" aria-hidden="true">
+        <div class="rank-progress-page-backdrop" data-rank-progress-close></div>
+        <article class="rank-progress-page-dialog" role="dialog" aria-modal="true" aria-labelledby="rank-progress-title" tabindex="-1">
+          <header class="rank-progress-page-header">
+            <h3 id="rank-progress-title">Arbre d'avancement</h3>
+            <button type="button" class="rank-progress-close-btn" data-rank-progress-close aria-label="Fermer">✕</button>
+          </header>
+          <div class="rank-progress-rail">
+            <div class="rank-progress-chip rank-progress-chip--current">${escapeHtml(currentRank.name)}</div>
+          </div>
+          <p class="rank-progress-max-note">
+            Rang maximum atteint. Il n'y a plus de rang supérieur à débloquer.
+          </p>
+        </article>
+      </section>`;
+  }
+
+  const treeData = buildRankProgressTreeData(
+    profile,
+    nextRank.letter,
+    zoneLabels,
+    gameLabels,
+    getTitleThresholds,
+  );
+
+  const completionPct = treeData.totalCount > 0
+    ? Math.round((treeData.completedCount / treeData.totalCount) * 100)
+    : 0;
+
+  const zoneHtml = treeData.zoneNodes.map((zoneNode) => {
+    const modeHtml = zoneNode.modeNodes.map((modeNode) => {
+      const stateClass = modeNode.reached
+        ? "rank-progress-mode-card--done"
+        : modeNode.rowExists
+          ? "rank-progress-mode-card--pending"
+          : "rank-progress-mode-card--new";
+      const stateText = modeNode.reached ? "Validé" : modeNode.rowExists ? "À faire" : "Non joué";
+      const detailText = modeNode.reached
+        ? "Seuil atteint"
+        : `Manque ${modeNode.missingDisplay}`;
+
+      return `
+        <div class="rank-progress-mode-card ${stateClass}">
+          <div class="rank-progress-mode-head">
+            <span class="rank-progress-mode-name">${escapeHtml(modeNode.gameLabel)}</span>
+            <span class="rank-progress-mode-state">${stateText}</span>
+          </div>
+          <div class="rank-progress-mode-values">
+            <span>${modeNode.currentDisplay} / ${modeNode.thresholdDisplay}</span>
+            <span>${detailText}</span>
+          </div>
+          <div class="rank-progress-mode-metric">${modeNode.metricLabel}</div>
+          <div class="rank-progress-mode-bar"><span style="width:${modeNode.progressPct.toFixed(0)}%"></span></div>
+        </div>`;
+    }).join("");
+
+    return `
+      <section class="rank-progress-zone">
+        <div class="rank-progress-zone-header">
+          <h4 class="rank-progress-zone-title">${escapeHtml(zoneNode.zoneLabel)}</h4>
+          <span class="rank-progress-zone-count">${zoneNode.zoneCompleted}/${zoneNode.zoneTotal}</span>
+        </div>
+        <div class="rank-progress-mode-grid">${modeHtml}</div>
+      </section>`;
+  }).join("");
+
+  const playerName = escapeHtml(profile?.username || "Joueur");
+  return `
+    <section id="rank-progress-page" class="rank-progress-page hidden" aria-hidden="true">
+      <div class="rank-progress-page-backdrop" data-rank-progress-close></div>
+      <article class="rank-progress-page-dialog" role="dialog" aria-modal="true" aria-labelledby="rank-progress-title" tabindex="-1">
+        <header class="rank-progress-page-header">
+          <h3 id="rank-progress-title">Arbre d'avancement</h3>
+          <button type="button" class="rank-progress-close-btn" data-rank-progress-close aria-label="Fermer">✕</button>
+        </header>
+        <p class="rank-progress-page-subtitle">${playerName} · progression vers ${escapeHtml(nextRank.name)}</p>
+        <div class="rank-progress-rail">
+          <div class="rank-progress-chip rank-progress-chip--current">${escapeHtml(currentRank.name)}</div>
+          <span class="rank-progress-rail-arrow">→</span>
+          <div class="rank-progress-chip rank-progress-chip--next">${escapeHtml(nextRank.name)}</div>
+        </div>
+        <div class="rank-progress-overview">
+          <span class="rank-progress-overview-count">${treeData.completedCount}/${treeData.totalCount}</span>
+          <span class="rank-progress-overview-label">conditions validées</span>
+          <div class="rank-progress-overview-bar">
+            <span style="width:${completionPct}%"></span>
+          </div>
+        </div>
+        <div class="rank-progress-tree">
+          ${zoneHtml}
+        </div>
+      </article>
+    </section>`;
+}
+
+function bindRankProgressPage(container) {
+  const trigger = container?.querySelector("#profile-rank-trigger");
+  const page = container?.querySelector("#rank-progress-page");
+  const dialog = page?.querySelector(".rank-progress-page-dialog");
+  if (!trigger || !page || !dialog) {
+    return;
+  }
+
+  const closeButtons = Array.from(page.querySelectorAll("[data-rank-progress-close]"));
+  const closePage = () => {
+    page.classList.add("hidden");
+    page.setAttribute("aria-hidden", "true");
+    trigger.focus();
+  };
+  const openPage = () => {
+    page.classList.remove("hidden");
+    page.setAttribute("aria-hidden", "false");
+    dialog.focus();
+  };
+
+  trigger.addEventListener("click", openPage);
+  closeButtons.forEach((button) => {
+    button.addEventListener("click", closePage);
+  });
+  page.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePage();
+    }
+  });
 }
 
 function weightedAverage(rows, key) {
@@ -521,6 +763,7 @@ export function loadProfileRuntime({
   gameLabels,
   hasReachedGlobalRank,
   hasReachedVilleRank,
+  getTitleThresholds,
   initAvatarSelector,
   onProfileRendered,
   onAuthFailure,
@@ -602,7 +845,16 @@ export function loadProfileRuntime({
             </div>
             <div class="profile-info">
               <div class="profile-name">${profile.username}</div>
-              <div class="profile-title">${globalTitle}</div>
+              <div class="profile-title">
+                <button
+                  type="button"
+                  id="profile-rank-trigger"
+                  class="profile-rank-trigger"
+                  title="Afficher l'arbre d'avancement des rangs"
+                >
+                  ${globalTitle}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -624,6 +876,13 @@ export function loadProfileRuntime({
               <span class="profile-stat-label">Daily ✅</span>
             </div>
           </div>`;
+        html += buildRankProgressPageHTML({
+          profile,
+          hasReachedGlobalRank,
+          zoneLabels,
+          gameLabels,
+          getTitleThresholds,
+        });
         html += buildProfileCompactStatsHTML(profile, zoneLabels);
 
         if (profile.modes && profile.modes.length > 0) {
@@ -705,6 +964,7 @@ export function loadProfileRuntime({
 
         profileContent.innerHTML = html;
         initAvatarSelector(profile.avatar || "👤", globalRankMeta.level);
+        bindRankProgressPage(profileContent);
         bindSingleOpenAccordion(profileContent);
         if (typeof onProfileRendered === "function") {
           onProfileRendered();

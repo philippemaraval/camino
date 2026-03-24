@@ -638,6 +638,15 @@
       unlocked: definition.check(profile)
     }));
   }
+  var GLOBAL_RANK_FLOW = [
+    { letter: null, name: "\u{1F9F3} Touriste" },
+    { letter: "M", name: "\u{1F9D2} Minot" },
+    { letter: "H", name: "\u2693 Habitu\xE9 du Vieux-Port" },
+    { letter: "V", name: "\u{1F4AA} Vrai Marseillais" },
+    { letter: "MV", name: "\u{1F3DB}\uFE0F Maire de la Ville" }
+  ];
+  var RANK_PROGRESS_GAME_TYPES = ["classique", "marathon", "chrono"];
+  var RANK_PROGRESS_ZONES = ["rues-celebres", "rues-principales", "quartier", "monuments", "quartiers-ville"];
   function toNumber(value, fallback = 0) {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -654,6 +663,207 @@
   }
   function isAuthFailureStatus(status) {
     return status === 401 || status === 403;
+  }
+  function getRankProgressScoreValue(modeEntry, gameType) {
+    if (!modeEntry) {
+      return 0;
+    }
+    if (gameType === "classique") {
+      return toNumber(modeEntry.high_score, 0);
+    }
+    const bestItems = Number.parseFloat(modeEntry.best_items_correct);
+    if (Number.isFinite(bestItems)) {
+      return bestItems;
+    }
+    return toNumber(modeEntry.high_score, 0);
+  }
+  function formatRankProgressValue(value, gameType) {
+    const numericValue = toNumber(value, 0);
+    return gameType === "classique" ? numericValue.toFixed(1) : String(Math.round(numericValue));
+  }
+  function getCurrentGlobalRankLevel(profile, hasReachedGlobalRank2) {
+    if (hasReachedGlobalRank2(profile, "MV")) {
+      return 4;
+    }
+    if (hasReachedGlobalRank2(profile, "V")) {
+      return 3;
+    }
+    if (hasReachedGlobalRank2(profile, "H")) {
+      return 2;
+    }
+    if (hasReachedGlobalRank2(profile, "M")) {
+      return 1;
+    }
+    return 0;
+  }
+  function buildRankProgressTreeData(profile, nextRankLetter, zoneLabels, gameLabels, getTitleThresholds2) {
+    const modeRows = Array.isArray(profile == null ? void 0 : profile.modes) ? profile.modes : [];
+    const comboMap = /* @__PURE__ */ new Map();
+    modeRows.forEach((row) => {
+      comboMap.set(`${row.mode}|${row.game_type}`, row);
+    });
+    let completedCount = 0;
+    const zoneNodes = RANK_PROGRESS_ZONES.map((zoneMode) => {
+      let zoneCompleted = 0;
+      const modeNodes = RANK_PROGRESS_GAME_TYPES.map((gameType) => {
+        const key = `${zoneMode}|${gameType}`;
+        const row = comboMap.get(key);
+        const thresholds = getTitleThresholds2(zoneMode, gameType, (row == null ? void 0 : row.best_items_total) || 0);
+        const threshold = typeof (thresholds == null ? void 0 : thresholds[nextRankLetter]) === "number" ? thresholds[nextRankLetter] : null;
+        const currentValue = getRankProgressScoreValue(row, gameType);
+        const reached = threshold !== null && currentValue >= threshold;
+        const missingValue = threshold === null ? 0 : Math.max(0, threshold - currentValue);
+        const progressPct = threshold && threshold > 0 ? Math.max(0, Math.min(100, currentValue / threshold * 100)) : 0;
+        if (reached) {
+          zoneCompleted += 1;
+          completedCount += 1;
+        }
+        return {
+          gameType,
+          gameLabel: (gameLabels == null ? void 0 : gameLabels[gameType]) || gameType,
+          rowExists: !!row,
+          reached,
+          currentDisplay: formatRankProgressValue(currentValue, gameType),
+          thresholdDisplay: threshold === null ? "\u2014" : formatRankProgressValue(threshold, gameType),
+          missingDisplay: formatRankProgressValue(missingValue, gameType),
+          metricLabel: gameType === "classique" ? "score" : "bonnes r\xE9ponses",
+          progressPct
+        };
+      });
+      return {
+        zoneMode,
+        zoneLabel: (zoneLabels == null ? void 0 : zoneLabels[zoneMode]) || zoneMode,
+        zoneCompleted,
+        zoneTotal: RANK_PROGRESS_GAME_TYPES.length,
+        modeNodes
+      };
+    });
+    return {
+      zoneNodes,
+      completedCount,
+      totalCount: RANK_PROGRESS_ZONES.length * RANK_PROGRESS_GAME_TYPES.length
+    };
+  }
+  function buildRankProgressPageHTML({
+    profile,
+    hasReachedGlobalRank: hasReachedGlobalRank2,
+    zoneLabels,
+    gameLabels,
+    getTitleThresholds: getTitleThresholds2
+  }) {
+    const currentLevel = getCurrentGlobalRankLevel(profile, hasReachedGlobalRank2);
+    const currentRank = GLOBAL_RANK_FLOW[currentLevel] || GLOBAL_RANK_FLOW[0];
+    const nextRank = GLOBAL_RANK_FLOW[currentLevel + 1] || null;
+    if (!nextRank) {
+      return `
+      <section id="rank-progress-page" class="rank-progress-page hidden" aria-hidden="true">
+        <div class="rank-progress-page-backdrop" data-rank-progress-close></div>
+        <article class="rank-progress-page-dialog" role="dialog" aria-modal="true" aria-labelledby="rank-progress-title" tabindex="-1">
+          <header class="rank-progress-page-header">
+            <h3 id="rank-progress-title">Arbre d'avancement</h3>
+            <button type="button" class="rank-progress-close-btn" data-rank-progress-close aria-label="Fermer">\u2715</button>
+          </header>
+          <div class="rank-progress-rail">
+            <div class="rank-progress-chip rank-progress-chip--current">${escapeHtml(currentRank.name)}</div>
+          </div>
+          <p class="rank-progress-max-note">
+            Rang maximum atteint. Il n'y a plus de rang sup\xE9rieur \xE0 d\xE9bloquer.
+          </p>
+        </article>
+      </section>`;
+    }
+    const treeData = buildRankProgressTreeData(
+      profile,
+      nextRank.letter,
+      zoneLabels,
+      gameLabels,
+      getTitleThresholds2
+    );
+    const completionPct = treeData.totalCount > 0 ? Math.round(treeData.completedCount / treeData.totalCount * 100) : 0;
+    const zoneHtml = treeData.zoneNodes.map((zoneNode) => {
+      const modeHtml = zoneNode.modeNodes.map((modeNode) => {
+        const stateClass = modeNode.reached ? "rank-progress-mode-card--done" : modeNode.rowExists ? "rank-progress-mode-card--pending" : "rank-progress-mode-card--new";
+        const stateText = modeNode.reached ? "Valid\xE9" : modeNode.rowExists ? "\xC0 faire" : "Non jou\xE9";
+        const detailText = modeNode.reached ? "Seuil atteint" : `Manque ${modeNode.missingDisplay}`;
+        return `
+        <div class="rank-progress-mode-card ${stateClass}">
+          <div class="rank-progress-mode-head">
+            <span class="rank-progress-mode-name">${escapeHtml(modeNode.gameLabel)}</span>
+            <span class="rank-progress-mode-state">${stateText}</span>
+          </div>
+          <div class="rank-progress-mode-values">
+            <span>${modeNode.currentDisplay} / ${modeNode.thresholdDisplay}</span>
+            <span>${detailText}</span>
+          </div>
+          <div class="rank-progress-mode-metric">${modeNode.metricLabel}</div>
+          <div class="rank-progress-mode-bar"><span style="width:${modeNode.progressPct.toFixed(0)}%"></span></div>
+        </div>`;
+      }).join("");
+      return `
+      <section class="rank-progress-zone">
+        <div class="rank-progress-zone-header">
+          <h4 class="rank-progress-zone-title">${escapeHtml(zoneNode.zoneLabel)}</h4>
+          <span class="rank-progress-zone-count">${zoneNode.zoneCompleted}/${zoneNode.zoneTotal}</span>
+        </div>
+        <div class="rank-progress-mode-grid">${modeHtml}</div>
+      </section>`;
+    }).join("");
+    const playerName = escapeHtml((profile == null ? void 0 : profile.username) || "Joueur");
+    return `
+    <section id="rank-progress-page" class="rank-progress-page hidden" aria-hidden="true">
+      <div class="rank-progress-page-backdrop" data-rank-progress-close></div>
+      <article class="rank-progress-page-dialog" role="dialog" aria-modal="true" aria-labelledby="rank-progress-title" tabindex="-1">
+        <header class="rank-progress-page-header">
+          <h3 id="rank-progress-title">Arbre d'avancement</h3>
+          <button type="button" class="rank-progress-close-btn" data-rank-progress-close aria-label="Fermer">\u2715</button>
+        </header>
+        <p class="rank-progress-page-subtitle">${playerName} \xB7 progression vers ${escapeHtml(nextRank.name)}</p>
+        <div class="rank-progress-rail">
+          <div class="rank-progress-chip rank-progress-chip--current">${escapeHtml(currentRank.name)}</div>
+          <span class="rank-progress-rail-arrow">\u2192</span>
+          <div class="rank-progress-chip rank-progress-chip--next">${escapeHtml(nextRank.name)}</div>
+        </div>
+        <div class="rank-progress-overview">
+          <span class="rank-progress-overview-count">${treeData.completedCount}/${treeData.totalCount}</span>
+          <span class="rank-progress-overview-label">conditions valid\xE9es</span>
+          <div class="rank-progress-overview-bar">
+            <span style="width:${completionPct}%"></span>
+          </div>
+        </div>
+        <div class="rank-progress-tree">
+          ${zoneHtml}
+        </div>
+      </article>
+    </section>`;
+  }
+  function bindRankProgressPage(container) {
+    const trigger = container == null ? void 0 : container.querySelector("#profile-rank-trigger");
+    const page = container == null ? void 0 : container.querySelector("#rank-progress-page");
+    const dialog = page == null ? void 0 : page.querySelector(".rank-progress-page-dialog");
+    if (!trigger || !page || !dialog) {
+      return;
+    }
+    const closeButtons = Array.from(page.querySelectorAll("[data-rank-progress-close]"));
+    const closePage = () => {
+      page.classList.add("hidden");
+      page.setAttribute("aria-hidden", "true");
+      trigger.focus();
+    };
+    const openPage = () => {
+      page.classList.remove("hidden");
+      page.setAttribute("aria-hidden", "false");
+      dialog.focus();
+    };
+    trigger.addEventListener("click", openPage);
+    closeButtons.forEach((button) => {
+      button.addEventListener("click", closePage);
+    });
+    page.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closePage();
+      }
+    });
   }
   function weightedAverage(rows, key) {
     let weightTotal = 0;
@@ -930,6 +1140,7 @@
     gameLabels,
     hasReachedGlobalRank: hasReachedGlobalRank2,
     hasReachedVilleRank: hasReachedVilleRank2,
+    getTitleThresholds: getTitleThresholds2,
     initAvatarSelector: initAvatarSelector2,
     onProfileRendered,
     onAuthFailure
@@ -999,7 +1210,16 @@
             </div>
             <div class="profile-info">
               <div class="profile-name">${profile.username}</div>
-              <div class="profile-title">${globalTitle}</div>
+              <div class="profile-title">
+                <button
+                  type="button"
+                  id="profile-rank-trigger"
+                  class="profile-rank-trigger"
+                  title="Afficher l'arbre d'avancement des rangs"
+                >
+                  ${globalTitle}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1021,6 +1241,13 @@
               <span class="profile-stat-label">Daily \u2705</span>
             </div>
           </div>`;
+        html += buildRankProgressPageHTML({
+          profile,
+          hasReachedGlobalRank: hasReachedGlobalRank2,
+          zoneLabels,
+          gameLabels,
+          getTitleThresholds: getTitleThresholds2
+        });
         html += buildProfileCompactStatsHTML(profile, zoneLabels);
         if (profile.modes && profile.modes.length > 0) {
           html += '<details class="profile-section-collapsible">';
@@ -1094,6 +1321,7 @@
         html += `<div class="profile-member-since">Membre depuis le ${memberSince}</div>`;
         profileContent.innerHTML = html;
         initAvatarSelector2(profile.avatar || "\u{1F464}", globalRankMeta.level);
+        bindRankProgressPage(profileContent);
         bindSingleOpenAccordion(profileContent);
         if (typeof onProfileRendered === "function") {
           onProfileRendered();
@@ -6731,6 +6959,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       gameLabels: GAME_LABELS,
       hasReachedGlobalRank,
       hasReachedVilleRank,
+      getTitleThresholds,
       initAvatarSelector,
       onProfileRendered: initDailyReminderControls,
       onAuthFailure: () => {
