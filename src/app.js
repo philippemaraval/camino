@@ -2380,9 +2380,12 @@ function initUI() {
         streetLayersById.forEach((e) => {
           const t = getBaseStreetStyle(e),
             r = t.weight > 0;
+          if (IS_TOUCH_DEVICE && r && !e.touchBuffer) {
+            addTouchBufferForLayer(e);
+          }
           (e.setStyle({ color: t.color, weight: t.weight }),
             (e.options.interactive = r),
-            e.touchBuffer && (e.touchBuffer.options.interactive = r));
+            e.touchBuffer && (e.touchBuffer.options.interactive = r && !!e.touchBuffer));
         }),
         "quartier" === e
           ? ((r.style.display = "block"),
@@ -2423,9 +2426,12 @@ function initUI() {
         streetLayersById.forEach((e) => {
           const t = getBaseStreetStyle(e),
             r = t.weight > 0;
+          if (IS_TOUCH_DEVICE && r && !e.touchBuffer) {
+            addTouchBufferForLayer(e);
+          }
           (e.setStyle({ color: t.color, weight: t.weight }),
             (e.options.interactive = r),
-            e.touchBuffer && (e.touchBuffer.options.interactive = r));
+            e.touchBuffer && (e.touchBuffer.options.interactive = r && !!e.touchBuffer));
         }),
         refreshLectureTooltipsIfNeeded(),
         isLectureMode &&
@@ -2710,6 +2716,7 @@ function loadStreets({ force = false } = {}) {
     map,
     L,
     uiTheme: UI_THEME,
+    isTouchDevice: IS_TOUCH_DEVICE,
     normalizeName,
     getBaseStreetStyle,
     isStreetVisibleInCurrentMode,
@@ -2946,6 +2953,7 @@ function exitLectureModeToMenu() {
 }
 function startNewSession(options = {}) {
   document.body.classList.remove("session-ended");
+  clearDailyTransientUiState();
   const e = document.getElementById("quartier-select"),
     a = document.getElementById("street-info");
   let t = getZoneMode(),
@@ -4531,6 +4539,7 @@ function startDailySession(e) {
 }
 function endDailySession() {
   document.body.classList.remove("daily-game-over");
+  clearDailyTransientUiState();
   ((isDailyMode = !1),
     (isSessionRunning = !1),
     (window._dailyGameOver = !1),
@@ -4548,11 +4557,32 @@ function renderDailyGuessHistory(e) {
     dailyGuessHistory,
     finalStatus: e,
     dailyTargetData,
+    onLayoutShift: requestMapInvalidateSize,
     normalizeQuartierKey,
     arrondissementByQuartier,
     calculateStreetLengthFromFeatures,
     allStreetFeatures,
     normalizeName,
+  });
+}
+function clearDailyTransientUiState() {
+  if (dailyTargetData && typeof dailyTargetData === "object") {
+    delete dailyTargetData.dailyImageHintOpen;
+  }
+
+  const historyRoot = document.getElementById("daily-guesses-history");
+  if (historyRoot) {
+    historyRoot.style.display = "none";
+    historyRoot.innerHTML = "";
+  }
+
+  const targetPanelEl = document.querySelector(".target-panel");
+  if (targetPanelEl) {
+    targetPanelEl.classList.remove("target-panel--daily-image-open");
+  }
+
+  requestAnimationFrame(() => {
+    requestMapInvalidateSize();
   });
 }
 function restoreDailyMetaFromStorage(e) {

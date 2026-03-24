@@ -219,6 +219,14 @@ export function getBaseStreetStyleFromName({
     weight = 0;
   }
 
+  if (
+    (zoneMode === "ville" || zoneMode === "quartier") &&
+    isExcludedFromVilleAndQuartier(normalizedStreetName)
+  ) {
+    color = "#00000000";
+    weight = 0;
+  }
+
   return { color, weight };
 }
 

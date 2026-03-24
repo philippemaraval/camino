@@ -1633,6 +1633,10 @@
       color = "#00000000";
       weight = 0;
     }
+    if ((zoneMode === "ville" || zoneMode === "quartier") && isExcludedFromVilleAndQuartier(normalizedStreetName)) {
+      color = "#00000000";
+      weight = 0;
+    }
     return { color, weight };
   }
   function getBaseStreetStyle({
@@ -1897,6 +1901,7 @@
     map: map2,
     L: L2,
     uiTheme,
+    isTouchDevice = false,
     normalizeName: normalizeName2,
     getBaseStreetStyle: getBaseStreetStyle3,
     isStreetVisibleInCurrentMode: isStreetVisibleInCurrentMode3,
@@ -1920,6 +1925,7 @@
       },
       onEachFeature: (feature, layer) => {
         const normalizedStreetName = normalizeName2(feature.properties.name);
+        const quartierName = feature.properties.quartier || null;
         feature._gameId = gameId++;
         streetLayersById2.set(feature._gameId, layer);
         layer.feature = feature;
@@ -1927,38 +1933,39 @@
           streetLayersByName2.set(normalizedStreetName, []);
         }
         streetLayersByName2.get(normalizedStreetName).push(layer);
-        addTouchBufferForLayer2(layer);
-        let hoverTimeoutId = null;
-        layer.on("mouseover", () => {
-          clearTimeout(hoverTimeoutId);
-          hoverTimeoutId = setTimeout(() => {
-            const quartierName = feature.properties.quartier || null;
-            if (!isStreetVisibleInCurrentMode3(normalizedStreetName, quartierName)) {
-              return;
-            }
-            (streetLayersByName2.get(normalizedStreetName) || []).forEach((candidateLayer) => {
-              candidateLayer.setStyle({ weight: 7, color: uiTheme.mapStreetHover });
-            });
-          }, 50);
-        });
-        layer.on("mouseout", () => {
-          clearTimeout(hoverTimeoutId);
-          hoverTimeoutId = setTimeout(() => {
-            const quartierName = feature.properties.quartier || null;
-            if (!isStreetVisibleInCurrentMode3(normalizedStreetName, quartierName)) {
-              return;
-            }
-            (streetLayersByName2.get(normalizedStreetName) || []).forEach((candidateLayer) => {
-              if (isLayerHighlighted(candidateLayer)) {
+        if (isStreetVisibleInCurrentMode3(normalizedStreetName, quartierName)) {
+          addTouchBufferForLayer2(layer);
+        }
+        if (!isTouchDevice) {
+          let hoverTimeoutId = null;
+          layer.on("mouseover", () => {
+            clearTimeout(hoverTimeoutId);
+            hoverTimeoutId = setTimeout(() => {
+              if (!isStreetVisibleInCurrentMode3(normalizedStreetName, quartierName)) {
                 return;
               }
-              const baseStyle = getBaseStreetStyle3(candidateLayer);
-              candidateLayer.setStyle({ weight: baseStyle.weight, color: baseStyle.color });
-            });
-          }, 50);
-        });
+              (streetLayersByName2.get(normalizedStreetName) || []).forEach((candidateLayer) => {
+                candidateLayer.setStyle({ weight: 7, color: uiTheme.mapStreetHover });
+              });
+            }, 50);
+          });
+          layer.on("mouseout", () => {
+            clearTimeout(hoverTimeoutId);
+            hoverTimeoutId = setTimeout(() => {
+              if (!isStreetVisibleInCurrentMode3(normalizedStreetName, quartierName)) {
+                return;
+              }
+              (streetLayersByName2.get(normalizedStreetName) || []).forEach((candidateLayer) => {
+                if (isLayerHighlighted(candidateLayer)) {
+                  return;
+                }
+                const baseStyle = getBaseStreetStyle3(candidateLayer);
+                candidateLayer.setStyle({ weight: baseStyle.weight, color: baseStyle.color });
+              });
+            }, 50);
+          });
+        }
         layer.on("click", (clickEvent) => {
-          const quartierName = feature.properties.quartier || null;
           if (isStreetVisibleInCurrentMode3(normalizedStreetName, quartierName)) {
             handleStreetClick2(feature, layer, clickEvent);
           }
@@ -3117,6 +3124,7 @@ Essaie de faire mieux sur ${host}`;
     dailyGuessHistory: dailyGuessHistory2,
     finalStatus,
     dailyTargetData: dailyTargetData2,
+    onLayoutShift,
     normalizeQuartierKey: normalizeQuartierKey2,
     arrondissementByQuartier: arrondissementByQuartier2,
     calculateStreetLengthFromFeatures: calculateStreetLengthFromFeatures2,
@@ -3143,6 +3151,9 @@ Essaie de faire mieux sur ${host}`;
         }
         historyRoot.style.display = "none";
         historyRoot.innerHTML = "";
+        if (typeof onLayoutShift === "function") {
+          requestAnimationFrame(() => onLayoutShift());
+        }
         return;
       }
       historyRoot.style.display = "block";
@@ -3228,6 +3239,9 @@ Essaie de faire mieux sur ${host}`;
             "target-panel--daily-image-open",
             Boolean(dailyImageHintEl && dailyImageHintEl.open)
           );
+          if (typeof onLayoutShift === "function") {
+            requestAnimationFrame(() => onLayoutShift());
+          }
         };
         if (dailyImageHintEl) {
           dailyImageHintEl.addEventListener("toggle", syncDailyImageOpenClass);
@@ -3238,6 +3252,9 @@ Essaie de faire mieux sur ${host}`;
         requestAnimationFrame(() => {
           targetPanelEl.scrollTop = targetPanelEl.scrollHeight;
         });
+      }
+      if (typeof onLayoutShift === "function") {
+        requestAnimationFrame(() => onLayoutShift());
       }
     } catch (error) {
       console.error("Error in renderDailyGuessHistory:", error);
@@ -5626,7 +5643,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       const e2 = currentZoneMode;
       updateTargetPanelTitle(), updateModeDifficultyPill(), updateScoreMetricUI(), streetsLayer && streetLayersById.size && streetLayersById.forEach((e3) => {
         const t2 = getBaseStreetStyle2(e3), r2 = t2.weight > 0;
-        e3.setStyle({ color: t2.color, weight: t2.weight }), e3.options.interactive = r2, e3.touchBuffer && (e3.touchBuffer.options.interactive = r2);
+        if (IS_TOUCH_DEVICE && r2 && !e3.touchBuffer) {
+          addTouchBufferForLayer(e3);
+        }
+        e3.setStyle({ color: t2.color, weight: t2.weight }), e3.options.interactive = r2, e3.touchBuffer && (e3.touchBuffer.options.interactive = r2 && !!e3.touchBuffer);
       }), "quartier" === e2 ? (r.style.display = "block", a && a.value && highlightQuartier(a.value)) : (r.style.display = "none", clearQuartierOverlay()), setZoneLayersVisibility(e2), "monuments" === e2 && refreshMonumentsContentAndLayer().catch((error) => {
         console.warn("Actualisation des monuments impossible apr\xE8s changement de mode.", error);
       }), updateStreetInfoPanelVisibility(), refreshLectureTooltipsIfNeeded(), isLectureMode && refreshLectureStreetSearchForCurrentMode({ preserveQuery: true });
@@ -5640,7 +5660,10 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       }
       "quartier" === getZoneMode() && a.value ? highlightQuartier(a.value) : clearQuartierOverlay(), streetsLayer && streetLayersById.size && streetLayersById.forEach((e2) => {
         const t2 = getBaseStreetStyle2(e2), r2 = t2.weight > 0;
-        e2.setStyle({ color: t2.color, weight: t2.weight }), e2.options.interactive = r2, e2.touchBuffer && (e2.touchBuffer.options.interactive = r2);
+        if (IS_TOUCH_DEVICE && r2 && !e2.touchBuffer) {
+          addTouchBufferForLayer(e2);
+        }
+        e2.setStyle({ color: t2.color, weight: t2.weight }), e2.options.interactive = r2, e2.touchBuffer && (e2.touchBuffer.options.interactive = r2 && !!e2.touchBuffer);
       }), refreshLectureTooltipsIfNeeded(), isLectureMode && refreshLectureStreetSearchForCurrentMode({ preserveQuery: true });
     });
     const T = document.getElementById("auth-feedback");
@@ -5827,6 +5850,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       map,
       L,
       uiTheme: UI_THEME,
+      isTouchDevice: IS_TOUCH_DEVICE,
       normalizeName,
       getBaseStreetStyle: getBaseStreetStyle2,
       isStreetVisibleInCurrentMode: isStreetVisibleInCurrentMode2,
@@ -6010,6 +6034,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   }
   function startNewSession(options = {}) {
     document.body.classList.remove("session-ended");
+    clearDailyTransientUiState();
     const e = document.getElementById("quartier-select"), a = document.getElementById("street-info");
     let t = getZoneMode(), r = getGameMode();
     const skipMonumentsRefresh = true === options.skipMonumentsRefresh;
@@ -6928,6 +6953,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
   }
   function endDailySession() {
     document.body.classList.remove("daily-game-over");
+    clearDailyTransientUiState();
     isDailyMode = false, isSessionRunning = false, window._dailyGameOver = false, window._dailyGuessInFlight = false;
     updateTargetPanelTitle(), refreshLectureStreetSearchForCurrentMode(), updateStartStopButton(), updatePauseButton(), updateLayoutSessionState(), updateDailyUI(), updateDailyResultPanel();
   }
@@ -6936,11 +6962,29 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       dailyGuessHistory,
       finalStatus: e,
       dailyTargetData,
+      onLayoutShift: requestMapInvalidateSize,
       normalizeQuartierKey,
       arrondissementByQuartier,
       calculateStreetLengthFromFeatures,
       allStreetFeatures,
       normalizeName
+    });
+  }
+  function clearDailyTransientUiState() {
+    if (dailyTargetData && typeof dailyTargetData === "object") {
+      delete dailyTargetData.dailyImageHintOpen;
+    }
+    const historyRoot = document.getElementById("daily-guesses-history");
+    if (historyRoot) {
+      historyRoot.style.display = "none";
+      historyRoot.innerHTML = "";
+    }
+    const targetPanelEl = document.querySelector(".target-panel");
+    if (targetPanelEl) {
+      targetPanelEl.classList.remove("target-panel--daily-image-open");
+    }
+    requestAnimationFrame(() => {
+      requestMapInvalidateSize();
     });
   }
   function restoreDailyMetaFromStorage(e) {

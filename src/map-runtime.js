@@ -31,6 +31,7 @@ export async function loadStreetsRuntime({
   map,
   L,
   uiTheme,
+  isTouchDevice = false,
   normalizeName,
   getBaseStreetStyle,
   isStreetVisibleInCurrentMode,
@@ -56,6 +57,7 @@ export async function loadStreetsRuntime({
     },
     onEachFeature: (feature, layer) => {
       const normalizedStreetName = normalizeName(feature.properties.name);
+      const quartierName = feature.properties.quartier || null;
       feature._gameId = gameId++;
       streetLayersById.set(feature._gameId, layer);
       layer.feature = feature;
@@ -65,41 +67,42 @@ export async function loadStreetsRuntime({
       }
       streetLayersByName.get(normalizedStreetName).push(layer);
 
-      addTouchBufferForLayer(layer);
+      if (isStreetVisibleInCurrentMode(normalizedStreetName, quartierName)) {
+        addTouchBufferForLayer(layer);
+      }
 
-      let hoverTimeoutId = null;
-      layer.on("mouseover", () => {
-        clearTimeout(hoverTimeoutId);
-        hoverTimeoutId = setTimeout(() => {
-          const quartierName = feature.properties.quartier || null;
-          if (!isStreetVisibleInCurrentMode(normalizedStreetName, quartierName)) {
-            return;
-          }
-          (streetLayersByName.get(normalizedStreetName) || []).forEach((candidateLayer) => {
-            candidateLayer.setStyle({ weight: 7, color: uiTheme.mapStreetHover });
-          });
-        }, 50);
-      });
-
-      layer.on("mouseout", () => {
-        clearTimeout(hoverTimeoutId);
-        hoverTimeoutId = setTimeout(() => {
-          const quartierName = feature.properties.quartier || null;
-          if (!isStreetVisibleInCurrentMode(normalizedStreetName, quartierName)) {
-            return;
-          }
-          (streetLayersByName.get(normalizedStreetName) || []).forEach((candidateLayer) => {
-            if (isLayerHighlighted(candidateLayer)) {
+      if (!isTouchDevice) {
+        let hoverTimeoutId = null;
+        layer.on("mouseover", () => {
+          clearTimeout(hoverTimeoutId);
+          hoverTimeoutId = setTimeout(() => {
+            if (!isStreetVisibleInCurrentMode(normalizedStreetName, quartierName)) {
               return;
             }
-            const baseStyle = getBaseStreetStyle(candidateLayer);
-            candidateLayer.setStyle({ weight: baseStyle.weight, color: baseStyle.color });
-          });
-        }, 50);
-      });
+            (streetLayersByName.get(normalizedStreetName) || []).forEach((candidateLayer) => {
+              candidateLayer.setStyle({ weight: 7, color: uiTheme.mapStreetHover });
+            });
+          }, 50);
+        });
+
+        layer.on("mouseout", () => {
+          clearTimeout(hoverTimeoutId);
+          hoverTimeoutId = setTimeout(() => {
+            if (!isStreetVisibleInCurrentMode(normalizedStreetName, quartierName)) {
+              return;
+            }
+            (streetLayersByName.get(normalizedStreetName) || []).forEach((candidateLayer) => {
+              if (isLayerHighlighted(candidateLayer)) {
+                return;
+              }
+              const baseStyle = getBaseStreetStyle(candidateLayer);
+              candidateLayer.setStyle({ weight: baseStyle.weight, color: baseStyle.color });
+            });
+          }, 50);
+        });
+      }
 
       layer.on("click", (clickEvent) => {
-        const quartierName = feature.properties.quartier || null;
         if (isStreetVisibleInCurrentMode(normalizedStreetName, quartierName)) {
           handleStreetClick(feature, layer, clickEvent);
         }

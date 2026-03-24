@@ -163,6 +163,7 @@ export function renderDailyGuessHistoryRuntime({
   dailyGuessHistory,
   finalStatus,
   dailyTargetData,
+  onLayoutShift,
   normalizeQuartierKey,
   arrondissementByQuartier,
   calculateStreetLengthFromFeatures,
@@ -201,6 +202,9 @@ export function renderDailyGuessHistoryRuntime({
       }
       historyRoot.style.display = "none";
       historyRoot.innerHTML = "";
+      if (typeof onLayoutShift === "function") {
+        requestAnimationFrame(() => onLayoutShift());
+      }
       return;
     }
 
@@ -308,6 +312,9 @@ export function renderDailyGuessHistoryRuntime({
           "target-panel--daily-image-open",
           Boolean(dailyImageHintEl && dailyImageHintEl.open),
         );
+        if (typeof onLayoutShift === "function") {
+          requestAnimationFrame(() => onLayoutShift());
+        }
       };
 
       if (dailyImageHintEl) {
@@ -320,6 +327,9 @@ export function renderDailyGuessHistoryRuntime({
       requestAnimationFrame(() => {
         targetPanelEl.scrollTop = targetPanelEl.scrollHeight;
       });
+    }
+    if (typeof onLayoutShift === "function") {
+      requestAnimationFrame(() => onLayoutShift());
     }
   } catch (error) {
     console.error("Error in renderDailyGuessHistory:", error);
