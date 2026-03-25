@@ -345,6 +345,26 @@ export function setLectureTooltipsEnabledRuntime(enabled, {
     }
   }
 
+  function unbindMonumentTap(layer) {
+    if (layer.__monumentTapBound) {
+      if (layer.__monumentTapFn) {
+        layer.off("click", layer.__monumentTapFn);
+      }
+      layer.__monumentTapBound = false;
+      layer.__monumentTapFn = null;
+    }
+  }
+
+  function unbindHitAreaTap(layer) {
+    if (layer.__hitAreaTooltipBound) {
+      if (layer.__hitAreaTooltipFn) {
+        layer.off("click", layer.__hitAreaTooltipFn);
+      }
+      layer.__hitAreaTooltipBound = false;
+      layer.__hitAreaTooltipFn = null;
+    }
+  }
+
   if (streetsLayer) {
     streetsLayer.eachLayer((layer) => {
       const streetName = layer.feature?.properties?.name || "";
@@ -422,20 +442,27 @@ export function setLectureTooltipsEnabledRuntime(enabled, {
       if (layer._isHitArea) {
         if (enabled && isTouchDevice && !layer.__hitAreaTooltipBound) {
           layer.__hitAreaTooltipBound = true;
-          layer.on("click", () => {
-            const visibleMarker = layer._visibleMarker;
-            if (!visibleMarker || !visibleMarker.getTooltip()) {
-              return;
-            }
-            monumentsLayer.eachLayer((candidateLayer) => {
-              if (candidateLayer !== visibleMarker && candidateLayer.getTooltip && candidateLayer.getTooltip()) {
-                candidateLayer.closeTooltip();
+          layer.on(
+            "click",
+            (layer.__hitAreaTooltipFn = () => {
+              const visibleMarker = layer._visibleMarker;
+              if (!visibleMarker || !visibleMarker.getTooltip()) {
+                return;
               }
-            });
-            visibleMarker.toggleTooltip();
-          });
-        } else if (!enabled) {
-          layer.__hitAreaTooltipBound = false;
+              monumentsLayer.eachLayer((candidateLayer) => {
+                if (
+                  candidateLayer !== visibleMarker &&
+                  candidateLayer.getTooltip &&
+                  candidateLayer.getTooltip()
+                ) {
+                  candidateLayer.closeTooltip();
+                }
+              });
+              visibleMarker.toggleTooltip();
+            }),
+          );
+        } else if (!enabled || !isTouchDevice) {
+          unbindHitAreaTap(layer);
         }
         return;
       }
@@ -457,21 +484,28 @@ export function setLectureTooltipsEnabledRuntime(enabled, {
         }
         if (isTouchDevice && !layer.__monumentTapBound) {
           layer.__monumentTapBound = true;
-          layer.on("click", () => {
-            monumentsLayer.eachLayer((candidateLayer) => {
-              if (candidateLayer !== layer && candidateLayer.getTooltip && candidateLayer.getTooltip()) {
-                candidateLayer.closeTooltip();
+          layer.on(
+            "click",
+            (layer.__monumentTapFn = () => {
+              monumentsLayer.eachLayer((candidateLayer) => {
+                if (
+                  candidateLayer !== layer &&
+                  candidateLayer.getTooltip &&
+                  candidateLayer.getTooltip()
+                ) {
+                  candidateLayer.closeTooltip();
+                }
+              });
+              if (layer.getTooltip()) {
+                layer.toggleTooltip();
               }
-            });
-            if (layer.getTooltip()) {
-              layer.toggleTooltip();
-            }
-          });
+            }),
+          );
+        } else if (!isTouchDevice) {
+          unbindMonumentTap(layer);
         }
       } else {
-        if (layer.__monumentTapBound) {
-          layer.__monumentTapBound = false;
-        }
+        unbindMonumentTap(layer);
         if (layer.getTooltip()) {
           layer.closeTooltip();
           layer.unbindTooltip();
