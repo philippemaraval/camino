@@ -16,6 +16,13 @@ const {
 
 const DAILY_IMAGES_PUBLIC_DIR = '/data/daily_images';
 const DAILY_IMAGES_ABSOLUTE_DIR = path.join(__dirname, '..', 'data', 'daily_images');
+const DAILY_MANIFEST_ABSOLUTE_PATH = path.join(
+    __dirname,
+    '..',
+    'data',
+    'daily_images',
+    'manifest_next_30.csv',
+);
 const DAILY_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'webp', 'png'];
 
 function readEnvIntegerInRange(name, fallback, min, max) {
@@ -1825,6 +1832,11 @@ let streetIndex = [];
 let streetChallengeIndex = [];
 let quartierChallengeIndex = [];
 let monumentChallengeIndex = [];
+const streetIndexByNormalizedName = new Map();
+const dailyManifestCache = {
+    mtimeMs: null,
+    byDate: new Map(),
+};
 try {
     const rawStreetIndex = JSON.parse(
         fs.readFileSync(path.join(__dirname, 'data', 'streets_index.json'), 'utf8')
@@ -1846,6 +1858,16 @@ try {
             quartierKey: normalizeQuartierChallengeKey(entry?.quartier),
         }))
         .filter((entry) => entry.name && entry.normalizedName);
+    streetChallengeIndex.forEach((entry) => {
+        if (!streetIndexByNormalizedName.has(entry.normalizedName)) {
+            const source = streetIndex.find(
+                (candidate) => normalizeContentName(candidate?.name) === entry.normalizedName
+            );
+            if (source) {
+                streetIndexByNormalizedName.set(entry.normalizedName, source);
+            }
+        }
+    });
 } catch (err) {
     console.error('Could not load street index for daily:', err.message);
 }
@@ -2016,6 +2038,181 @@ function extractStreetGeometry(streetName) {
     return null;
 }
 
+function computeRepresentativeCoordinatesFromGeometry(geometry) {
+    if (!geometry || !Array.isArray(geometry.coordinates)) {
+        return null;
+    }
+
+    const isPointLike = (coords) =>
+        Array.isArray(coords) &&
+        coords.length >= 2 &&
+        Number.isFinite(coords[0]) &&
+        Number.isFinite(coords[1]);
+
+    if (geometry.type === 'Point') {
+        return isPointLike(geometry.coordinates) ? geometry.coordinates.slice(0, 2) : null;
+    }
+
+    if (geometry.type === 'LineString') {
+        const line = geometry.coordinates;
+        if (!Array.isArray(line) || line.length < 1) return null;
+        const mid = line[Math.floor(line.length / 2)];
+        return isPointLike(mid) ? mid.slice(0, 2) : null;
+    }
+
+    if (geometry.type === 'MultiLineString') {
+        const line = (geometry.coordinates || []).find((entry) => Array.isArray(entry) && entry.length > 0);
+        if (!line) return null;
+        const mid = line[Math.floor(line.length / 2)];
+        return isPointLike(mid) ? mid.slice(0, 2) : null;
+    }
+
+    if (geometry.type === 'Polygon') {
+        const ring = (geometry.coordinates || [])[0];
+        if (!Array.isArray(ring) || ring.length < 1) return null;
+        const mid = ring[Math.floor(ring.length / 2)];
+        return isPointLike(mid) ? mid.slice(0, 2) : null;
+    }
+
+    if (geometry.type === 'MultiPolygon') {
+        const polygon = (geometry.coordinates || []).find(
+            (entry) => Array.isArray(entry) && Array.isArray(entry[0]) && entry[0].length > 0
+        );
+        if (!polygon) return null;
+        const ring = polygon[0];
+        const mid = ring[Math.floor(ring.length / 2)];
+        return isPointLike(mid) ? mid.slice(0, 2) : null;
+    }
+
+    return null;
+}
+
+function loadDailyManifestByDate() {
+    try {
+        if (!fs.existsSync(DAILY_MANIFEST_ABSOLUTE_PATH)) {
+            dailyManifestCache.byDate = new Map();
+            dailyManifestCache.mtimeMs = null;
+            return dailyManifestCache.byDate;
+        }
+
+        const stat = fs.statSync(DAILY_MANIFEST_ABSOLUTE_PATH);
+        if (
+            dailyManifestCache.mtimeMs !== null &&
+            stat.mtimeMs === dailyManifestCache.mtimeMs &&
+            dailyManifestCache.byDate.size > 0
+        ) {
+            return dailyManifestCache.byDate;
+        }
+
+        const raw = fs.readFileSync(DAILY_MANIFEST_ABSOLUTE_PATH, 'utf8');
+        const rows = raw
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+        const byDate = new Map();
+
+        rows.slice(1).forEach((line) => {
+            const [date, streetName, quartier, fileName, missingImageStreet] = line.split(',');
+            const normalizedDate = String(date || '').trim();
+            const normalizedStreetName = String(streetName || '').trim();
+            if (!normalizedDate || !normalizedStreetName) {
+                return;
+            }
+            byDate.set(normalizedDate, {
+                date: normalizedDate,
+                streetName: normalizedStreetName,
+                quartier: String(quartier || '').trim(),
+                fileName: String(fileName || '').trim(),
+                missingImageStreet: String(missingImageStreet || '').trim(),
+            });
+        });
+
+        dailyManifestCache.byDate = byDate;
+        dailyManifestCache.mtimeMs = stat.mtimeMs;
+        return dailyManifestCache.byDate;
+    } catch (error) {
+        console.warn('[Daily] Could not read manifest_next_30.csv:', error.message);
+        dailyManifestCache.byDate = new Map();
+        dailyManifestCache.mtimeMs = null;
+        return dailyManifestCache.byDate;
+    }
+}
+
+function getDailyManifestEntryByDate(dateStr) {
+    const byDate = loadDailyManifestByDate();
+    return byDate.get(dateStr) || null;
+}
+
+function getCoordinatesFromStreetIndex(streetName) {
+    const normalized = normalizeContentName(streetName);
+    if (!normalized) {
+        return null;
+    }
+    const source = streetIndexByNormalizedName.get(normalized);
+    if (!source || !Array.isArray(source.centroid) || source.centroid.length < 2) {
+        return null;
+    }
+    const [lng, lat] = source.centroid;
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+        return null;
+    }
+    return [lng, lat];
+}
+
+function resolveDailyTargetFromManifest(manifestEntry, currentTarget = null) {
+    if (!manifestEntry?.streetName) {
+        return null;
+    }
+
+    const normalizedManifestStreet = normalizeContentName(manifestEntry.streetName);
+    const normalizedCurrentStreet = normalizeContentName(currentTarget?.street_name);
+    const canReuseCurrentCoordinates =
+        normalizedManifestStreet &&
+        normalizedCurrentStreet &&
+        normalizedManifestStreet === normalizedCurrentStreet &&
+        currentTarget?.coordinates_json;
+
+    let coordinates = getCoordinatesFromStreetIndex(manifestEntry.streetName);
+    let geometry = null;
+
+    if (!coordinates && canReuseCurrentCoordinates) {
+        try {
+            const parsed = JSON.parse(currentTarget.coordinates_json);
+            if (
+                Array.isArray(parsed) &&
+                parsed.length >= 2 &&
+                Number.isFinite(parsed[0]) &&
+                Number.isFinite(parsed[1])
+            ) {
+                coordinates = [parsed[0], parsed[1]];
+            }
+        } catch (error) {
+            // Ignore and fall through.
+        }
+    }
+
+    if (!coordinates) {
+        geometry = extractStreetGeometry(manifestEntry.streetName);
+        coordinates = computeRepresentativeCoordinatesFromGeometry(geometry);
+    }
+
+    if (!coordinates) {
+        coordinates = [5.38, 43.295];
+    }
+
+    const streetSource = normalizedManifestStreet
+        ? streetIndexByNormalizedName.get(normalizedManifestStreet)
+        : null;
+    const quartier = manifestEntry.quartier || streetSource?.quartier || currentTarget?.quartier || null;
+
+    return {
+        streetName: manifestEntry.streetName,
+        quartier,
+        coordinates,
+        geometry: geometry || null,
+    };
+}
+
 function dateHash(dateStr) {
     let h = 0;
     for (let i = 0; i < dateStr.length; i++) {
@@ -2027,7 +2224,32 @@ function dateHash(dateStr) {
 async function ensureDailyTarget() {
     const date = getDateKeyInZone(DAILY_TIMEZONE);
     let target = await db.getDailyTarget(date);
-    if (target && !shouldKeepStreetForGame({ name: target.street_name })) {
+    const manifestEntry = getDailyManifestEntryByDate(date);
+
+    if (manifestEntry) {
+        const desired = resolveDailyTargetFromManifest(manifestEntry, target);
+        if (desired) {
+            const needsSync =
+                !target ||
+                normalizeContentName(target.street_name) !== normalizeContentName(desired.streetName) ||
+                normalizeContentName(target.quartier) !== normalizeContentName(desired.quartier) ||
+                !target.coordinates_json;
+
+            if (needsSync) {
+                await db.setDailyTarget(
+                    date,
+                    desired.streetName,
+                    desired.quartier,
+                    desired.coordinates,
+                    desired.geometry
+                );
+                target = await db.getDailyTarget(date);
+                console.log(`[Daily] Synced target from manifest for ${date}: ${desired.streetName}`);
+            }
+        }
+    }
+
+    if (target && !manifestEntry && !shouldKeepStreetForGame({ name: target.street_name })) {
         console.warn(`[Daily] Existing target excluded by filter for ${date}: "${target.street_name}". Regenerating.`);
         target = null;
     }
