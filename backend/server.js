@@ -25,6 +25,15 @@ const DAILY_MANIFEST_ABSOLUTE_PATH = path.join(
     'manifest_next_30.csv',
 );
 const DAILY_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'webp', 'png'];
+const BACKEND_STREETS_INDEX_PATH = path.join(__dirname, 'data', 'streets_index.json');
+const BACKEND_QUARTIERS_GEOJSON_PATH = path.join(__dirname, 'data', 'marseille_quartiers_111.geojson');
+const BACKEND_MONUMENTS_GEOJSON_PATH = path.join(__dirname, 'data', 'marseille_monuments.geojson');
+const STREET_GEOMETRY_CANDIDATE_PATHS = [
+    path.join(__dirname, 'data', 'marseille_rues_light.geojson'),
+    path.join(__dirname, 'data', 'marseille_rues_enrichi.geojson'),
+    path.join(__dirname, '..', 'data', 'marseille_rues_light.geojson'),
+    path.join(__dirname, '..', 'data', 'marseille_rues_enrichi.geojson'),
+];
 
 function readEnvIntegerInRange(name, fallback, min, max) {
     const raw = Number.parseInt(process.env[name], 10);
@@ -545,6 +554,18 @@ function normalizeUserRole(role) {
 
 function normalizeContentName(name) {
     return String(name || '').trim().toLowerCase();
+}
+
+function normalizeStreetLookupName(name) {
+    return String(name || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[’`´]/g, "'")
+        .replace(/[-‐‑‒–—]/g, '-')
+        .replace(/\s*-\s*/g, '-')
+        .replace(/\s+/g, ' ');
 }
 
 function normalizeStreetInfoEntries(rawEntries, maxEntries = MAX_STREET_INFO_ENTRIES) {
@@ -1472,6 +1493,20 @@ app.post('/api/editor/osm-sync', authenticateToken, requireContentEditor, asyncH
             });
         }
 
+        const runtimeReload = reloadDailyRuntimeIndexes();
+        let dailyTargetsRefresh = null;
+        try {
+            dailyTargetsRefresh = await refreshDailyTargetsFromCurrentStreetData();
+            console.log(
+                `[Daily] Geometry refresh after OSM sync: ${dailyTargetsRefresh.refreshed}/${dailyTargetsRefresh.totalTargets} targets updated (${dailyTargetsRefresh.missingGeometry} missing geometry).`
+            );
+        } catch (error) {
+            console.error('Daily target geometry refresh failed after OSM sync:', error.message);
+            dailyTargetsRefresh = {
+                error: error.message,
+            };
+        }
+
         let mapSyncMeta = loadMapSyncMetaFromFile();
         if (mapSyncMeta) {
             try {
@@ -1487,6 +1522,8 @@ app.post('/api/editor/osm-sync', authenticateToken, requireContentEditor, asyncH
             success: true,
             ...payload,
             mapSyncMeta: mapSyncMeta || null,
+            runtimeReload,
+            dailyTargetsRefresh,
         });
     } catch (error) {
         return res.status(500).json({
@@ -2101,19 +2138,13 @@ const dailyManifestCache = {
     mtimeMs: null,
     byDate: new Map(),
 };
-try {
-    const rawStreetIndex = JSON.parse(
-        fs.readFileSync(path.join(__dirname, 'data', 'streets_index.json'), 'utf8')
-    );
-    console.log(`Loaded ${rawStreetIndex.length} streets from index for daily challenges.`);
+function reloadStreetChallengeIndex() {
+    const rawStreetIndex = JSON.parse(fs.readFileSync(BACKEND_STREETS_INDEX_PATH, 'utf8'));
     streetIndex = rawStreetIndex.filter((entry) =>
         shouldKeepStreetForGame({
             name: entry?.name,
         })
     );
-    if (streetIndex.length !== rawStreetIndex.length) {
-        console.log(`[Daily] Excluded ${rawStreetIndex.length - streetIndex.length} streets from daily index using gameplay filter.`);
-    }
     streetChallengeIndex = streetIndex
         .map((entry) => ({
             name: String(entry?.name || '').trim(),
@@ -2122,22 +2153,29 @@ try {
             quartierKey: normalizeQuartierChallengeKey(entry?.quartier),
         }))
         .filter((entry) => entry.name && entry.normalizedName);
+
+    streetIndexByNormalizedName.clear();
     streetChallengeIndex.forEach((entry) => {
-        if (!streetIndexByNormalizedName.has(entry.normalizedName)) {
-            const source = streetIndex.find(
-                (candidate) => normalizeContentName(candidate?.name) === entry.normalizedName
-            );
-            if (source) {
-                streetIndexByNormalizedName.set(entry.normalizedName, source);
-            }
+        if (streetIndexByNormalizedName.has(entry.normalizedName)) {
+            return;
+        }
+        const source = streetIndex.find(
+            (candidate) => normalizeContentName(candidate?.name) === entry.normalizedName
+        );
+        if (source) {
+            streetIndexByNormalizedName.set(entry.normalizedName, source);
         }
     });
-} catch (err) {
-    console.error('Could not load street index for daily:', err.message);
+
+    return {
+        loaded: rawStreetIndex.length,
+        kept: streetIndex.length,
+        excluded: rawStreetIndex.length - streetIndex.length,
+    };
 }
 
-try {
-    const rawQuartiers = fs.readFileSync(path.join(__dirname, 'data', 'marseille_quartiers_111.geojson'), 'utf8');
+function reloadQuartierChallengeIndex() {
+    const rawQuartiers = fs.readFileSync(BACKEND_QUARTIERS_GEOJSON_PATH, 'utf8');
     const parsedQuartiers = JSON.parse(rawQuartiers);
     const seen = new Set();
     quartierChallengeIndex = (Array.isArray(parsedQuartiers?.features) ? parsedQuartiers.features : [])
@@ -2155,13 +2193,12 @@ try {
             name,
             key: normalizeQuartierChallengeKey(name),
         }));
-    console.log(`Loaded ${quartierChallengeIndex.length} quartiers for friend challenges.`);
-} catch (err) {
-    console.error('Could not load quartiers index for friend challenges:', err.message);
+
+    return { loaded: quartierChallengeIndex.length };
 }
 
-try {
-    const rawMonuments = fs.readFileSync(path.join(__dirname, 'data', 'marseille_monuments.geojson'), 'utf8');
+function reloadMonumentChallengeIndex() {
+    const rawMonuments = fs.readFileSync(BACKEND_MONUMENTS_GEOJSON_PATH, 'utf8');
     const parsedMonuments = JSON.parse(rawMonuments);
     const seen = new Set();
     monumentChallengeIndex = (Array.isArray(parsedMonuments?.features) ? parsedMonuments.features : [])
@@ -2180,10 +2217,51 @@ try {
             name,
             normalizedName: normalizeContentName(name),
         }));
-    console.log(`Loaded ${monumentChallengeIndex.length} monuments for friend challenges.`);
-} catch (err) {
-    console.error('Could not load monuments index for friend challenges:', err.message);
+
+    return { loaded: monumentChallengeIndex.length };
 }
+
+function reloadDailyRuntimeIndexes() {
+    const summary = {
+        streetIndex: null,
+        quartierIndex: null,
+        monumentIndex: null,
+        errors: [],
+    };
+
+    try {
+        summary.streetIndex = reloadStreetChallengeIndex();
+        console.log(
+            `[Daily] Street index reloaded: ${summary.streetIndex.kept}/${summary.streetIndex.loaded} streets (${summary.streetIndex.excluded} excluded by gameplay filter).`
+        );
+    } catch (error) {
+        const message = `street index: ${error.message}`;
+        summary.errors.push(message);
+        console.error('Could not reload street index for daily:', error.message);
+    }
+
+    try {
+        summary.quartierIndex = reloadQuartierChallengeIndex();
+        console.log(`[Daily] Quartier index reloaded: ${summary.quartierIndex.loaded} quartiers.`);
+    } catch (error) {
+        const message = `quartier index: ${error.message}`;
+        summary.errors.push(message);
+        console.error('Could not reload quartiers index for friend challenges:', error.message);
+    }
+
+    try {
+        summary.monumentIndex = reloadMonumentChallengeIndex();
+        console.log(`[Daily] Monument index reloaded: ${summary.monumentIndex.loaded} monuments.`);
+    } catch (error) {
+        const message = `monument index: ${error.message}`;
+        summary.errors.push(message);
+        console.error('Could not reload monuments index for friend challenges:', error.message);
+    }
+
+    return summary;
+}
+
+reloadDailyRuntimeIndexes();
 
 async function buildFriendChallengeTargets({ mode, gameType, quartierName, lists }) {
     const normalizedMode = SCORE_MODE_ALIASES[mode] || mode;
@@ -2271,31 +2349,45 @@ async function buildFriendChallengeTargets({ mode, gameType, quartierName, lists
 
 function extractStreetGeometry(streetName) {
     try {
-        const candidateGeoPaths = [
-            path.join(__dirname, 'data', 'marseille_rues_light.geojson'),
-            path.join(__dirname, 'data', 'marseille_rues_enrichi.geojson'),
-        ];
-        let data = null;
-        for (const geoPath of candidateGeoPaths) {
+        const normalizedTarget = normalizeStreetLookupName(streetName);
+        if (!normalizedTarget) {
+            return null;
+        }
+
+        let features = [];
+        for (const geoPath of STREET_GEOMETRY_CANDIDATE_PATHS) {
             try {
                 const raw = fs.readFileSync(geoPath, 'utf8');
                 const parsed = JSON.parse(raw);
                 if (parsed && Array.isArray(parsed.features)) {
-                    data = parsed;
-                    break;
+                    features = parsed.features.filter((feature) => {
+                        const featureName = feature?.properties?.name;
+                        return normalizeStreetLookupName(featureName) === normalizedTarget && feature?.geometry;
+                    });
+                    if (features.length > 0) {
+                        break;
+                    }
                 }
             } catch (readErr) {
                 // Try next candidate file.
             }
         }
-        if (!data) return null;
-        const normalizedTarget = streetName.toLowerCase().trim();
-        for (const f of data.features) {
-            if (f.properties && f.properties.name &&
-                f.properties.name.toLowerCase().trim() === normalizedTarget) {
-                return f.geometry;
-            }
+        if (features.length === 0) {
+            return null;
         }
+        if (features.length === 1) {
+            return features[0].geometry || null;
+        }
+        return {
+            type: 'FeatureCollection',
+            features: features.map((feature) => ({
+                type: 'Feature',
+                properties: {
+                    name: feature?.properties?.name || String(streetName || ''),
+                },
+                geometry: feature.geometry,
+            })),
+        };
     } catch (err) {
         console.error('Error extracting geometry:', err.message);
     }
@@ -2303,7 +2395,29 @@ function extractStreetGeometry(streetName) {
 }
 
 function computeRepresentativeCoordinatesFromGeometry(geometry) {
-    if (!geometry || !Array.isArray(geometry.coordinates)) {
+    if (!geometry) {
+        return null;
+    }
+
+    if (geometry.type === 'FeatureCollection' && Array.isArray(geometry.features)) {
+        const points = [];
+        geometry.features.forEach((feature) => {
+            const candidate = computeRepresentativeCoordinatesFromGeometry(feature?.geometry);
+            if (candidate) {
+                points.push(candidate);
+            }
+        });
+        if (points.length === 0) {
+            return null;
+        }
+        return points[Math.floor(points.length / 2)];
+    }
+
+    if (geometry.type === 'Feature' && geometry.geometry) {
+        return computeRepresentativeCoordinatesFromGeometry(geometry.geometry);
+    }
+
+    if (!Array.isArray(geometry.coordinates)) {
         return null;
     }
 
@@ -2349,6 +2463,104 @@ function computeRepresentativeCoordinatesFromGeometry(geometry) {
     }
 
     return null;
+}
+
+function parseCoordinatesJson(rawCoordinates) {
+    if (!rawCoordinates) {
+        return null;
+    }
+    try {
+        const parsed = typeof rawCoordinates === 'string'
+            ? JSON.parse(rawCoordinates)
+            : rawCoordinates;
+        if (
+            Array.isArray(parsed) &&
+            parsed.length >= 2 &&
+            Number.isFinite(parsed[0]) &&
+            Number.isFinite(parsed[1])
+        ) {
+            return [parsed[0], parsed[1]];
+        }
+    } catch (error) {
+        return null;
+    }
+    return null;
+}
+
+function parseGeometryJson(rawGeometry) {
+    if (!rawGeometry) {
+        return null;
+    }
+    try {
+        const parsed = typeof rawGeometry === 'string' ? JSON.parse(rawGeometry) : rawGeometry;
+        if (parsed && typeof parsed === 'object') {
+            return parsed;
+        }
+    } catch (error) {
+        return null;
+    }
+    return null;
+}
+
+function shouldRefreshStoredDailyGeometry(storedGeometry) {
+    if (!storedGeometry || typeof storedGeometry !== 'object') {
+        return true;
+    }
+    if (storedGeometry.type === 'FeatureCollection') {
+        return !Array.isArray(storedGeometry.features) || storedGeometry.features.length === 0;
+    }
+    if (storedGeometry.type === 'Feature') {
+        return !storedGeometry.geometry;
+    }
+    if (storedGeometry.type && Array.isArray(storedGeometry.coordinates)) {
+        return false;
+    }
+    return true;
+}
+
+function normalizeDailyTargetGeometryPayload(rawGeometry, streetName) {
+    const storedGeometry = parseGeometryJson(rawGeometry);
+    if (!shouldRefreshStoredDailyGeometry(storedGeometry)) {
+        return storedGeometry;
+    }
+    return extractStreetGeometry(streetName) || storedGeometry || null;
+}
+
+async function refreshDailyTargetsFromCurrentStreetData() {
+    const targets = await db.listDailyTargets();
+    let refreshed = 0;
+    let missingGeometry = 0;
+
+    for (const target of targets) {
+        const geometry = extractStreetGeometry(target?.street_name);
+        if (!geometry) {
+            missingGeometry += 1;
+            continue;
+        }
+
+        let coordinates = parseCoordinatesJson(target?.coordinates_json);
+        if (!coordinates) {
+            coordinates = computeRepresentativeCoordinatesFromGeometry(geometry);
+        }
+        if (!coordinates) {
+            coordinates = [5.38, 43.295];
+        }
+
+        await db.setDailyTarget(
+            target.date,
+            target.street_name,
+            target.quartier,
+            coordinates,
+            geometry
+        );
+        refreshed += 1;
+    }
+
+    return {
+        totalTargets: targets.length,
+        refreshed,
+        missingGeometry,
+    };
 }
 
 function loadDailyManifestByDate() {
@@ -2440,18 +2652,9 @@ function resolveDailyTargetFromManifest(manifestEntry, currentTarget = null) {
     let geometry = null;
 
     if (!coordinates && canReuseCurrentCoordinates) {
-        try {
-            const parsed = JSON.parse(currentTarget.coordinates_json);
-            if (
-                Array.isArray(parsed) &&
-                parsed.length >= 2 &&
-                Number.isFinite(parsed[0]) &&
-                Number.isFinite(parsed[1])
-            ) {
-                coordinates = [parsed[0], parsed[1]];
-            }
-        } catch (error) {
-            // Ignore and fall through.
+        const parsed = parseCoordinatesJson(currentTarget.coordinates_json);
+        if (parsed) {
+            coordinates = parsed;
         }
     }
 
@@ -2574,13 +2777,31 @@ async function ensureDailyTarget() {
 }
 
 async function getTargetGeometry(target) {
-    if (target.geometry_json) return target.geometry_json;
-    const geometry = extractStreetGeometry(target.street_name);
-    if (geometry) {
-        await db.setDailyTarget(target.date, target.street_name, target.quartier,
-            JSON.parse(target.coordinates_json), geometry);
-        return JSON.stringify(geometry);
+    const normalizedGeometry = normalizeDailyTargetGeometryPayload(
+        target?.geometry_json,
+        target?.street_name
+    );
+
+    if (normalizedGeometry) {
+        const currentStored = parseGeometryJson(target?.geometry_json);
+        const hasChanged =
+            !currentStored || JSON.stringify(currentStored) !== JSON.stringify(normalizedGeometry);
+        if (hasChanged) {
+            const coordinates =
+                parseCoordinatesJson(target?.coordinates_json) ||
+                computeRepresentativeCoordinatesFromGeometry(normalizedGeometry) ||
+                [5.38, 43.295];
+            await db.setDailyTarget(
+                target.date,
+                target.street_name,
+                target.quartier,
+                coordinates,
+                normalizedGeometry
+            );
+        }
+        return JSON.stringify(normalizedGeometry);
     }
+
     return null;
 }
 

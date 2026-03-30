@@ -618,6 +618,13 @@ async function getRecentDailyTargets(limit) {
   return res.rows;
 }
 
+async function listDailyTargets() {
+  const res = await pool.query(
+    'SELECT * FROM daily_targets ORDER BY date DESC'
+  );
+  return res.rows;
+}
+
 async function setDailyTarget(date, streetName, quartier, coordinates, geometry) {
   await pool.query(
     `INSERT INTO daily_targets (date, street_name, quartier, coordinates_json, geometry_json)
@@ -1182,6 +1189,7 @@ module.exports = {
   deleteExpiredFriendChallenges,
   getDailyTarget,
   getRecentDailyTargets,
+  listDailyTargets,
   setDailyTarget,
   getDailyUserStatus,
   updateDailyUserAttempt,
