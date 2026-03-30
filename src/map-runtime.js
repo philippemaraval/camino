@@ -31,6 +31,7 @@ export async function loadStreetsRuntime({
   map,
   L,
   uiTheme,
+  apiUrl = "",
   isTouchDevice = false,
   normalizeName,
   getBaseStreetStyle,
@@ -40,11 +41,34 @@ export async function loadStreetsRuntime({
   addTouchBufferForLayer,
 }) {
   const startedAt = performance.now();
-  const response = await fetch(`data/marseille_rues_light.geojson?v=${Date.now()}`, {
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`Erreur HTTP ${response.status}`);
+  const syncToken = Date.now();
+  const remoteApiBase = String(apiUrl || "").trim().replace(/\/+$/, "");
+  const candidateUrls = [];
+  if (remoteApiBase) {
+    candidateUrls.push(`${remoteApiBase}/api/streets-light?v=${syncToken}`);
+  }
+  candidateUrls.push(`data/marseille_rues_light.geojson?v=${syncToken}`);
+
+  let response = null;
+  let selectedUrl = "";
+  let lastError = null;
+  for (const url of candidateUrls) {
+    try {
+      const nextResponse = await fetch(url, { cache: "no-store" });
+      if (!nextResponse.ok) {
+        lastError = new Error(`Erreur HTTP ${nextResponse.status} (${url})`);
+        continue;
+      }
+      response = nextResponse;
+      selectedUrl = url;
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!response) {
+    throw lastError || new Error("Impossible de charger les rues");
   }
 
   const payload = await response.json();
@@ -125,6 +149,7 @@ export async function loadStreetsRuntime({
     streetLayersById,
     streetLayersByName,
     streetsLayer,
+    loadedFrom: selectedUrl || candidateUrls[0],
     loadedMs: (performance.now() - startedAt).toFixed(0),
   };
 }

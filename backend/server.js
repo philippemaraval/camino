@@ -25,6 +25,7 @@ const DAILY_MANIFEST_ABSOLUTE_PATH = path.join(
     'manifest_next_30.csv',
 );
 const DAILY_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'webp', 'png'];
+const BACKEND_STREETS_LIGHT_PATH = path.join(__dirname, 'data', 'marseille_rues_light.geojson');
 const BACKEND_STREETS_INDEX_PATH = path.join(__dirname, 'data', 'streets_index.json');
 const BACKEND_QUARTIERS_GEOJSON_PATH = path.join(__dirname, 'data', 'marseille_quartiers_111.geojson');
 const BACKEND_MONUMENTS_GEOJSON_PATH = path.join(__dirname, 'data', 'marseille_monuments.geojson');
@@ -1414,6 +1415,34 @@ app.get('/api/content/public', asyncHandler(async (req, res) => {
         lists: snapshot.lists,
         monuments: snapshot.monuments,
     });
+}));
+
+app.get('/api/streets-light', asyncHandler(async (req, res) => {
+    const candidatePaths = [
+        BACKEND_STREETS_LIGHT_PATH,
+        path.join(__dirname, '..', 'data', 'marseille_rues_light.geojson'),
+    ];
+
+    let selectedPath = null;
+    for (const candidatePath of candidatePaths) {
+        try {
+            const stat = fs.statSync(candidatePath);
+            if (stat.isFile()) {
+                selectedPath = candidatePath;
+                break;
+            }
+        } catch (error) {
+            // Try next path.
+        }
+    }
+
+    if (!selectedPath) {
+        return res.status(404).json({ error: 'Streets file unavailable' });
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('application/geo+json');
+    return res.sendFile(selectedPath);
 }));
 
 app.get('/api/map-sync-meta', asyncHandler(async (req, res) => {

@@ -1901,6 +1901,7 @@
     map: map2,
     L: L2,
     uiTheme,
+    apiUrl = "",
     isTouchDevice = false,
     normalizeName: normalizeName2,
     getBaseStreetStyle: getBaseStreetStyle3,
@@ -1910,11 +1911,32 @@
     addTouchBufferForLayer: addTouchBufferForLayer2
   }) {
     const startedAt = performance.now();
-    const response = await fetch(`data/marseille_rues_light.geojson?v=${Date.now()}`, {
-      cache: "no-store"
-    });
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP ${response.status}`);
+    const syncToken = Date.now();
+    const remoteApiBase = String(apiUrl || "").trim().replace(/\/+$/, "");
+    const candidateUrls = [];
+    if (remoteApiBase) {
+      candidateUrls.push(`${remoteApiBase}/api/streets-light?v=${syncToken}`);
+    }
+    candidateUrls.push(`data/marseille_rues_light.geojson?v=${syncToken}`);
+    let response = null;
+    let selectedUrl = "";
+    let lastError = null;
+    for (const url of candidateUrls) {
+      try {
+        const nextResponse = await fetch(url, { cache: "no-store" });
+        if (!nextResponse.ok) {
+          lastError = new Error(`Erreur HTTP ${nextResponse.status} (${url})`);
+          continue;
+        }
+        response = nextResponse;
+        selectedUrl = url;
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!response) {
+      throw lastError || new Error("Impossible de charger les rues");
     }
     const payload = await response.json();
     const allStreetFeatures2 = payload.features || [];
@@ -1987,6 +2009,7 @@
       streetLayersById: streetLayersById2,
       streetLayersByName: streetLayersByName2,
       streetsLayer: streetsLayer2,
+      loadedFrom: selectedUrl || candidateUrls[0],
       loadedMs: (performance.now() - startedAt).toFixed(0)
     };
   }
@@ -6196,6 +6219,7 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       map,
       L,
       uiTheme: UI_THEME,
+      apiUrl: API_URL,
       isTouchDevice: IS_TOUCH_DEVICE,
       normalizeName,
       getBaseStreetStyle: getBaseStreetStyle2,
@@ -6209,7 +6233,9 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
       streetsLayer = result.streetsLayer;
       streetLayersById = result.streetLayersById;
       streetLayersByName = result.streetLayersByName;
-      console.log(`Rues charg\xE9es : ${allStreetFeatures.length} en ${result.loadedMs}ms`);
+      console.log(
+        `Rues charg\xE9es : ${allStreetFeatures.length} en ${result.loadedMs}ms (source: ${result.loadedFrom})`
+      );
       refreshLectureTooltipsIfNeeded();
       refreshLectureStreetSearchForCurrentMode({ preserveQuery: true });
       populateQuartiers();

@@ -3037,6 +3037,7 @@ function loadStreets({ force = false } = {}) {
     map,
     L,
     uiTheme: UI_THEME,
+    apiUrl: API_URL,
     isTouchDevice: IS_TOUCH_DEVICE,
     normalizeName,
     getBaseStreetStyle,
@@ -3054,7 +3055,9 @@ function loadStreets({ force = false } = {}) {
       streetLayersById = result.streetLayersById;
       streetLayersByName = result.streetLayersByName;
 
-      console.log(`Rues chargées : ${allStreetFeatures.length} en ${result.loadedMs}ms`);
+      console.log(
+        `Rues chargées : ${allStreetFeatures.length} en ${result.loadedMs}ms (source: ${result.loadedFrom})`,
+      );
       refreshLectureTooltipsIfNeeded();
       refreshLectureStreetSearchForCurrentMode({ preserveQuery: !0 });
       populateQuartiers();
