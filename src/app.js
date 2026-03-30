@@ -276,7 +276,15 @@ async function loadStreetInfos() {
   }
 }
 function normalizeName(e) {
-  return (e || "").trim().toLowerCase();
+  return String(e || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’`´]/g, "'")
+    .replace(/[-‐‑‒–—]/g, "-")
+    .replace(/\s*-\s*/g, "-")
+    .replace(/\s+/g, " ");
 }
 function normalizeSearchText(e) {
   return normalizeName(e).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
