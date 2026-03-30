@@ -2940,8 +2940,8 @@ select:focus:not(:focus-visible) {
   grid-template-columns: 1fr auto;
   grid-template-areas:
     "visitors social"
-    "credit social"
-    "sync social";
+    "sync social"
+    "credit social";
   align-items: start;
   column-gap: 8px;
   row-gap: 3px;
