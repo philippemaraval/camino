@@ -40,7 +40,9 @@ export async function loadStreetsRuntime({
   addTouchBufferForLayer,
 }) {
   const startedAt = performance.now();
-  const response = await fetch("data/marseille_rues_light.geojson?v=11");
+  const response = await fetch(`data/marseille_rues_light.geojson?v=${Date.now()}`, {
+    cache: "no-store",
+  });
   if (!response.ok) {
     throw new Error(`Erreur HTTP ${response.status}`);
   }
