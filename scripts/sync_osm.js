@@ -361,10 +361,6 @@ async function main() {
 
     console.log('\n🎉 Synchronisation terminée !');
     console.log(`   Total : ${features.length} segments de rues, ${uniqueIndex.length} noms uniques.`);
-    console.log('\n📌 Prochaines étapes :');
-    console.log('   git add data/ backend/data/');
-    console.log('   git commit -m "sync: update streets from OSM"');
-    console.log('   git push origin main');
 }
 
 main().catch(err => {
