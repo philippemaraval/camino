@@ -631,6 +631,16 @@ function computeChangedOsmFiles(beforeSnapshot, afterSnapshot) {
 
 function runOsmSyncScript(timeoutMs = OSM_SYNC_TIMEOUT_MS) {
     const projectRoot = path.join(__dirname, '..');
+    const projectNodeModulesPath = path.join(projectRoot, 'node_modules');
+    const backendNodeModulesPath = path.join(__dirname, 'node_modules');
+    const existingNodePathEntries = String(process.env.NODE_PATH || '')
+        .split(path.delimiter)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    const nodePath = Array.from(
+        new Set([projectNodeModulesPath, backendNodeModulesPath, ...existingNodePathEntries]),
+    ).join(path.delimiter);
+
     return new Promise((resolve, reject) => {
         let stdout = '';
         let stderr = '';
@@ -639,7 +649,10 @@ function runOsmSyncScript(timeoutMs = OSM_SYNC_TIMEOUT_MS) {
 
         const child = spawn(process.execPath, ['scripts/sync_osm.js'], {
             cwd: projectRoot,
-            env: process.env,
+            env: {
+                ...process.env,
+                NODE_PATH: nodePath,
+            },
             stdio: ['ignore', 'pipe', 'pipe'],
         });
 
