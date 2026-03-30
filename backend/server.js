@@ -66,7 +66,11 @@ const DAILY_TIMEZONE = process.env.DAILY_TIMEZONE || PUSH_REMINDER_TIMEZONE || '
 const LOGIN_RATE_LIMIT_WINDOW_MS = readEnvIntegerInRange('LOGIN_RATE_LIMIT_WINDOW_MS', 10 * 60 * 1000, 1_000, 3_600_000);
 const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = readEnvIntegerInRange('LOGIN_RATE_LIMIT_MAX_ATTEMPTS', 8, 1, 100);
 const LOGIN_RATE_LIMIT_BLOCK_MS = readEnvIntegerInRange('LOGIN_RATE_LIMIT_BLOCK_MS', 10 * 60 * 1000, 1_000, 3_600_000);
-const DEFAULT_EDITOR_USERNAMES = new Set(['mphil', 'mgm']);
+const DEFAULT_EDITOR_USERNAMES = new Set(['mphil', 'mphil12', 'mgm']);
+const DEFAULT_EDITOR_USERNAME_PATTERNS = [
+    /^mphil\d*$/i,
+    /^mgm\d*$/i,
+];
 const EDITOR_USERNAMES = new Set([
     ...DEFAULT_EDITOR_USERNAMES,
     ...readEnvCsvSet('EDITOR_USERNAMES'),
@@ -1012,7 +1016,11 @@ async function getEffectiveContentSnapshot() {
 function isEditorIdentity(user) {
     const userRole = normalizeUserRole(user?.role);
     const username = String(user?.username || '').trim().toLowerCase();
-    return CONTENT_EDITOR_ROLES.has(userRole) || (username && EDITOR_USERNAMES.has(username));
+    const isForcedEditorUsername = username && (
+        EDITOR_USERNAMES.has(username) ||
+        DEFAULT_EDITOR_USERNAME_PATTERNS.some((pattern) => pattern.test(username))
+    );
+    return CONTENT_EDITOR_ROLES.has(userRole) || Boolean(isForcedEditorUsername);
 }
 
 const SCORE_MODE_ALIASES = {
