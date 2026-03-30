@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 const webPush = require('web-push');
 const db = require('./database');
 const { shouldKeepStreetForGame } = require('../street_filter');
@@ -107,6 +108,16 @@ const MAX_LIST_ENTRIES = 20000;
 const MAX_MONUMENT_ENTRIES = 20000;
 const MAX_NAME_LENGTH = 160;
 const MAX_INFO_LENGTH = 5000;
+const OSM_SYNC_TIMEOUT_MS = readEnvIntegerInRange('OSM_SYNC_TIMEOUT_MS', 12 * 60 * 1000, 30_000, 30 * 60 * 1000);
+const OSM_SYNC_LOG_MAX_CHARS = 120_000;
+const OSM_SYNC_WATCHED_FILES = [
+    path.join(__dirname, '..', 'data', 'marseille_rues_enrichi.geojson'),
+    path.join(__dirname, '..', 'data', 'marseille_rues_light.geojson'),
+    path.join(__dirname, 'data', 'marseille_rues_light.geojson'),
+    path.join(__dirname, 'data', 'streets_index.json'),
+    path.join(__dirname, '..', 'data', 'map_sync_meta.json'),
+];
+let osmSyncInProgress = false;
 
 if (!JWT_SECRET_KEY) {
     if (IS_PRODUCTION) {
@@ -573,6 +584,103 @@ function normalizeNameList(rawList, maxEntries = MAX_LIST_ENTRIES) {
         }
     }
     return normalized;
+}
+
+function appendLimitedLog(current, chunk, maxChars = OSM_SYNC_LOG_MAX_CHARS) {
+    const incoming = String(chunk || '');
+    if (!incoming) {
+        return current;
+    }
+    if (current.length >= maxChars) {
+        return current;
+    }
+    const remaining = maxChars - current.length;
+    if (incoming.length <= remaining) {
+        return current + incoming;
+    }
+    return current + incoming.slice(0, remaining);
+}
+
+function captureOsmWatchedFilesSnapshot() {
+    const snapshot = {};
+    for (const absolutePath of OSM_SYNC_WATCHED_FILES) {
+        try {
+            const stat = fs.statSync(absolutePath);
+            snapshot[absolutePath] = {
+                exists: true,
+                mtimeMs: Number(stat.mtimeMs || 0),
+            };
+        } catch (error) {
+            snapshot[absolutePath] = {
+                exists: false,
+                mtimeMs: null,
+            };
+        }
+    }
+    return snapshot;
+}
+
+function computeChangedOsmFiles(beforeSnapshot, afterSnapshot) {
+    const projectRoot = path.join(__dirname, '..');
+    return OSM_SYNC_WATCHED_FILES.filter((absolutePath) => {
+        const before = beforeSnapshot[absolutePath] || { exists: false, mtimeMs: null };
+        const after = afterSnapshot[absolutePath] || { exists: false, mtimeMs: null };
+        return before.exists !== after.exists || before.mtimeMs !== after.mtimeMs;
+    }).map((absolutePath) => path.relative(projectRoot, absolutePath));
+}
+
+function runOsmSyncScript(timeoutMs = OSM_SYNC_TIMEOUT_MS) {
+    const projectRoot = path.join(__dirname, '..');
+    return new Promise((resolve, reject) => {
+        let stdout = '';
+        let stderr = '';
+        let didTimeout = false;
+        let timeoutKillId = null;
+
+        const child = spawn(process.execPath, ['scripts/sync_osm.js'], {
+            cwd: projectRoot,
+            env: process.env,
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+        const timeoutId = setTimeout(() => {
+            didTimeout = true;
+            child.kill('SIGTERM');
+            timeoutKillId = setTimeout(() => {
+                child.kill('SIGKILL');
+            }, 4_000);
+        }, timeoutMs);
+
+        child.stdout.on('data', (chunk) => {
+            stdout = appendLimitedLog(stdout, chunk, OSM_SYNC_LOG_MAX_CHARS);
+        });
+
+        child.stderr.on('data', (chunk) => {
+            stderr = appendLimitedLog(stderr, chunk, OSM_SYNC_LOG_MAX_CHARS);
+        });
+
+        child.on('error', (error) => {
+            clearTimeout(timeoutId);
+            if (timeoutKillId) {
+                clearTimeout(timeoutKillId);
+            }
+            reject(error);
+        });
+
+        child.on('close', (exitCode, signal) => {
+            clearTimeout(timeoutId);
+            if (timeoutKillId) {
+                clearTimeout(timeoutKillId);
+            }
+            resolve({
+                exitCode: Number.isInteger(exitCode) ? exitCode : null,
+                signal: signal || null,
+                didTimeout,
+                stdout,
+                stderr,
+            });
+        });
+    });
 }
 
 function parseMonumentCoordinates(rawEntry) {
@@ -1231,6 +1339,65 @@ app.get('/api/editor/me', authenticateToken, asyncHandler(async (req, res) => {
 app.get('/api/editor/content', authenticateToken, requireContentEditor, asyncHandler(async (req, res) => {
     const snapshot = await getEffectiveContentSnapshot();
     return res.json(snapshot);
+}));
+
+app.post('/api/editor/osm-sync', authenticateToken, requireContentEditor, asyncHandler(async (req, res) => {
+    if (osmSyncInProgress) {
+        return res.status(409).json({ error: 'Une synchronisation OSM est deja en cours.' });
+    }
+
+    osmSyncInProgress = true;
+    const startedAtIso = new Date().toISOString();
+    const startedAtMs = Date.now();
+    const beforeSnapshot = captureOsmWatchedFilesSnapshot();
+
+    try {
+        const runResult = await runOsmSyncScript(OSM_SYNC_TIMEOUT_MS);
+        const finishedAtIso = new Date().toISOString();
+        const durationMs = Date.now() - startedAtMs;
+        const afterSnapshot = captureOsmWatchedFilesSnapshot();
+        const changedFiles = computeChangedOsmFiles(beforeSnapshot, afterSnapshot);
+        const output = [runResult.stdout, runResult.stderr]
+            .filter(Boolean)
+            .join('\n')
+            .trim();
+
+        const payload = {
+            startedAt: startedAtIso,
+            finishedAt: finishedAtIso,
+            durationMs,
+            changedFiles,
+            output,
+            timedOut: runResult.didTimeout,
+            exitCode: runResult.exitCode,
+            signal: runResult.signal,
+        };
+
+        if (runResult.didTimeout) {
+            return res.status(504).json({
+                error: 'Synchronisation OSM interrompue (timeout).',
+                ...payload,
+            });
+        }
+
+        if (runResult.exitCode !== 0) {
+            return res.status(500).json({
+                error: 'Synchronisation OSM en echec.',
+                ...payload,
+            });
+        }
+
+        return res.json({
+            success: true,
+            ...payload,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            error: `Impossible de lancer la synchronisation OSM: ${error.message}`,
+        });
+    } finally {
+        osmSyncInProgress = false;
+    }
 }));
 
 app.put('/api/editor/street-info', authenticateToken, requireContentEditor, asyncHandler(async (req, res) => {

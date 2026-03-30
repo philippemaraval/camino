@@ -26,6 +26,8 @@ const refs = {
   sessionRole: document.getElementById("session-role"),
   refreshContentBtn: document.getElementById("refresh-content-btn"),
   logoutBtn: document.getElementById("logout-btn"),
+  runOsmSyncBtn: document.getElementById("run-osm-sync-btn"),
+  osmSyncOutput: document.getElementById("osm-sync-output"),
   statsGrid: document.getElementById("stats-grid"),
   infoModeSelect: document.getElementById("info-mode-select"),
   streetSearchInput: document.getElementById("street-search-input"),
@@ -61,6 +63,13 @@ function setGlobalStatus(message, type = "info") {
   } else {
     refs.globalStatus.classList.add("status--info");
   }
+}
+
+function setOsmSyncOutput(message) {
+  if (!refs.osmSyncOutput) {
+    return;
+  }
+  refs.osmSyncOutput.textContent = String(message || "").trim() || "Aucun log disponible.";
 }
 
 function setUiAuthenticated(isAuthenticated) {
@@ -130,6 +139,7 @@ async function apiRequest(path, { method = "GET", body, auth = true } = {}) {
   if (!response.ok) {
     const error = new Error(payload?.error || `HTTP ${response.status}`);
     error.status = response.status;
+    error.payload = payload;
     throw error;
   }
 
@@ -795,6 +805,47 @@ async function onSaveMonuments() {
   }
 }
 
+async function onRunOsmSync() {
+  if (!refs.runOsmSyncBtn) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Lancer la synchronisation OSM maintenant ?\n\nCette operation peut durer 1 a 2 minutes.",
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  refs.runOsmSyncBtn.disabled = true;
+  setGlobalStatus("Synchronisation OSM en cours...", "info");
+  setOsmSyncOutput("Synchronisation OSM en cours...");
+
+  try {
+    const payload = await apiRequest("/api/editor/osm-sync", {
+      method: "POST",
+      body: {},
+    });
+
+    const durationSeconds = Number.isFinite(payload?.durationMs)
+      ? (payload.durationMs / 1000).toFixed(1)
+      : "?";
+    const changedFiles = Array.isArray(payload?.changedFiles) ? payload.changedFiles : [];
+    const changedLabel = changedFiles.length
+      ? `Fichiers modifies: ${changedFiles.join(", ")}`
+      : "Aucun fichier cible n'a change.";
+
+    setGlobalStatus(`Sync OSM terminee en ${durationSeconds}s. ${changedLabel}`, "success");
+    setOsmSyncOutput(payload?.output || "Synchronisation terminee.");
+  } catch (error) {
+    const output = error?.payload?.output || "";
+    setGlobalStatus(`Echec synchronisation OSM: ${error.message}`, "error");
+    setOsmSyncOutput(output || `Erreur: ${error.message}`);
+  } finally {
+    refs.runOsmSyncBtn.disabled = false;
+  }
+}
+
 function bindEvents() {
   refs.loginForm.addEventListener("submit", onLoginSubmit);
   refs.logoutBtn.addEventListener("click", () => {
@@ -832,6 +883,9 @@ function bindEvents() {
     appendMonumentRow();
   });
   refs.saveMonumentsBtn.addEventListener("click", onSaveMonuments);
+  if (refs.runOsmSyncBtn) {
+    refs.runOsmSyncBtn.addEventListener("click", onRunOsmSync);
+  }
 }
 
 bindEvents();

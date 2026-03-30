@@ -207,6 +207,22 @@ button:hover {
   flex-wrap: wrap;
 }
 
+.command-output {
+  margin: 10px 0 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7f9fd;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 280px;
+  overflow: auto;
+}
+
 .lists-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(220px, 1fr));
