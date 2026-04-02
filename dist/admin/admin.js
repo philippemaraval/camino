@@ -1,9 +1,9 @@
-const API_URL =
+const API_BASE_CANDIDATES =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1" ||
   window.location.protocol === "file:"
-    ? "http://localhost:3000"
-    : "https://camino2.onrender.com";
+    ? ["http://localhost:3000"]
+    : [window.location.origin, "https://camino2.onrender.com"];
 
 const STORAGE_KEY = "camino_editor_user";
 
@@ -26,6 +26,8 @@ const refs = {
   sessionRole: document.getElementById("session-role"),
   refreshContentBtn: document.getElementById("refresh-content-btn"),
   logoutBtn: document.getElementById("logout-btn"),
+  runOsmSyncBtn: document.getElementById("run-osm-sync-btn"),
+  osmSyncOutput: document.getElementById("osm-sync-output"),
   statsGrid: document.getElementById("stats-grid"),
   infoModeSelect: document.getElementById("info-mode-select"),
   streetSearchInput: document.getElementById("street-search-input"),
@@ -48,6 +50,18 @@ function normalizeName(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeMonumentKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’`´]/g, "'")
+    .replace(/[-‐‑‒–—]/g, "-")
+    .replace(/\s*-\s*/g, "-")
+    .replace(/\s+/g, " ");
+}
+
 function setGlobalStatus(message, type = "info") {
   if (!refs.globalStatus) {
     return;
@@ -61,6 +75,13 @@ function setGlobalStatus(message, type = "info") {
   } else {
     refs.globalStatus.classList.add("status--info");
   }
+}
+
+function setOsmSyncOutput(message) {
+  if (!refs.osmSyncOutput) {
+    return;
+  }
+  refs.osmSyncOutput.textContent = String(message || "").trim() || "Aucun log disponible.";
 }
 
 function setUiAuthenticated(isAuthenticated) {
@@ -111,29 +132,72 @@ async function apiRequest(path, { method = "GET", body, auth = true } = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
-  const text = await response.text();
-  let payload = null;
-  if (text) {
+  let response = null;
+  let responsePayload = null;
+  let responseText = "";
+  let lastNetworkError = null;
+  for (let index = 0; index < API_BASE_CANDIDATES.length; index += 1) {
+    const base = API_BASE_CANDIDATES[index];
     try {
-      payload = JSON.parse(text);
+      const candidateResponse = await fetch(`${base}${path}`, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+      const candidateText = await candidateResponse.text();
+      let candidatePayload = null;
+      if (candidateText) {
+        try {
+          candidatePayload = JSON.parse(candidateText);
+        } catch (error) {
+          candidatePayload = null;
+        }
+      }
+
+      const contentType = String(candidateResponse.headers.get("content-type") || "").toLowerCase();
+      const isJsonResponse =
+        contentType.includes("application/json") || contentType.includes("+json");
+      const looksLikeHtml = /^\s*</.test(candidateText || "");
+      const canFallback = index < API_BASE_CANDIDATES.length - 1;
+
+      if (candidateResponse.status === 404 || candidateResponse.status === 405) {
+        if (index < API_BASE_CANDIDATES.length - 1) {
+          continue;
+        }
+      }
+
+      if (candidateResponse.ok && !isJsonResponse && (looksLikeHtml || candidatePayload === null) && canFallback) {
+        continue;
+      }
+
+      response = candidateResponse;
+      responsePayload = candidatePayload;
+      responseText = candidateText;
+      break;
     } catch (error) {
-      payload = null;
+      lastNetworkError = error;
+      if (index < API_BASE_CANDIDATES.length - 1) {
+        continue;
+      }
+      throw error;
     }
   }
 
+  if (!response) {
+    throw lastNetworkError || new Error("No API response");
+  }
+
   if (!response.ok) {
-    const error = new Error(payload?.error || `HTTP ${response.status}`);
+    const error = new Error(responsePayload?.error || `HTTP ${response.status}`);
     error.status = response.status;
+    error.payload = responsePayload;
     throw error;
   }
 
-  return payload;
+  if (responsePayload === null && responseText) {
+    throw new Error("API response is not valid JSON");
+  }
+  return responsePayload;
 }
 
 function parseListTextarea(value) {
@@ -196,7 +260,7 @@ function parseMonumentsPayload(values) {
       return;
     }
     const name = String(entry.name || "").trim();
-    const normalizedName = normalizeName(name);
+    const normalizedName = normalizeMonumentKey(name);
     if (!normalizedName || dedup.has(normalizedName)) {
       return;
     }
@@ -232,7 +296,7 @@ function getMonumentsForEditor() {
   const monumentsFromApi = parseMonumentsPayload(state.content?.monuments);
   const monumentsByName = new Map();
   monumentsFromApi.forEach((entry) => {
-    monumentsByName.set(normalizeName(entry.name), entry);
+    monumentsByName.set(normalizeMonumentKey(entry.name), entry);
   });
 
   const orderedRows = [];
@@ -240,7 +304,7 @@ function getMonumentsForEditor() {
     ? state.content.lists.monuments
     : [];
   listNames.forEach((rawName) => {
-    const normalizedName = normalizeName(rawName);
+    const normalizedName = normalizeMonumentKey(rawName);
     if (!normalizedName) {
       return;
     }
@@ -344,7 +408,7 @@ function collectMonumentsFromTable() {
     const latitudeInput = row.querySelector(".monument-latitude-input");
 
     const name = String(nameInput?.value || "").trim();
-    const normalizedName = normalizeName(name);
+    const normalizedName = normalizeMonumentKey(name);
     const rawLongitude = String(longitudeInput?.value || "").trim();
     const rawLatitude = String(latitudeInput?.value || "").trim();
 
@@ -795,6 +859,47 @@ async function onSaveMonuments() {
   }
 }
 
+async function onRunOsmSync() {
+  if (!refs.runOsmSyncBtn) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Lancer la synchronisation OSM maintenant ?\n\nCette operation peut durer 1 a 2 minutes.",
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  refs.runOsmSyncBtn.disabled = true;
+  setGlobalStatus("Synchronisation OSM en cours...", "info");
+  setOsmSyncOutput("Synchronisation OSM en cours...");
+
+  try {
+    const payload = await apiRequest("/api/editor/osm-sync", {
+      method: "POST",
+      body: {},
+    });
+
+    const durationSeconds = Number.isFinite(payload?.durationMs)
+      ? (payload.durationMs / 1000).toFixed(1)
+      : "?";
+    const changedFiles = Array.isArray(payload?.changedFiles) ? payload.changedFiles : [];
+    const changedLabel = changedFiles.length
+      ? `Fichiers modifies: ${changedFiles.join(", ")}`
+      : "Aucun fichier cible n'a change.";
+
+    setGlobalStatus(`Sync OSM terminee en ${durationSeconds}s. ${changedLabel}`, "success");
+    setOsmSyncOutput(payload?.output || "Synchronisation terminee.");
+  } catch (error) {
+    const output = error?.payload?.output || "";
+    setGlobalStatus(`Echec synchronisation OSM: ${error.message}`, "error");
+    setOsmSyncOutput(output || `Erreur: ${error.message}`);
+  } finally {
+    refs.runOsmSyncBtn.disabled = false;
+  }
+}
+
 function bindEvents() {
   refs.loginForm.addEventListener("submit", onLoginSubmit);
   refs.logoutBtn.addEventListener("click", () => {
@@ -832,6 +937,9 @@ function bindEvents() {
     appendMonumentRow();
   });
   refs.saveMonumentsBtn.addEventListener("click", onSaveMonuments);
+  if (refs.runOsmSyncBtn) {
+    refs.runOsmSyncBtn.addEventListener("click", onRunOsmSync);
+  }
 }
 
 bindEvents();

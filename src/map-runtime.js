@@ -274,11 +274,25 @@ export async function loadMonumentsRuntime({
   allowedMonumentNames,
   runtimeMonuments,
 }) {
+  const normalizeMonumentName = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[’`´]/g, "'")
+      .replace(/[-‐‑‒–—]/g, "-")
+      .replace(/\s*-\s*/g, "-")
+      .replace(/\s+/g, " ");
+
   let sourceFeatures = null;
+  const useRuntimeMonuments = Array.isArray(runtimeMonuments);
   if (Array.isArray(runtimeMonuments)) {
     sourceFeatures = runtimeMonuments;
   } else {
-    const response = await fetch("data/marseille_monuments.geojson?v=2");
+    const response = await fetch(`data/marseille_monuments.geojson?v=${Date.now()}`, {
+      cache: "no-store",
+    });
     if (!response.ok) {
       throw new Error(`Impossible de charger les monuments (HTTP ${response.status}).`);
     }
@@ -290,11 +304,11 @@ export async function loadMonumentsRuntime({
     allowedMonumentNames instanceof Set
       ? new Set(
         Array.from(allowedMonumentNames)
-          .map((value) => String(value || "").trim().toLowerCase())
+          .map((value) => normalizeMonumentName(value))
           .filter(Boolean),
       )
       : new Set();
-  const hasMonumentFilter = normalizedAllowedMonumentNames.size > 0;
+  const hasMonumentFilter = !useRuntimeMonuments && normalizedAllowedMonumentNames.size > 0;
   const allMonuments = (sourceFeatures || []).filter(
     (feature) =>
       feature.geometry &&
@@ -303,7 +317,7 @@ export async function loadMonumentsRuntime({
       typeof feature.properties.name === "string" &&
       feature.properties.name.trim() !== "" &&
       (!hasMonumentFilter ||
-        normalizedAllowedMonumentNames.has(feature.properties.name.trim().toLowerCase())),
+        normalizedAllowedMonumentNames.has(normalizeMonumentName(feature.properties.name))),
   );
 
   let monumentsLayer = L.geoJSON(

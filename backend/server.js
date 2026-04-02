@@ -557,6 +557,18 @@ function normalizeContentName(name) {
     return String(name || '').trim().toLowerCase();
 }
 
+function normalizeMonumentLookupName(name) {
+    return String(name || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[’`´]/g, "'")
+        .replace(/[-‐‑‒–—]/g, '-')
+        .replace(/\s*-\s*/g, '-')
+        .replace(/\s+/g, ' ');
+}
+
 function normalizeStreetLookupName(name) {
     return String(name || '')
         .trim()
@@ -606,6 +618,26 @@ function normalizeNameList(rawList, maxEntries = MAX_LIST_ENTRIES) {
     const seen = new Set();
     for (const value of rawList) {
         const normalizedValue = normalizeContentName(value).slice(0, MAX_NAME_LENGTH);
+        if (!normalizedValue || seen.has(normalizedValue)) {
+            continue;
+        }
+        seen.add(normalizedValue);
+        normalized.push(normalizedValue);
+        if (normalized.length >= maxEntries) {
+            break;
+        }
+    }
+    return normalized;
+}
+
+function normalizeMonumentNameList(rawList, maxEntries = MAX_LIST_ENTRIES) {
+    if (!Array.isArray(rawList)) {
+        return [];
+    }
+    const normalized = [];
+    const seen = new Set();
+    for (const value of rawList) {
+        const normalizedValue = normalizeMonumentLookupName(value).slice(0, MAX_NAME_LENGTH);
         if (!normalizedValue || seen.has(normalizedValue)) {
             continue;
         }
@@ -777,7 +809,7 @@ function normalizeMonumentEntries(rawEntries, maxEntries = MAX_MONUMENT_ENTRIES)
     const seen = new Set();
     for (const rawEntry of rawEntries) {
         const displayName = extractMonumentRawName(rawEntry).trim().slice(0, MAX_NAME_LENGTH);
-        const normalizedName = normalizeContentName(displayName).slice(0, MAX_NAME_LENGTH);
+        const normalizedName = normalizeMonumentLookupName(displayName).slice(0, MAX_NAME_LENGTH);
         if (!normalizedName || seen.has(normalizedName)) {
             continue;
         }
@@ -933,9 +965,9 @@ function loadDefaultMonumentEntriesFromGeoJson() {
 function loadDefaultMonumentNamesFromGeoJson() {
     const entries = loadDefaultMonumentEntriesFromGeoJson();
     if (entries.length > 0) {
-        return normalizeNameList(entries.map((entry) => entry.name));
+        return normalizeMonumentNameList(entries.map((entry) => entry.name));
     }
-    return normalizeNameList(Array.from(DEFAULT_MONUMENT_NAMES || []));
+    return normalizeMonumentNameList(Array.from(DEFAULT_MONUMENT_NAMES || []));
 }
 
 const DEFAULT_CONTENT_SNAPSHOT = (() => {
@@ -972,11 +1004,22 @@ async function getEffectiveStreetInfos() {
     return effective;
 }
 
-async function getEffectiveContentLists() {
+async function getEffectiveContentLists({ monumentEntries = null } = {}) {
     const fallback = cloneContentLists(DEFAULT_CONTENT_SNAPSHOT.lists);
     const parsed = parseJsonSetting(await db.getAppSetting(CONTENT_LISTS_SETTING_KEY));
+    const effectiveMonumentEntries = Array.isArray(monumentEntries)
+        ? monumentEntries
+        : await getEffectiveMonumentEntries();
+
+    const normalizedMonumentList = effectiveMonumentEntries.length > 0
+        ? normalizeMonumentNameList(effectiveMonumentEntries.map((entry) => entry.name))
+        : fallback.monuments;
+
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return fallback;
+        return {
+            ...fallback,
+            monuments: normalizedMonumentList,
+        };
     }
 
     const effective = {
@@ -986,9 +1029,8 @@ async function getEffectiveContentLists() {
         mainStreets: Object.prototype.hasOwnProperty.call(parsed, 'mainStreets')
             ? normalizeNameList(parsed.mainStreets)
             : fallback.mainStreets,
-        monuments: Object.prototype.hasOwnProperty.call(parsed, 'monuments')
-            ? normalizeNameList(parsed.monuments)
-            : fallback.monuments,
+        // Monument list follows the saved monument entries so admin edits cannot silently drift.
+        monuments: normalizedMonumentList,
     };
 
     return effective;
@@ -1022,11 +1064,11 @@ function computeContentStats(streetInfos, lists) {
 }
 
 async function getEffectiveContentSnapshot() {
-    const [streetInfos, lists, monuments] = await Promise.all([
+    const [streetInfos, monuments] = await Promise.all([
         getEffectiveStreetInfos(),
-        getEffectiveContentLists(),
         getEffectiveMonumentEntries(),
     ]);
+    const lists = await getEffectiveContentLists({ monumentEntries: monuments });
     return {
         streetInfos,
         lists,
@@ -1410,6 +1452,7 @@ function getStreetListKeyForMode(mode) {
 
 app.get('/api/content/public', asyncHandler(async (req, res) => {
     const snapshot = await getEffectiveContentSnapshot();
+    res.setHeader('Cache-Control', 'no-store');
     return res.json({
         streetInfos: snapshot.streetInfos,
         lists: snapshot.lists,
@@ -1473,6 +1516,7 @@ app.get('/api/editor/me', authenticateToken, asyncHandler(async (req, res) => {
 
 app.get('/api/editor/content', authenticateToken, requireContentEditor, asyncHandler(async (req, res) => {
     const snapshot = await getEffectiveContentSnapshot();
+    res.setHeader('Cache-Control', 'no-store');
     return res.json(snapshot);
 }));
 
@@ -1673,7 +1717,7 @@ app.put('/api/editor/lists', authenticateToken, requireContentEditor, asyncHandl
     const lists = {
         famousStreets: normalizeNameList(req.body.famousStreets),
         mainStreets: normalizeNameList(req.body.mainStreets),
-        monuments: normalizeNameList(req.body.monuments),
+        monuments: normalizeMonumentNameList(req.body.monuments),
     };
 
     const currentMonuments = await getEffectiveMonumentEntries();
@@ -1710,6 +1754,10 @@ app.put('/api/editor/lists', authenticateToken, requireContentEditor, asyncHandl
         );
     }
 
+    // The admin UI edits monument rows, not a separate monument whitelist.
+    // Always realign the list with the effective monument dataset.
+    lists.monuments = normalizeMonumentNameList(currentMonuments.map((entry) => entry.name));
+
     await db.setAppSetting(CONTENT_LISTS_SETTING_KEY, JSON.stringify(lists));
 
     const streetInfos = await getEffectiveStreetInfos();
@@ -1732,7 +1780,7 @@ app.put('/api/editor/monuments', authenticateToken, requireContentEditor, asyncH
     await db.setAppSetting(CONTENT_MONUMENTS_SETTING_KEY, JSON.stringify(serializedMonuments));
 
     const lists = await getEffectiveContentLists();
-    lists.monuments = normalizeNameList(monuments.map((entry) => entry.name));
+    lists.monuments = normalizeMonumentNameList(monuments.map((entry) => entry.name));
     await db.setAppSetting(CONTENT_LISTS_SETTING_KEY, JSON.stringify(lists));
 
     const streetInfos = await getEffectiveStreetInfos();

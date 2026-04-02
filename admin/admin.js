@@ -50,6 +50,18 @@ function normalizeName(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeMonumentKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’`´]/g, "'")
+    .replace(/[-‐‑‒–—]/g, "-")
+    .replace(/\s*-\s*/g, "-")
+    .replace(/\s+/g, " ");
+}
+
 function setGlobalStatus(message, type = "info") {
   if (!refs.globalStatus) {
     return;
@@ -248,7 +260,7 @@ function parseMonumentsPayload(values) {
       return;
     }
     const name = String(entry.name || "").trim();
-    const normalizedName = normalizeName(name);
+    const normalizedName = normalizeMonumentKey(name);
     if (!normalizedName || dedup.has(normalizedName)) {
       return;
     }
@@ -284,7 +296,7 @@ function getMonumentsForEditor() {
   const monumentsFromApi = parseMonumentsPayload(state.content?.monuments);
   const monumentsByName = new Map();
   monumentsFromApi.forEach((entry) => {
-    monumentsByName.set(normalizeName(entry.name), entry);
+    monumentsByName.set(normalizeMonumentKey(entry.name), entry);
   });
 
   const orderedRows = [];
@@ -292,7 +304,7 @@ function getMonumentsForEditor() {
     ? state.content.lists.monuments
     : [];
   listNames.forEach((rawName) => {
-    const normalizedName = normalizeName(rawName);
+    const normalizedName = normalizeMonumentKey(rawName);
     if (!normalizedName) {
       return;
     }
@@ -396,7 +408,7 @@ function collectMonumentsFromTable() {
     const latitudeInput = row.querySelector(".monument-latitude-input");
 
     const name = String(nameInput?.value || "").trim();
-    const normalizedName = normalizeName(name);
+    const normalizedName = normalizeMonumentKey(name);
     const rawLongitude = String(longitudeInput?.value || "").trim();
     const rawLatitude = String(latitudeInput?.value || "").trim();
 

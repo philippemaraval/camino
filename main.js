@@ -2116,11 +2116,15 @@
     allowedMonumentNames,
     runtimeMonuments
   }) {
+    const normalizeMonumentName = (value) => String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[’`´]/g, "'").replace(/[-‐‑‒–—]/g, "-").replace(/\s*-\s*/g, "-").replace(/\s+/g, " ");
     let sourceFeatures = null;
+    const useRuntimeMonuments = Array.isArray(runtimeMonuments);
     if (Array.isArray(runtimeMonuments)) {
       sourceFeatures = runtimeMonuments;
     } else {
-      const response = await fetch("data/marseille_monuments.geojson?v=2");
+      const response = await fetch(`data/marseille_monuments.geojson?v=${Date.now()}`, {
+        cache: "no-store"
+      });
       if (!response.ok) {
         throw new Error(`Impossible de charger les monuments (HTTP ${response.status}).`);
       }
@@ -2128,11 +2132,11 @@
       sourceFeatures = payload.features || [];
     }
     const normalizedAllowedMonumentNames = allowedMonumentNames instanceof Set ? new Set(
-      Array.from(allowedMonumentNames).map((value) => String(value || "").trim().toLowerCase()).filter(Boolean)
+      Array.from(allowedMonumentNames).map((value) => normalizeMonumentName(value)).filter(Boolean)
     ) : /* @__PURE__ */ new Set();
-    const hasMonumentFilter = normalizedAllowedMonumentNames.size > 0;
+    const hasMonumentFilter = !useRuntimeMonuments && normalizedAllowedMonumentNames.size > 0;
     const allMonuments2 = (sourceFeatures || []).filter(
-      (feature) => feature.geometry && feature.geometry.type === "Point" && feature.properties && typeof feature.properties.name === "string" && feature.properties.name.trim() !== "" && (!hasMonumentFilter || normalizedAllowedMonumentNames.has(feature.properties.name.trim().toLowerCase()))
+      (feature) => feature.geometry && feature.geometry.type === "Point" && feature.properties && typeof feature.properties.name === "string" && feature.properties.name.trim() !== "" && (!hasMonumentFilter || normalizedAllowedMonumentNames.has(normalizeMonumentName(feature.properties.name)))
     );
     let monumentsLayer2 = L2.geoJSON(
       { type: "FeatureCollection", features: allMonuments2 },
@@ -4090,7 +4094,9 @@ Essaie de faire mieux sur camino-ajm.pages.dev`,
     }
   }
   async function loadPublicContentFromApi() {
-    const response = await fetch(`${API_URL}/api/content/public`);
+    const response = await fetch(`${API_URL}/api/content/public?v=${Date.now()}`, {
+      cache: "no-store"
+    });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }

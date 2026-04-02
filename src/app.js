@@ -257,7 +257,9 @@ async function loadStreetInfosFromStaticFile() {
 }
 
 async function loadPublicContentFromApi() {
-  const response = await fetch(`${API_URL}/api/content/public`);
+  const response = await fetch(`${API_URL}/api/content/public?v=${Date.now()}`, {
+    cache: "no-store",
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
