@@ -46,7 +46,7 @@ const OVERPASS_QUERY = `
 [out:json][timeout:300];
 area["ref:INSEE"="13055"]->.marseille;
 (
-  nwr["highway"]["name"](area.marseille);
+  nwr["highway"]["highway"!="cycleway"]["name"](area.marseille);
   nwr["place"="square"]["name"](area.marseille);
   nwr["area"="yes"]["name"](area.marseille);
 );
@@ -61,6 +61,7 @@ const OVERPASS_URLS = Array.from(new Set([
     'https://lz4.overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter'
 ].filter(Boolean)));
+const EXCLUDED_HIGHWAY_TYPES = new Set(['cycleway']);
 
 // ── Utilitaires ──
 
@@ -307,7 +308,7 @@ function overpassToGeoJSON(data, quartiers) {
     const rawGeoJSON = osmtogeojson(data);
 
     const features = [];
-    const skipped = { noName: 0, noGeometry: 0, noQuartier: 0, quartierFallback: 0 };
+    const skipped = { noName: 0, noGeometry: 0, noQuartier: 0, quartierFallback: 0, excludedHighway: 0 };
 
     for (const f of rawGeoJSON.features) {
         const properties = f.properties || {};
@@ -323,6 +324,12 @@ function overpassToGeoJSON(data, quartiers) {
         if (!allowedGeometries.includes(f.geometry.type)) {
              skipped.noGeometry++;
              continue;
+        }
+
+        const normalizedHighway = String(properties.highway || '').trim().toLowerCase();
+        if (EXCLUDED_HIGHWAY_TYPES.has(normalizedHighway)) {
+            skipped.excludedHighway++;
+            continue;
         }
 
         const highway = properties.highway || properties.place || 'unknown';
@@ -439,7 +446,7 @@ async function main() {
     console.log('🔄 Conversion en GeoJSON...');
     const { features, skipped } = overpassToGeoJSON(overpassData, quartiers);
     console.log(`   ${features.length} rues avec nom et géométrie.`);
-    console.log(`   Ignorées : ${skipped.noName} sans nom, ${skipped.noGeometry} sans géométrie, ${skipped.noQuartier} sans quartier.`);
+    console.log(`   Ignorées : ${skipped.noName} sans nom, ${skipped.noGeometry} sans géométrie, ${skipped.noQuartier} sans quartier, ${skipped.excludedHighway} cycleways.`);
     console.log(`   Quartier par proximité : ${skipped.quartierFallback}\n`);
 
     // Highway type breakdown
