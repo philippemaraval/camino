@@ -1914,7 +1914,7 @@
     const remoteApiBase = String(apiUrl || "").trim().replace(/\/+$/, "");
     const candidateRequests = [
       {
-        url: "data/marseille_rues_light.geojson",
+        url: "data/marseille_rues_light.geojson?v=12",
         options: {}
       }
     ];
